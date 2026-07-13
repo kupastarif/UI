@@ -1,0 +1,129 @@
+<!--
+/**
+ * =================================================================================
+ * FILE         : /index.html
+ * FILE VERSION : 2.0a-rev0
+ * APP VERSION  : 2.0a-beta
+ */
+-->
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a1f1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>KupasTarif v2.0a-beta</title>
+
+    <script>
+        window.isDevMode = true;
+        window.APP_VERSION = '2.0a-beta';
+        window.SITE_TITLE = 'KupasTarif';
+        window.SITE_DISPLAY = 'Kupas⚡Tarif';
+        window.SITE_ICON = '⚡';
+        window.LANDING_LINK = 'linktr.ee/KUPASTARIF';
+        window.DEFAULT_THEME = 'light';
+
+        if (window.isDevMode) {
+            var CACHE_BUST = Date.now();
+            window.CACHE_BUST = CACHE_BUST;
+            document.write('<link rel="stylesheet" href="assets/css/main.css?v=' + CACHE_BUST + '">');
+            document.write('<link rel="stylesheet" href="assets/css/components.css?v=' + CACHE_BUST + '">');
+            document.write('<link rel="stylesheet" href="assets/css/pages.css?v=' + CACHE_BUST + '">');
+        } else {
+            document.write('<link rel="stylesheet" href="assets/css/main.css">');
+            document.write('<link rel="stylesheet" href="assets/css/components.css">');
+            document.write('<link rel="stylesheet" href="assets/css/pages.css">');
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="loading-screen" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: #0a1f1a; display: flex; align-items: center; justify-content: center; z-index: 10001; transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; width: 85%; max-width: 300px; padding: 20px 0;">
+            <div style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #00a86b; text-align: center;">Kupas⚡Tarif</div>
+
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 4px 0;">
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.15s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.3s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.45s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.6s infinite;"></div>
+            </div>
+
+            <div style="width: 100%; height: 3px; background-color: #1a3a2e; border-radius: 9999px; overflow: hidden;">
+                <div id="loading-progress-bar" style="height: 100%; width: 0%; background-color: #00a86b; border-radius: 9999px; transition: width 0.1s linear;"></div>
+            </div>
+
+            <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
+
+            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0a-beta</div>
+
+            <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes loading-wave {
+            0%, 60%, 100% { transform: scaleY(1); }
+            30% { transform: scaleY(2); }
+        }
+    </style>
+
+    <div id="app" class="app-container hidden">
+        <header id="app-header" class="app-header"></header>
+        <main id="app-content" class="app-content"></main>
+        <footer id="app-footer" class="app-footer"></footer>
+    </div>
+
+    <div id="drawer-container"></div>
+    <div id="popup-container"></div>
+    <div id="toast-container" class="toast-container"></div>
+
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        if (window.isDevMode && window.CACHE_BUST) {
+            document.write('<script src="js/core/init.js?v=' + window.CACHE_BUST + '"><\/script>');
+        } else {
+            document.write('<script src="js/core/init.js"><\/script>');
+        }
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            var LOADING_TEXTS = [
+                "Demi sistem, driver bisa terus bekerja...",
+                "Atas nama sistem yang maha benar!",
+                "Menyiapkan mesin yang bijaksana...",
+                "Sekarang keliatan, besok diumpetin sistem.",
+                "Murahnya kebagian semua.. kecuali sistem!",
+                "Tidak ada yg lebih penting selain ketidaktahuan penumpang!"
+            ];
+
+            var randomIndex = Math.floor(Math.random() * LOADING_TEXTS.length);
+            var loadingTextElement = document.getElementById('loading-text');
+            if (loadingTextElement) {
+                loadingTextElement.textContent = LOADING_TEXTS[randomIndex];
+            }
+
+            var reloadButton = document.getElementById('loading-reload-button');
+            if (reloadButton) {
+                reloadButton.addEventListener('click', function() {
+                    window.location.reload(true);
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
+<!-- // ================================ End Of File ================================ -->
