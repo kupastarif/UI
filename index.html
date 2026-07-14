@@ -4,6 +4,16 @@
  * FILE         : /index.html
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Entry point aplikasi. Menampilkan loading screen dengan animasi wave,
+ *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
+ *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
+ *
+ * =================================================================================
  */
 -->
 <!DOCTYPE html>
@@ -17,8 +27,12 @@
 
     <title>KupasTarif v2.0a-beta</title>
 
+    <!-- =================================================================
+         KONFIGURASI GLOBAL & CACHE BUST (SINGLE SOURCE OF TRUTH)
+         ================================================================= -->
     <script>
-        window.isDevMode = true;
+        // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
+        window.isDevMode = true;            // false untuk production
         window.APP_VERSION = '2.0a-beta';
         window.SITE_TITLE = 'KupasTarif';
         window.SITE_DISPLAY = 'Kupas⚡Tarif';
@@ -26,28 +40,46 @@
         window.LANDING_LINK = 'linktr.ee/KUPASTARIF';
         window.DEFAULT_THEME = 'light';
 
+        // ---------- CACHE BUST HANYA SAAT DEV MODE ----------
         if (window.isDevMode) {
             var CACHE_BUST = Date.now();
-            window.CACHE_BUST = CACHE_BUST;
+            window.CACHE_BUST = CACHE_BUST;   // ekspor agar init.js bisa membaca
             document.write('<link rel="stylesheet" href="assets/css/main.css?v=' + CACHE_BUST + '">');
             document.write('<link rel="stylesheet" href="assets/css/components.css?v=' + CACHE_BUST + '">');
             document.write('<link rel="stylesheet" href="assets/css/pages.css?v=' + CACHE_BUST + '">');
         } else {
+            // Tanpa cache bust (production)
             document.write('<link rel="stylesheet" href="assets/css/main.css">');
             document.write('<link rel="stylesheet" href="assets/css/components.css">');
             document.write('<link rel="stylesheet" href="assets/css/pages.css">');
         }
     </script>
 
+    <!-- Font Inter (eksternal, tidak perlu cache bust) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!--
+        =================================================================
+        LOADING SCREEN (AWAL APLIKASI)
+        =================================================================
+        Tema: DARK HIJAU (hardcoded, tidak terpengaruh tema aplikasi)
+        Background: #0a1f1a (hijau sangat gelap)
+        Text: #f8fafc (slate-50)
+        Primary: #00a86b (hijau jade)
+        Progress Background: #1a3a2e
+        Sub Text: #94a3b8
+        Muted Text: #64748b
+    -->
     <div id="loading-screen" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: #0a1f1a; display: flex; align-items: center; justify-content: center; z-index: 10001; transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);">
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; width: 85%; max-width: 300px; padding: 20px 0;">
+
+            <!-- Logo -->
             <div style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #00a86b; text-align: center;">Kupas⚡Tarif</div>
 
+            <!-- Wave Animation (5 batang) -->
             <div style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 4px 0;">
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out infinite;"></div>
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.15s infinite;"></div>
@@ -56,18 +88,23 @@
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.6s infinite;"></div>
             </div>
 
+            <!-- Progress Bar -->
             <div style="width: 100%; height: 3px; background-color: #1a3a2e; border-radius: 9999px; overflow: hidden;">
                 <div id="loading-progress-bar" style="height: 100%; width: 0%; background-color: #00a86b; border-radius: 9999px; transition: width 0.1s linear;"></div>
             </div>
 
+            <!-- Loading Text (random, hardcoded) -->
             <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
 
+            <!-- Version -->
             <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0a-beta</div>
 
+            <!-- Reload Button (hidden by default) -->
             <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
         </div>
     </div>
 
+    <!-- Wave Animation Keyframes -->
     <style>
         @keyframes loading-wave {
             0%, 60%, 100% { transform: scaleY(1); }
@@ -75,20 +112,41 @@
         }
     </style>
 
+    <!--
+        =================================================================
+        APP CONTAINER
+        =================================================================
+    -->
     <div id="app" class="app-container hidden">
         <header id="app-header" class="app-header"></header>
         <main id="app-content" class="app-content"></main>
         <footer id="app-footer" class="app-footer"></footer>
     </div>
 
+    <!--
+        =================================================================
+        PORTAL CONTAINERS
+        =================================================================
+    -->
     <div id="drawer-container"></div>
     <div id="popup-container"></div>
     <div id="toast-container" class="toast-container"></div>
 
+    <!--
+        =================================================================
+        LOADING OVERLAY (NAVIGASI GLOBAL)
+        =================================================================
+        Tema: MENGIKUTI tema aplikasi (light/dark)
+    -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
     </div>
 
+    <!--
+        =================================================================
+        LOADER SCRIPT (init.js dengan cache bust hanya saat dev mode)
+        =================================================================
+    -->
     <script>
         if (window.isDevMode && window.CACHE_BUST) {
             document.write('<script src="js/core/init.js?v=' + window.CACHE_BUST + '"><\/script>');
@@ -97,10 +155,16 @@
         }
     </script>
 
+    <!--
+        =================================================================
+        INLINE: LOADING TEXT (SSOT - HARDCODED, DALAM IIFE)
+        =================================================================
+    -->
     <script>
         (function() {
             'use strict';
 
+            // DAFTAR TEKS LOADING (6 item) - SSOT HANYA DI SINI
             var LOADING_TEXTS = [
                 "Demi sistem, driver bisa terus bekerja...",
                 "Atas nama sistem yang maha benar!",
@@ -110,12 +174,14 @@
                 "Tidak ada yg lebih penting selain ketidaktahuan penumpang!"
             ];
 
+            // Pilih teks acak
             var randomIndex = Math.floor(Math.random() * LOADING_TEXTS.length);
             var loadingTextElement = document.getElementById('loading-text');
             if (loadingTextElement) {
                 loadingTextElement.textContent = LOADING_TEXTS[randomIndex];
             }
 
+            // Reload button
             var reloadButton = document.getElementById('loading-reload-button');
             if (reloadButton) {
                 reloadButton.addEventListener('click', function() {
@@ -126,4 +192,13 @@
     </script>
 </body>
 </html>
-<!-- // ================================ End Of File ================================ -->
+<!-- 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Update APP_VERSION ke 2.0a-beta, hapus cacheMode,
+//             sesuaikan versi di loading screen dan title.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
+// ================================ End Of File ================================ 
+-->
