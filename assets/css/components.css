@@ -3,7 +3,20 @@
  * FILE: assets/css/components.css
  * FILE VERSION: 6.6a-initial
  * APP VERSION: 6.6a
+ * DATE: 2026-06-12
+ *
+ * @author: kie
+ *
+ * DESKRIPSI:
+ *   Styling untuk komponen dasar yang dapat digunakan kembali (reusable
+ *   components) dan animasi keyframes.
+ *
+ * =================================================================================
  */
+
+/* ============================================== */
+/* 1. ANIMASI KEYFRAMES                           */
+/* ============================================== */
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -45,6 +58,7 @@
 .blink-medium { animation: blink-medium 0.8s infinite; }
 .blink-slow { animation: blink-slow 1.2s infinite; }
 
+/* Toast: muncul dari center bottom (hanya animasi vertikal) */
 @keyframes toastIn {
     0% { transform: translateY(100%); opacity: 0; }
     100% { transform: translateY(0); opacity: 1; }
@@ -80,6 +94,10 @@
     100% { opacity: 0; }
 }
 
+/* ============================================== */
+/* 2. LOADING OVERLAY GLOBAL                       */
+/* ============================================== */
+
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -111,6 +129,10 @@
 #loading-text.loading-text-error {
     color: var(--danger);
 }
+
+/* ============================================== */
+/* 3. KOMPONEN DASAR - BUTTON                      */
+/* ============================================== */
 
 .btn {
     display: inline-flex;
@@ -240,10 +262,14 @@
     border-color: var(--border);
 }
 
+/* ============================================== */
+/* 4. KOMPONEN DASAR - INPUT                       */
+/* ============================================== */
+
 .input-wrapper {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-between; /* label di kiri, container input di kanan */
     gap: var(--space-sm);
     padding: 0;
     margin-bottom: var(--space-sm);
@@ -263,16 +289,19 @@
     color: var(--text-secondary);
     padding: var(--space-xs) 0;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 0; /* label tidak mengecil */
 }
 
+/* Semua container input (termasuk select) memiliki lebar yang SAMA dan merapat ke kanan */
 .input-field-container {
-    width: 200px;
-    flex-shrink: 0;
+    width: 200px;           /* lebar tetap seragam, sesuaikan kebutuhan */
+    flex-shrink: 0;         /* jangan mengecil */
+    /* atau gunakan min-width + max-width */
     min-width: 160px;
     max-width: 240px;
 }
 
+/* Pastikan input dan select memenuhi container */
 .input-field,
 .input-select {
     width: 100%;
@@ -408,6 +437,10 @@
     opacity: 0.9;
 }
 
+/* ============================================== */
+/* 5. KOMPONEN DASAR - CARD                        */
+/* ============================================== */
+
 .card {
     background-color: var(--bg-card);
     border: 1px solid var(--border);
@@ -460,6 +493,10 @@
     border-top: 1px solid var(--border);
 }
 
+/* ============================================== */
+/* 6. SPACER & DIVIDER                            */
+/* ============================================== */
+
 .spacer {
     height: var(--space-md);
     width: 100%;
@@ -482,6 +519,10 @@
 .divider-light {
     background-color: var(--border-light);
 }
+
+/* ============================================== */
+/* 7. KOMPONEN DASAR - BADGE                       */
+/* ============================================== */
 
 .badge {
     display: inline-flex;
@@ -564,6 +605,10 @@
     color: var(--warning-light);
 }
 
+/* ============================================== */
+/* 8. KOMPONEN GLOBAL - TOAST (TENGAH BAWAH)      */
+/* ============================================== */
+
 .toast-container {
     position: fixed;
     bottom: calc(48px + env(safe-area-inset-bottom) + var(--space-md));
@@ -613,10 +658,15 @@
     color: white;
 }
 
+/* Warna background sesuai tipe */
 .toast-success { background-color: var(--success); }
 .toast-error { background-color: var(--danger); }
 .toast-warning { background-color: var(--warning); }
 .toast-info { background-color: var(--info); }
+
+/* ============================================== */
+/* 9. KOMPONEN GLOBAL - POPUP                      */
+/* ============================================== */
 
 .popup-overlay {
     position: fixed;
@@ -701,6 +751,10 @@
 .popup-footer .btn {
     flex: 1;
 }
+
+/* ============================================== */
+/* 10. KOMPONEN GLOBAL - DRAWER                    */
+/* ============================================== */
 
 .drawer-overlay {
     position: fixed;
@@ -843,6 +897,10 @@
     line-height: 1;
 }
 
+/* ============================================== */
+/* 11. KOMPONEN GLOBAL - HEADER                    */
+/* ============================================== */
+
 .header-default {
     display: flex;
     align-items: center;
@@ -890,12 +948,14 @@
     color: var(--text-primary);
 }
 
+/* v6.4a: Random icon di header */
 .header-random-icon {
     cursor: pointer;
     margin-left: var(--space-xs);
     font-size: var(--text-xl);
 }
 
+/* Header Step */
 .header-step {
     display: flex;
     align-items: center;
@@ -965,6 +1025,7 @@
     background-color: var(--text-muted);
 }
 
+/* Header Landing */
 .header-landing {
     display: flex;
     align-items: center;
@@ -979,6 +1040,10 @@
     color: var(--text-primary);
     padding: var(--space-xs) var(--space-md);
 }
+
+/* ============================================== */
+/* 12. KOMPONEN GLOBAL - FOOTER                    */
+/* ============================================== */
 
 .footer {
     display: flex;
@@ -1089,6 +1154,10 @@
 .footer-layout-c .footer-frame:nth-child(2) { justify-content: flex-start; }
 .footer-layout-c .footer-frame:nth-child(3) { justify-content: flex-end; }
 
+/* ============================================== */
+/* 13. TOGGLE SWITCH MANDIRI (KAPSUL)             */
+/* ============================================== */
+
 .toggle {
     display: inline-flex;
     cursor: pointer;
@@ -1134,6 +1203,10 @@
 
 .switch { display: none; }
 label.switch { display: none; }
+
+/* ============================================== */
+/* 14. MAP CONTROLS & MARKER                      */
+/* ============================================== */
 
 .map-container,
 .tracking-map-wrapper {
@@ -1276,6 +1349,7 @@ label.switch { display: none; }
     color: var(--text-muted) !important;
 }
 
+/* v6.4a: Map placeholder dengan class */
 .map-placeholder {
     display: flex;
     flex-direction: column;
@@ -1304,6 +1378,7 @@ label.switch { display: none; }
     color: var(--text-muted);
 }
 
+/* v6.4a: Marker user tanpa background */
 .marker-user-icon {
     width: 36px;
     height: 36px;
@@ -1321,14 +1396,25 @@ label.switch { display: none; }
     filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.2));
 }
 
-.marker-user-driver {}
+.marker-user-driver {
+    /* tanpa background */
+}
 
-.marker-user-passenger {}
+.marker-user-passenger {
+    /* tanpa background */
+}
 
-.marker-user-operational {}
+.marker-user-operational {
+    /* tanpa background */
+}
 
 .leaflet-center-control { z-index: 10 !important; }
 
+/* ============================================== */
+/* 15. PENDAPATAN SUB ROW (REPORT)                */
+/* ============================================== */
+
+/* v6.4a: Baris "Kesejahteraan Driver Tapi Aplikasi" menjorok ke dalam */
 .pendapatan-sub-row {
     display: flex;
     justify-content: flex-start;
@@ -1350,31 +1436,46 @@ label.switch { display: none; }
     margin-left: var(--space-xs);
 }
 
+/* ==========================================================================
+   TOMBOL CENTER – Mobile‑friendly (tanpa hover)
+   ========================================================================== */
+
 .map-center-btn,
 .leaflet-container .map-center-btn {
+    /* posisi */
     position: absolute;
     bottom: 12px;
     right: 12px;
     z-index: 1000;
+
+    /* reset tampilan */
     background: transparent;
     border: none;
     outline: none;
     box-shadow: none;
     padding: 0;
     margin: 0;
+
+    /* ukuran & ikon */
     width: 36px;
     height: 36px;
     font-size: 28px;
     line-height: 1;
-    color: inherit;
-    text-shadow: 0 0 4px rgba(0,0,0,0.5);
+    color: inherit;                      /* ikut warna teks sekitar */
+    text-shadow: 0 0 4px rgba(0,0,0,0.5); /* bayangan halus agar terbaca di peta */
+
+    /* flex center */
     display: flex;
     align-items: center;
     justify-content: center;
+
+    /* interaksi */
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+
+    /* animasi sentuhan */
     transition: transform 0.1s ease;
 }
 
@@ -1382,18 +1483,23 @@ label.switch { display: none; }
     transform: scale(0.85);
 }
 
+
+/* ============================================== */
+/* 16. SLIDE ACTION (FOOTER SLIDER)               */
+/* ============================================== */
+
 .slide-action {
     position: relative;
     width: 100%;
     height: 44px;
-    margin: 2px 0;
+    margin: 2px 0;               /* sentralkan dalam footer 48px */
     background-color: var(--bg-muted);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none;
+    touch-action: none;          /* cegah scroll saat geser */
     cursor: default;
 }
 
@@ -1421,18 +1527,20 @@ label.switch { display: none; }
 }
 
 .slide-track-icon {
-    font-size: var(--text-lg);
+    font-size: var(--text-lg);   /* ikon dari getIcon */
     line-height: 1;
 }
 
-.slide-track-label {}
+.slide-track-label {
+    /* opsional, bisa diberi style tambahan */
+}
 
 .slide-thumb {
     position: absolute;
     top: 3px;
     bottom: 3px;
     left: 3px;
-    width: 38px;
+    width: 38px;                 /* total area sentuh 44px (3+38+3) */
     border-radius: 50%;
     background-color: var(--primary);
     color: white;
@@ -1443,12 +1551,18 @@ label.switch { display: none; }
     z-index: 2;
     box-shadow: var(--shadow-sm);
     cursor: grab;
-    transition: none;
+    transition: none;            /* transisi hanya dipasang via JS saat animasi */
 }
 
 .slide-thumb--dragging {
     cursor: grabbing;
 }
+
+/* Dark mode otomatis karena variabel */
+
+/* ============================================== */
+/* 17. LOCATION PICKER (picker.js)                */
+/* ============================================== */
 
 .lp-input-box {
     display: flex;
@@ -1567,9 +1681,12 @@ label.switch { display: none; }
     flex: 1;
 }
 
+/* ==========================================================================
+   TOMBOL WARNING PETA (v6.7a)
+   ========================================================================== */
 .map-warning-btn {
     position: absolute;
-    bottom: 60px;
+    bottom: 60px;          /* di atas tombol center (12px) */
     right: 12px;
     z-index: 10;
     width: 36px;
@@ -1588,8 +1705,20 @@ label.switch { display: none; }
     user-select: none;
     transition: transform 0.1s ease;
 }
-
 .map-warning-btn:active {
     transform: scale(0.85);
 }
-// ================================ End Of File ================================
+
+/** =============================================================================
+ * 
+ * PERUBAHAN
+ * =============================================================================
+ * 
+ * PERUBAHAN v6.6a (dari v6.5d):
+ *   - Update versi file, header.
+ *   - Slide button
+ * 
+ * =============================================================================
+ * 
+ * ================================ End Of File ================================
+ */
