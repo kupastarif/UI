@@ -1,12 +1,32 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/about.js
- * FILE VERSION : 2.0a-rev2
+ * FILE VERSION : 2.0a-rev3
  * APP VERSION  : 2.0a-beta
+ * DATE         : 14 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Tentang – Menampilkan informasi tentang aplikasi KupasTarif.
+ *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
+ *
+ *   Mulai rev2, seluruh ikon didefinisikan dalam ICON dan tidak ada
+ *   lagi ikon yang ditulis langsung (inline). Setiap file menjadi
+ *   sumber kebenaran tunggal untuk ikon yang digunakan.
+ *   Mulai rev3, konten detail (sebelumnya dari docs/about.html) digabung
+ *   langsung ke dalam file ini. Tidak ada lagi dependensi fetch eksternal.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
-const F_V = '2.0a-rev2';
+// ==================== VERSI FILE ====================
+const F_V = '2.0a-rev3';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -14,15 +34,22 @@ import { HeaderManager } from '../components/header.js';
 import { FooterManager } from '../components/footer.js';
 import { DrawerManager } from '../components/drawer.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     BACK: '◀',
     MENU: '☰',
     HOME: '🏠',
-    ELECTRIC: '⚡'
+    ELECTRIC: '⚡'       // Baru: ikon petir untuk brand/logo
 };
 
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
+
 let isDestroyed = false;
-let detailHTML = null;
 let currentHeader = null;
 
 const OVERVIEW_HTML = `<div class="about-overview">
@@ -35,27 +62,157 @@ const OVERVIEW_HTML = `<div class="about-overview">
     <p class="text-muted text-sm text-center">Dibuat dengan ${ICON.ELECTRIC} oleh tim KupasTarif</p>
 </div>`;
 
-async function loadDetail() {
-    if (detailHTML !== null) return detailHTML;
-    try {
-        const base = window.APP_FULL_BASE || '';
-        const url = window.cacheBust ? window.cacheBust(base + 'docs/about.html') : (base + 'docs/about.html');
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Gagal memuat detail');
-        detailHTML = await response.text();
-        return detailHTML;
-    } catch (error) {
-        window.log.error('[About ' + F_V + '] (1) Gagal load detail:', error);
-        return '<div class="text-center text-danger"><p>Gagal memuat konten lengkap.</p><p class="text-sm text-muted mt-sm">' + error.message + '</p></div>';
+// Konten detail (sebelumnya dari docs/about.html)
+const DETAIL_HTML = `
+<style>
+    .about-container {
+        font-family: var(--font-family, 'Inter', sans-serif);
+        line-height: 1.7;
+        color: var(--text-primary, #0f172a);
+        max-width: 100%;
+        margin: 0 auto;
+        padding: var(--space-md, 12px) 0;
     }
-}
+    .about-container h1 {
+        font-size: var(--text-xl, 1.0625rem);
+        font-weight: var(--font-bold, 700);
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border, #e2e8f0);
+        padding-bottom: var(--space-sm, 8px);
+        margin-bottom: var(--space-md, 12px);
+    }
+    .about-container h2 {
+        font-size: var(--text-base, 0.8125rem);
+        font-weight: var(--font-semibold, 600);
+        color: var(--text-primary);
+        margin-top: var(--space-lg, 16px);
+        margin-bottom: var(--space-xs, 4px);
+    }
+    .about-container p {
+        font-size: var(--text-sm, 0.75rem);
+        color: var(--text-secondary, #475569);
+        margin-bottom: var(--space-sm, 8px);
+    }
+    .about-container ul {
+        list-style: none;
+        padding-left: 0;
+        margin: var(--space-sm, 8px) 0 var(--space-md, 12px);
+    }
+    .about-container li {
+        position: relative;
+        padding-left: 24px;
+        margin-bottom: var(--space-sm, 8px);
+        font-size: var(--text-sm, 0.75rem);
+        color: var(--text-secondary);
+    }
+    .about-container li::before {
+        content: '⚡';
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-size: var(--text-sm, 0.75rem);
+        color: var(--primary, #0d7c4a);
+    }
+    .about-highlight {
+        background-color: var(--bg-muted, #f1f5f9);
+        border-left: 3px solid var(--primary, #0d7c4a);
+        padding: var(--space-sm, 8px) var(--space-md, 12px);
+        border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+        margin: var(--space-md, 12px) 0;
+    }
+    .about-highlight p {
+        margin: 0;
+        font-weight: var(--font-medium, 500);
+        color: var(--text-primary);
+        font-size: var(--text-sm, 0.75rem);
+    }
+    .about-version {
+        font-size: var(--text-xs, 0.625rem);
+        color: var(--text-muted, #94a3b8);
+        margin-top: var(--space-xl, 20px);
+        padding-top: var(--space-sm, 8px);
+        border-top: 1px solid var(--border, #e2e8f0);
+        text-align: center;
+        font-style: italic;
+    }
+    .about-container a {
+        color: var(--primary, #0d7c4a);
+    }
+</style>
+<div class="about-container">
+    <h1>⚡ KupasTarif</h1>
+    <p><strong>Kalkulator tarif ojek online yang transparan</strong></p>
+    
+    <div class="about-highlight">
+        <p>KupasTarif adalah aplikasi yang membantu driver dan penumpang memahami rincian biaya perjalanan secara transparan. Semua perhitungan menggunakan rumus yang akurat berdasarkan data resmi.</p>
+    </div>
+    
+    <h2>🎯 Misi Kami</h2>
+    <p>Memberikan transparansi penuh dalam perhitungan tarif ojek online, sehingga:</p>
+    <ul>
+        <li><strong>Driver</strong> dapat mengetahui pendapatan bersih setelah dipotong komisi dan biaya operasional.</li>
+        <li><strong>Penumpang</strong> dapat melihat rincian tarif yang dibayarkan.</li>
+    </ul>
+    
+    <h2>🔧 Fitur Utama</h2>
+    <ul>
+        <li><strong>Kalkulator Estimasi:</strong> Hitung perkiraan tarif sebelum order.</li>
+        <li><strong>GPS Tracking:</strong> Rekam perjalanan real-time dengan akurasi tinggi.</li>
+        <li><strong>Struk Digital:</strong> Simpan dan bagikan rincian perjalanan.</li>
+        <li><strong>Laporan Analitik:</strong> 7 kartu informasi lengkap.</li>
+        <li><strong>Riwayat Perjalanan:</strong> Simpan hingga 50 riwayat.</li>
+        <li><strong>Mode Offline:</strong> Transaksi langsung tanpa potongan aplikasi.</li>
+    </ul>
+    
+    <h2>📊 Sumber Data</h2>
+    <p>Semua perhitungan berdasarkan:</p>
+    <ul>
+        <li>Tarif resmi dari aplikasi ojek online</li>
+        <li>Data BBM (Pertalite/Bio Solar)</li>
+        <li>Biaya perawatan kendaraan standar</li>
+        <li>Pajak dan atribut kendaraan</li>
+        <li>UMR regional (Jabodetabek, Sumatra-Jawa, Timur)</li>
+    </ul>
+    
+    <h2>🔒 Privasi & Keamanan</h2>
+    <ul>
+        <li>Semua data disimpan di perangkat Anda (LocalStorage).</li>
+        <li>Data sensitif (nama, plat, telepon) dienkripsi.</li>
+        <li>Tidak mengirim data ke server manapun.</li>
+        <li>Tidak menggunakan akun atau login.</li>
+        <li>Tidak ada iklan.</li>
+    </ul>
+    
+    <h2>👨‍💻 Tim Pengembang</h2>
+    <p>KupasTarif dikembangkan secara independen oleh tim yang peduli dengan transparansi dan kesejahteraan driver ojek online.</p>
+    
+    <h2>📱 Kontak & Informasi</h2>
+    <ul>
+        <li>Website: <a href="#">kupastarif.example.com</a></li>
+        <li>Linktree: <a href="#">linktr.ee/kupastarif</a></li>
+    </ul>
+    
+    <div class="about-version">
+        Versi App: ${window.APP_CONFIG?.version || '2.0a-beta'} | Engine: v${window.Engine?.ENGINE_VERSION || '1.0.0-beta'}<br>
+        © 2026 KupasTarif
+    </div>
+</div>`;
+
+// =============================================================================
+// 2. BUILD HTML
+// =============================================================================
 
 function buildHTML(isTldr) {
     if (isTldr) {
-        return `<div class="page-container"><div class="card"><div id="about-content" class="about-content"><div class="text-center p-lg"><div class="spinner"></div><p class="text-muted mt-md">Memuat...</p></div></div></div></div>`;
+        // Langsung tampilkan konten detail, tanpa spinner
+        return `<div class="page-container"><div class="card"><div id="about-content" class="about-content">${DETAIL_HTML}</div></div></div>`;
     }
     return `<div class="page-container"><div class="card"><div id="about-content" class="about-content">${OVERVIEW_HTML}</div><div class="about-footer mt-lg text-center"><button id="tldr-btn" class="btn btn-outline">TLDR yes or no?</button></div></div></div>`;
 }
+
+// =============================================================================
+// 3. BIND EVENTS
+// =============================================================================
 
 function bindEvents(isTldr) {
     const tldrBtn = document.getElementById('tldr-btn');
@@ -67,12 +224,20 @@ function bindEvents(isTldr) {
     }
 }
 
+// =============================================================================
+// 4. REGISTRASI DRAWER
+// =============================================================================
+
 DrawerManager.register('about', () => ({
     menuItems: null,
     onItemClick: (page) => {
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 5. HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const container = document.getElementById('app-header');
@@ -119,30 +284,21 @@ function updateFooter(isTldr) {
     }
 }
 
-async function render(params, context = {}) {
+// =============================================================================
+// 6. RENDER & DESTROY
+// =============================================================================
+
+function render(params, context = {}) {
     const content = document.getElementById('app-content');
     if (!content) return;
     isDestroyed = false;
 
     const isTldr = params?.tldr === true;
 
-    if (isTldr) {
-        content.innerHTML = buildHTML(true);
-        bindEvents(true);
-        updateHeader();
-        updateFooter(true);
-
-        const detail = await loadDetail();
-        if (!isDestroyed) {
-            const aboutContent = document.getElementById('about-content');
-            if (aboutContent) aboutContent.innerHTML = detail;
-        }
-    } else {
-        content.innerHTML = buildHTML(false);
-        bindEvents(false);
-        updateHeader();
-        updateFooter(false);
-    }
+    content.innerHTML = buildHTML(isTldr);
+    bindEvents(isTldr);
+    updateHeader();
+    updateFooter(isTldr);
 
     window.log.info('[About ' + F_V + '] (2) About dirender | tldr=' + isTldr);
 }
@@ -151,6 +307,10 @@ function destroy() {
     isDestroyed = true;
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
+
+// =============================================================================
+// 7. EKSPOR
+// =============================================================================
 
 export const PageAbout = {
     render,
@@ -164,4 +324,20 @@ export const PageAbouttldr = {
 
 window.log.info('[About ' + F_V + '] (3) PageAbout & PageAbouttldr dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan,
+//             versi Engine di OVERVIEW_HTML diperbarui ke 1.0.0‑beta.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.BACK, ICON.MENU, ICON.HOME). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+// 2.0a-rev2 : Hapus ikon inline (⚡) di OVERVIEW_HTML, tambahkan ICON.ELECTRIC,
+//             gunakan ICON.ELECTRIC sebagai fallback siteIcon dan di teks footer.
+// 2.0a-rev3 : Gabungkan konten docs/about.html ke dalam file ini. Hapus fungsi
+//             loadDetail() dan fetch eksternal. Konten detail kini disimpan
+//             sebagai konstanta DETAIL_HTML. Render TLDR langsung menampilkan
+//             konten tanpa spinner.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
