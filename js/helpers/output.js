@@ -3,15 +3,43 @@
  * FILE         : /js/helpers/output.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Satu‑satunya modul yang mengakses data statis Engine (Engine.Valid, Engine.Fare,
+ *   Engine.Cost, Engine.Extra, DATA). Menyediakan:
+ *   1. Wrapper Engine Statis – validasi, dropdown, konstanta, opsi layanan, dll.
+ *   2. Badge & Warna – untuk tampilan visual di halaman Order/Tracking.
+ *   3. Copy & Template – format teks untuk clipboard (estimasi, hasil, custom template).
+ *   4. Rute & KML – encode/decode data rute, generate/parse KML.
+ *   5. Perhitungan Maintenance – progress perawatan, pajak, atribut, depresiasi.
+ *
+ *   Mulai rev1, ikon yang digunakan didefinisikan secara lokal, tidak lagi
+ *   bergantung pada icon registry terpusat di texts.js.
+ *
+ * NOTES        :
+ *   - Hanya Output dan Cache yang boleh mengakses Engine; UI wajib melalui Output
+ *     untuk data statis, dan melalui Cache untuk orkestrasi.
+ *   - Semua fungsi bersifat pure, kecuali yang membaca DATA (read‑only).
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import {
     formatRupiah, formatKm, formatMenit, formatPersen,
     getAreaLabel, escapeXml
 } from './format.js';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
+// =============================================================================
 
 const ICON = {
     UP_ARROW: '🔺',
@@ -20,10 +48,19 @@ const ICON = {
     WARNING: '⚠'
 };
 
+// =============================================================================
+// 1. WRAPPER ENGINE STATIS (Valid, Fare, Cost, DATA)
+// =============================================================================
+
+/**
+ * Mendapatkan nilai default seluruh input dari Engine.Valid.
+ * @returns {Object} objek dengan properti E10..E104
+ */
 export function getDefaultValues() {
     if (window.Engine?.Valid?.getDefaultValues) {
         return window.Engine.Valid.getDefaultValues();
     }
+    // Fallback aman
     return {
         E10: 'Mobil', E12: 'Driver', E20: 'Jabodetabek', E22: '1000cc',
         E24: 'Pertalite', E26: 'manual', E28: 'individu',
@@ -34,6 +71,9 @@ export function getDefaultValues() {
     };
 }
 
+/**
+ * Mendapatkan opsi dropdown untuk cell tertentu.
+ */
 export function getDropdownOptions(cell, context) {
     if (window.Engine?.Valid?.getDropdownOptions) {
         return window.Engine.Valid.getDropdownOptions(cell, context);
@@ -41,14 +81,21 @@ export function getDropdownOptions(cell, context) {
     return [];
 }
 
+/**
+ * Mendapatkan opsi layanan (E46) berdasarkan mode dan cc.
+ */
 export function getServiceOptions(mode, cc) {
     if (window.Engine?.Valid?.getServiceOptions) {
         return window.Engine.Valid.getServiceOptions(mode, cc);
     }
+    // Fallback
     if (mode === 'Motor') return ['Hemat', 'Standar', 'Prioritas'];
     return ['Hemat', 'Standar', 'XL', 'Prioritas', 'Premium', 'Premium XL'];
 }
 
+/**
+ * Mendapatkan range validasi untuk cell tertentu.
+ */
 export function getValidationRange(cell, context) {
     if (window.Engine?.Valid?.getValidationRange) {
         return window.Engine.Valid.getValidationRange(cell, context);
@@ -56,6 +103,9 @@ export function getValidationRange(cell, context) {
     return { min: 0, max: Number.MAX_SAFE_INTEGER, default: 0 };
 }
 
+/**
+ * Memvalidasi satu cell. Menggunakan Engine.Valid.validateCell.
+ */
 export function validateCell(cell, value, context) {
     if (window.Engine?.Valid?.validateCell) {
         return window.Engine.Valid.validateCell(cell, value, context);
@@ -63,6 +113,11 @@ export function validateCell(cell, value, context) {
     return value;
 }
 
+/**
+ * Mendapatkan konstanta dari DATA.
+ * @param {string} cell - nama sel, contoh 'E116'
+ * @returns {*}
+ */
 export function getConstant(cell) {
     if (window.DATA?.getConst) {
         return window.DATA.getConst(cell);
@@ -70,34 +125,65 @@ export function getConstant(cell) {
     return undefined;
 }
 
+/**
+ * Mendapatkan nilai kesejahteraan aplikasi (E189).
+ */
 export function getWelfareCommission() {
     return (window.DATA?.E189) ?? 0.05;
 }
 
+/**
+ * Mendapatkan potongan aplikasi (E190).
+ */
 export function getAppCut() {
     return (window.DATA?.E190) ?? 0.15;
 }
 
+/**
+ * Mendapatkan target pendapatan driver minimum (E663).
+ * Memerlukan objek valid untuk menghitung, atau fallback berdasarkan mode.
+ * @param {Object|string} validOrMode - objek valid atau string mode ('Mobil'/'Motor')
+ * @returns {number}
+ */
 export function getTargetDriver(validOrMode) {
     if (window.Engine?.Fare?.E663) {
+        // Jika objek valid diberikan
         if (typeof validOrMode === 'object') {
             return window.Engine.Fare.E663(validOrMode);
         }
+        // Fallback: buat objek minimal
         const mode = validOrMode || 'Mobil';
         return window.Engine.Fare.E663({ E10: mode });
     }
+    // Fallback keras
     const mode = typeof validOrMode === 'object' ? validOrMode.E10 : validOrMode;
     return mode === 'Motor' ? 15000 : 20000;
 }
 
+/**
+ * Mendapatkan jarak penjemputan maksimal gratis.
+ */
 export function getMaxPickupDistance() {
     return (window.Engine?.getMaxPickupDistance) ? window.Engine.getMaxPickupDistance() : 2;
 }
 
+/**
+ * Mendapatkan waktu penjemputan maksimal gratis (menit).
+ */
 export function getMaxPickupTime() {
     return (window.Engine?.getMaxPickupTime) ? window.Engine.getMaxPickupTime() : 15;
 }
 
+// =============================================================================
+// 1b. WRAPPER DATA UNTUK MAINTENANCE
+// =============================================================================
+
+/**
+ * Mendapatkan item perawatan dari DATA.
+ * @param {string} mode - 'Mobil' atau 'Motor'
+ * @param {string} cc
+ * @returns {Array<{dcell: number, ecell: number, label: string}>}
+ */
 export function getMaintenanceItems(mode, cc) {
     if (window.DATA?.getMaintenanceItems) {
         return window.DATA.getMaintenanceItems(mode, cc);
@@ -105,6 +191,12 @@ export function getMaintenanceItems(mode, cc) {
     return [];
 }
 
+/**
+ * Mendapatkan item pajak dari DATA.
+ * @param {string} mode - 'Mobil' atau 'Motor'
+ * @param {string} cc
+ * @returns {Array<{dcell: number, ecell: number, label: string}>}
+ */
 export function getTaxItems(mode, cc) {
     if (window.DATA?.getTaxItems) {
         return window.DATA.getTaxItems(mode, cc);
@@ -112,12 +204,21 @@ export function getTaxItems(mode, cc) {
     return [];
 }
 
+/**
+ * Mendapatkan item atribut dari DATA.
+ * @param {string} mode - 'Mobil' atau 'Motor'
+ * @returns {Array<{dcell: number, ecell: number, label: string}>}
+ */
 export function getAttributeItems(mode) {
     if (window.DATA?.getAttributeItems) {
         return window.DATA.getAttributeItems(mode);
     }
     return [];
 }
+
+// =============================================================================
+// 2. BADGE & WARNA
+// =============================================================================
 
 export function getTariffBadge(est) {
     if (!est || est.E713 === null || est.E713 === undefined) return null;
@@ -217,6 +318,10 @@ export function getDriverColorAndBlink(E981, vehicleMode = 'Mobil') {
     };
     return UI_MAP[category] || { color: 'driver-normal', blink: '' };
 }
+
+// =============================================================================
+// 3. COPY & TEMPLATE
+// =============================================================================
 
 export function formatCopyEstimate(est, mode, role) {
     if (!est) return '';
@@ -370,6 +475,10 @@ export function prepareCopyTemplateData(estimateResult, vehicleData) {
     };
 }
 
+// =============================================================================
+// 4. RUTE & KML (encode/decode, generate/parse)
+// =============================================================================
+
 export function encodeRouteData(compactData, refId, payment = 0, bill = 0, driverInfo = {}) {
     const metadata = {
         v: '2.0a',
@@ -501,6 +610,7 @@ export function parseKML(kmlText) {
             try { return decodeRouteData(ktMatch[0]); } catch (e) {}
         }
     }
+    // Fallback: parse koordinat
     const coordMatches = kmlText.match(/<coordinates[^>]*>([\s\S]*?)<\/coordinates>/gi);
     if (!coordMatches || coordMatches.length === 0) throw new Error('Format KML tidak valid');
     let positionsPickup = '', positionsDropoff = '';
@@ -544,6 +654,18 @@ export function parseKML(kmlText) {
     };
 }
 
+// =============================================================================
+// 5. PERHITUNGAN MAINTENANCE (dari DATA)
+// =============================================================================
+
+/**
+ * Menghitung progress maintenance untuk sekumpulan item.
+ * @param {Array<{dcell:number, ecell:number, label:string}>} items
+ * @param {number} totalDistance - total jarak (km)
+ * @param {number} totalTime - total waktu (menit)
+ * @param {Object} [cycleData={}] - data siklus servis { [label]: { cycleCount, lastReset } }
+ * @returns {Array} item dengan properti progress
+ */
 export function calculateMaintenanceProgress(items, totalDistance, totalTime, cycleData = {}) {
     if (!Array.isArray(items)) return [];
     const totalDays = totalTime / 1440;
@@ -589,6 +711,12 @@ export function calculateMaintenanceProgress(items, totalDistance, totalTime, cy
     });
 }
 
+/**
+ * Menghitung ringkasan depresiasi kendaraan.
+ * @param {Object} vehicleData - { E10, E22 }
+ * @param {number} accumulatedDepreciation - total depresiasi yang sudah terakumulasi (dari history)
+ * @returns {Object} ringkasan
+ */
 export function calculateDepreciationSummary(vehicleData, accumulatedDepreciation) {
     const mode = vehicleData.E10 || 'Mobil';
     const cc = vehicleData.E22 || '1000cc';
@@ -611,4 +739,13 @@ export function calculateDepreciationSummary(vehicleData, accumulatedDepreciatio
 
 window.log.info('[Output ' + F_V + '] dimuat (Engine wrapper, badge, copy, route, maintenance)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Wrapper Engine statis, badge, copy, route,
+//             maintenance calculator. Semua akses Engine melalui Output.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon
+//             didefinisikan secara lokal (ICON.UP_ARROW, dll).
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
