@@ -3,18 +3,44 @@
  * FILE         : /js/core/init.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Entry point aplikasi setelah loading screen. Memuat file engine baru
+ *   v1.0.0‑beta (01data.js – 07cache.js), menginisialisasi Cache, menyediakan
+ *   window.log, window.cacheBust, dan APP_CONFIG. Import map & cache bust
+ *   hanya aktif saat isDevMode = true.
+ *
+ * NOTES        :
+ *   - Seluruh orkestrasi harus melalui Cache, bukan Engine langsung.
+ *   - Cache mode awal: 'off' jika dev, 'minimal' jika production (dapat
+ *     diubah oleh pengguna di halaman Settings).
+ *   - APP_CONFIG.cacheMode dihapus – cache dikelola oleh Cache.setMode().
+ *
+ * =================================================================================
  */
+
 (function() {
     'use strict';
 
+    // ==================== VERSI FILE ====================
     const F_V = '2.0a-rev0';
 
+    // Guard: cegah eksekusi ganda
     if (window.__INIT_EXECUTED__) return;
     window.__INIT_EXECUTED__ = true;
 
+    // =========================================================================
+    // 1. BACA KONFIGURASI DARI HTML (dengan fallback)
+    // =========================================================================
     var isDevMode = (typeof window.isDevMode === 'boolean') ? window.isDevMode : false;
     var cacheBustTimestamp = isDevMode ? (window.CACHE_BUST || Date.now()) : null;
 
+    // =========================================================================
+    // 2. LOGGING (hanya info/warn saat dev mode)
+    // =========================================================================
     window.log = {
         info:  isDevMode ? function() { console.log.apply(console, arguments); }  : function() {},
         warn:  isDevMode ? function() { console.warn.apply(console, arguments); } : function() {},
@@ -23,6 +49,9 @@
     window.log.info('[Init ' + F_V + '] (1) Dev mode = ' + isDevMode);
     if (isDevMode) window.log.info('[Init ' + F_V + '] (2) Cache bust timestamp = ' + cacheBustTimestamp);
 
+    // =========================================================================
+    // 3. DETEKSI BASE PATH
+    // =========================================================================
     function detectBasePath() {
         var scripts = document.getElementsByTagName('script');
         for (var i = 0; i < scripts.length; i++) {
@@ -38,6 +67,9 @@
     window.APP_FULL_BASE = window.location.origin + BASE_PATH;
     window.log.info('[Init ' + F_V + '] (3) Base path terdeteksi: ' + BASE_PATH);
 
+    // =========================================================================
+    // 4. APP_CONFIG (SSOT – membaca dari variabel global HTML, fallback aman)
+    // =========================================================================
     window.APP_CONFIG = {
         version:                 window.APP_VERSION              || '2.0a-beta',
         isDevMode:               isDevMode,
@@ -59,12 +91,18 @@
     };
     window.log.info('[Init ' + F_V + '] (4) APP_CONFIG berhasil dibuat (v' + window.APP_CONFIG.version + ')');
 
+    // =========================================================================
+    // 5. FUNGSI CACHE BUST
+    // =========================================================================
     window.cacheBust = function(url) {
         if (!isDevMode || !cacheBustTimestamp) return url;
         var sep = url.indexOf('?') === -1 ? '?' : '&';
         return url + sep + 't=' + cacheBustTimestamp;
     };
 
+    // =========================================================================
+    // 6. LOADER LEGACY UNTUK ENGINE
+    // =========================================================================
     function loadScriptLegacy(filePath) {
         return new Promise(function(resolve, reject) {
             var script = document.createElement('script');
@@ -75,6 +113,9 @@
         });
     }
 
+    // =========================================================================
+    // 7. DAFTAR FILE ENGINE (v1.0.0‑beta)
+    // =========================================================================
     var engineFiles = [
         'engine/01data.js',
         'engine/02valid.js',
@@ -85,6 +126,9 @@
         'engine/07cache.js'
     ];
 
+    // =========================================================================
+    // 8. TAMPILAN ERROR (hanya UI, tanpa log)
+    // =========================================================================
     function showErrorScreen(message) {
         var textEl = document.getElementById('loading-text');
         var barEl  = document.getElementById('loading-progress-bar');
@@ -94,17 +138,22 @@
         if (btnEl)  { btnEl.style.display = 'block'; }
     }
 
+    // =========================================================================
+    // 9. PROSES LOADING UTAMA
+    // =========================================================================
     async function start() {
         window.log.info('[Init ' + F_V + '] (5) Memulai pemuatan aplikasi...');
         try {
             window.log.info('[Init ' + F_V + '] (6) Memuat Engine v1.0.0‑beta...');
 
+            // Muat setiap file engine secara berurutan
             for (const file of engineFiles) {
                 await loadScriptLegacy(file);
             }
 
             window.log.info('[Init ' + F_V + '] (14) Engine v1.0.0‑beta dimuat');
 
+            // Inisialisasi mode Cache
             if (window.Cache) {
                 if (isDevMode) {
                     window.Cache.setMode('off');
@@ -117,6 +166,7 @@
                 window.log.warn('[Init ' + F_V + '] (17) Cache tidak tersedia');
             }
 
+            // Import map (cache bust hanya saat dev mode)
             var tParam = (isDevMode && cacheBustTimestamp) ? '?t=' + cacheBustTimestamp : '';
             var importMap = {
                 imports: {
@@ -166,6 +216,7 @@
             document.head.appendChild(importMapScript);
             window.log.info('[Init ' + F_V + '] (18) Import map selesai' + (tParam ? ' (dengan cache bust)' : ''));
 
+            // Muat app.js sebagai modul ES
             var appScript = document.createElement('script');
             appScript.type = 'module';
             appScript.src = window.cacheBust(window.APP_FULL_BASE + 'js/core/app.js');
@@ -184,6 +235,9 @@
         }
     }
 
+    // =========================================================================
+    // 10. EKSEKUSI
+    // =========================================================================
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', start);
     } else {
@@ -191,4 +245,12 @@
     }
 
 })();
+
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Ganti engine ke v1.0.0‑beta, hapus cacheMode,
+//             atur Cache.setMode() berdasarkan isDevMode.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
