@@ -3,9 +3,28 @@
  * FILE         : /js/pages/settings.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Pengaturan – Mengelola preferensi pengguna, data driver,
+ *   custom copy template, kontak darurat, dan toggle Cache Maksimal.
+ *   Semua akses data statis Engine melalui Output.
+ *
+ *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
+ *   menggunakan karakter ikon langsung, bukan kunci registry.
+ *
+ * NOTES        :
+ *   - Toggle Cache Maksimal hanya aktif di mode production.
+ *   - Saat toggle diubah, Cache.setMode() dipanggil langsung.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { StateManager } from '../core/state.js';
@@ -20,12 +39,33 @@ import { DrawerManager } from '../components/drawer.js';
 import { escapeHtml } from '../helpers/format.js';
 import { getDropdownOptions } from '../helpers/output.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
-    GEAR: '⚙️', FUEL: '⛽', INFO: 'ⓘ', QUICK_ORDER: '⚡',
-    OFFLINE: '📴', GPS: '📍', TEXT_SIZE: '🔤', WARNING: '⚠',
-    SETTINGS: '⚡', MOBIL: '🚗', DRIVER: '👤', WARNING_BOLD: '⚠️',
-    COPY: '📋', SAVE: '💾', RESET: '🔁', MENU: '☰', HOME: '🏠'
+    GEAR: '⚙️',
+    FUEL: '⛽',
+    INFO: 'ⓘ',
+    QUICK_ORDER: '⚡',
+    OFFLINE: '📴',
+    GPS: '📍',
+    TEXT_SIZE: '🔤',
+    WARNING: '⚠',
+    SETTINGS: '⚡',        // fallback, tidak ada di registry asli
+    MOBIL: '🚗',
+    DRIVER: '👤',
+    WARNING_BOLD: '⚠️',
+    COPY: '📋',
+    SAVE: '💾',
+    RESET: '🔁',
+    MENU: '☰',
+    HOME: '🏠'
 };
+
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
 
 let isDestroyed = false;
 let isSubmitting = false;
@@ -38,6 +78,7 @@ let emergencyContacts = {
     polisi: '110'
 };
 let currentHeader = null;
+
 let validationOptions = null;
 
 const COPY_PLACEHOLDERS = {
@@ -80,6 +121,10 @@ const DEFAULT_COPY_TEMPLATE = '⚡ {namaSitus} - Transparansi Tarif\n\n' +
     'Rp {tarifPerKm}/km · Rp {tarifPerMenit}/mnt\n\n' +
     'Hitung sendiri: {linkSitus}';
 
+// =============================================================================
+// 2. LOAD DATA (via Output)
+// =============================================================================
+
 function loadPreferences() {
     preferences = PreferencesManager?.load() || {
         quickOrder: false, alwaysGPS: false, offlineOrder: false,
@@ -95,6 +140,7 @@ function loadPreferences() {
 }
 
 function loadValidationOptions() {
+    // Gunakan Output, bukan Engine
     const modeOpts = getDropdownOptions('E10');
     const areaOpts = getDropdownOptions('E20');
     const getCcOptions = (mode) => getDropdownOptions('E22', { E10: mode });
@@ -114,6 +160,10 @@ function loadEmergencyContacts() {
     }
 }
 
+// =============================================================================
+// 3. RENDER
+// =============================================================================
+
 function renderToggle(id, checked) {
     return `<span class="toggle" role="switch" aria-checked="${checked ? 'true' : 'false'}" tabindex="0" id="${id}">
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -128,7 +178,7 @@ function buildHTML() {
     const ao = preferences.alwaysOperational;
     const lt = preferences.largeText;
     const hs = preferences.hideSafetyReminder;
-    const cm = preferences.cacheMaksimal;
+    const cm = preferences.cacheMaksimal;                // v2.0a-rev0
     const ccEnabled = preferences.customCopy?.enabled || false;
     const ccTemplate = preferences.customCopy?.template || DEFAULT_COPY_TEMPLATE;
 
@@ -149,8 +199,10 @@ function buildHTML() {
     const roleAreaEnabled = qo && !ao;
     const driverInfoEnabled = qo && !ao && v.role === 'Driver';
 
+    // Kontak darurat
     const ec = emergencyContacts;
 
+    // Cache maksimal hanya bisa diubah di production
     const isDev = window.APP_CONFIG?.isDevMode;
     const cacheToggleDisabled = isDev;
     const cacheToggleLabel = isDev ? 'Tidak tersedia di mode pengembangan' : '';
@@ -261,6 +313,10 @@ function renderPlaceholderInfo() {
     return html;
 }
 
+// =============================================================================
+// 4. EVENT BINDING
+// =============================================================================
+
 function bindEvents() {
     document.querySelectorAll('.toggle').forEach(toggle => {
         toggle.addEventListener('click', handleToggleClick);
@@ -328,8 +384,9 @@ function handleToggleClick(e) {
     const isChecked = toggle.getAttribute('aria-checked') === 'true';
     const newValue = !isChecked;
 
+    // Cache maksimal hanya bisa diubah di production
     if (toggle.id === 'cache-maksimal-toggle' && window.APP_CONFIG?.isDevMode) {
-        return;
+        return; // tidak bisa diubah
     }
 
     toggle.setAttribute('aria-checked', newValue ? 'true' : 'false');
@@ -380,6 +437,7 @@ function handleToggleClick(e) {
         }
     }
 
+    // Tangani toggle cache maksimal
     if (toggle.id === 'cache-maksimal-toggle') {
         if (window.Cache) {
             window.Cache.setMode(newValue ? 'maksimal' : 'minimal');
@@ -455,6 +513,10 @@ function updateFuelOptions() {
     const cur = fuelSelect.value;
     fuelSelect.innerHTML = fuelList.map(o => `<option value="${o}" ${cur === o ? 'selected' : ''}>${o}</option>`).join('');
 }
+
+// =============================================================================
+// 5. SAVE FUNCTIONS
+// =============================================================================
 
 function collectPreferences() {
     return {
@@ -545,6 +607,10 @@ function saveEmergencyContactsData() {
     emergencyContacts = contacts;
 }
 
+// =============================================================================
+// 6. EXECUTE RESET
+// =============================================================================
+
 function executeReset() {
     if (isDestroyed) return;
     isSubmitting = true;
@@ -574,6 +640,10 @@ function executeReset() {
     isSubmitting = false;
 }
 
+// =============================================================================
+// 7. REGISTRASI POPUP & DRAWER
+// =============================================================================
+
 PopupManager.register(7, () => ({
     defaultOnly: true,
     onConfirm: () => executeReset()
@@ -585,6 +655,10 @@ DrawerManager.register('settings', () => ({
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 8. UPDATE HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const container = document.getElementById('app-header');
@@ -619,6 +693,10 @@ function updateFooter() {
     if (footer) container.appendChild(footer);
 }
 
+// =============================================================================
+// 9. RENDER & DESTROY
+// =============================================================================
+
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
     if (!content) return;
@@ -650,6 +728,10 @@ function destroy() {
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
 
+// =============================================================================
+// 10. EKSPOR
+// =============================================================================
+
 export const PageSettings = {
     render,
     destroy
@@ -657,4 +739,14 @@ export const PageSettings = {
 
 window.log.info('[Settings ' + F_V + '] (2) PageSettings dimuat (Cache Maksimal, Output API)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Tambah toggle Cache Maksimal, ganti
+//             getDropdownOptions ke Output, koleksi preferensi cacheMaksimal.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.GEAR, ICON.FUEL, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
