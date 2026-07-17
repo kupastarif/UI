@@ -3,14 +3,45 @@
  * FILE         : /js/helpers/format.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   SSOT untuk semua fungsi format umum, label, dan helper dasar.
+ *   Semua fungsi di sini bersifat MURNI, tidak bergantung pada Engine
+ *   atau komponen UI lainnya.
+ *
+ * NOTES        :
+ *   - Fungsi validasi, service options, dan target driver telah dipindahkan
+ *     ke output.js (akses Engine statis).
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
+
+// =============================================================================
+// 1. KONSTANTA
+// =============================================================================
 
 const THOUSAND_SEP = '.';
 const DECIMAL_SEP = ',';
 
+// =============================================================================
+// 2. BASE FORMATTER (TANPA SATUAN)
+// =============================================================================
+
+/**
+ * Parse berbagai format string menjadi number.
+ * Menangani format Indonesia (1.000,00) dan internasional (1,000.00).
+ *
+ * @param {string|number} value - Nilai yang akan di-parse
+ * @returns {number} Nilai numerik, 0 jika gagal
+ */
 export function parseNumber(value) {
     if (value === null || value === undefined) return 0;
     if (typeof value === 'number') return value;
@@ -18,6 +49,7 @@ export function parseNumber(value) {
     let str = String(value).trim();
     if (str === '') return 0;
 
+    // Hapus prefix mata uang dan suffix satuan
     str = str.replace(/^Rp\s*/i, '');
     str = str.replace(/^IDR\s*/i, '');
     str = str.replace(/^\$\s*/i, '');
@@ -45,6 +77,19 @@ export function parseNumber(value) {
     return isNaN(num) ? 0 : num;
 }
 
+/**
+ * Format number dengan berbagai opsi.
+ * Guard Infinity/NaN, mengembalikan '0'.
+ *
+ * @param {*} value - Nilai yang akan diformat
+ * @param {Object} options - Opsi format
+ * @param {number} [options.decimals=0] - Jumlah desimal
+ * @param {string} [options.thousandsSeparator='.'] - Separator ribuan
+ * @param {string} [options.decimalSeparator=','] - Separator desimal
+ * @param {string} [options.prefix=''] - Prefix
+ * @param {string} [options.suffix=''] - Suffix
+ * @returns {string} String terformat
+ */
 export function formatNumber(value, options = {}) {
     const {
         decimals = 0,
@@ -66,6 +111,17 @@ export function formatNumber(value, options = {}) {
     return prefix + parts.join(decimalSeparator) + suffix;
 }
 
+// =============================================================================
+// 3. FORMATTER DENGAN SATUAN
+// =============================================================================
+
+/**
+ * Format nilai ke Rupiah.
+ *
+ * @param {*} value - Nilai
+ * @param {boolean} [withSymbol=true] - Tambahkan 'Rp '
+ * @returns {string}
+ */
 export function formatRupiah(value, withSymbol = true) {
     const num = parseNumber(value);
     const isNegative = num < 0;
@@ -81,6 +137,14 @@ export function formatRupiah(value, withSymbol = true) {
     return isNegative ? '-' + formatted : formatted;
 }
 
+/**
+ * Format nilai ke Kilometer.
+ *
+ * @param {*} value - Nilai
+ * @param {boolean} [withUnit=true] - Tambahkan ' km'
+ * @param {number} [decimals=1] - Jumlah desimal
+ * @returns {string}
+ */
 export function formatKm(value, withUnit = true, decimals = 1) {
     return formatNumber(value, {
         decimals,
@@ -90,6 +154,13 @@ export function formatKm(value, withUnit = true, decimals = 1) {
     });
 }
 
+/**
+ * Format nilai ke Menit.
+ *
+ * @param {*} value - Nilai
+ * @param {boolean} [withUnit=true] - Tambahkan ' mnt'
+ * @returns {string}
+ */
 export function formatMenit(value, withUnit = true) {
     return formatNumber(value, {
         decimals: 0,
@@ -99,6 +170,12 @@ export function formatMenit(value, withUnit = true) {
     });
 }
 
+/**
+ * Format menit ke jam:menit.
+ *
+ * @param {number} menit - Total menit
+ * @returns {string}
+ */
 export function formatJamMenit(menit) {
     const m = parseNumber(menit);
     if (m < 60) return m + ' mnt';
@@ -110,6 +187,12 @@ export function formatJamMenit(menit) {
     return jam + ' jam ' + sisaMenit + ' mnt';
 }
 
+/**
+ * Format menit ke format panjang (jam + menit).
+ *
+ * @param {*} value - Nilai dalam menit
+ * @returns {string}
+ */
 export function formatMenitPanjang(value) {
     const menit = parseNumber(value);
     if (menit < 60) return menit + ' mnt';
@@ -121,6 +204,15 @@ export function formatMenitPanjang(value) {
     return jam + ' jam ' + sisaMenit + ' mnt';
 }
 
+/**
+ * Format nilai ke Persen.
+ * Jika nilai dalam desimal (0-1), konversi ke persen.
+ *
+ * @param {*} value - Nilai
+ * @param {boolean} [withSymbol=true] - Tambahkan '%'
+ * @param {number} [decimals=0] - Jumlah desimal
+ * @returns {string}
+ */
 export function formatPersen(value, withSymbol = true, decimals = 0) {
     let num = parseNumber(value);
 
@@ -136,6 +228,12 @@ export function formatPersen(value, withSymbol = true, decimals = 0) {
     });
 }
 
+/**
+ * Format nilai ke Km per Jam.
+ *
+ * @param {*} value - Nilai
+ * @returns {string}
+ */
 export function formatKmPerJam(value) {
     return formatNumber(value, {
         decimals: 1,
@@ -145,6 +243,12 @@ export function formatKmPerJam(value) {
     });
 }
 
+/**
+ * Format detik ke HH:MM:SS.
+ *
+ * @param {number} detik - Total detik
+ * @returns {string}
+ */
 export function formatDurasi(detik) {
     const d = parseNumber(detik);
     const hours = Math.floor(d / 3600);
@@ -153,22 +257,46 @@ export function formatDurasi(detik) {
     return padNumber(hours, 2) + ':' + padNumber(minutes, 2) + ':' + padNumber(seconds, 2);
 }
 
+/**
+ * Format timestamp ke DD/MM/YYYY.
+ *
+ * @param {Date|number} timestamp
+ * @returns {string}
+ */
 export function formatTanggal(timestamp) {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     if (isNaN(date.getTime())) return '';
     return padNumber(date.getDate(), 2) + '/' + padNumber(date.getMonth() + 1, 2) + '/' + date.getFullYear();
 }
 
+/**
+ * Format timestamp ke HH:MM.
+ *
+ * @param {Date|number} timestamp
+ * @returns {string}
+ */
 export function formatJam(timestamp) {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     if (isNaN(date.getTime())) return '';
     return padNumber(date.getHours(), 2) + ':' + padNumber(date.getMinutes(), 2);
 }
 
+/**
+ * Format timestamp ke DD/MM/YYYY HH:MM.
+ *
+ * @param {Date|number} timestamp
+ * @returns {string}
+ */
 export function formatTanggalJam(timestamp) {
     return formatTanggal(timestamp) + ' ' + formatJam(timestamp);
 }
 
+/**
+ * Format timestamp ke waktu relatif (baru saja, 5 mnt lalu, ...).
+ *
+ * @param {Date|number} timestamp
+ * @returns {string}
+ */
 export function formatRelativeTime(timestamp) {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     if (isNaN(date.getTime())) return '';
@@ -190,11 +318,31 @@ export function formatRelativeTime(timestamp) {
     return Math.floor(diffDay / 365) + ' thn lalu';
 }
 
+// =============================================================================
+// 4. KONVERSI WAKTU TRACKING
+// =============================================================================
+
+/**
+ * Konversi detik ke menit dengan pembulatan ke atas (ceil).
+ *
+ * @param {number} detik - Total detik
+ * @returns {number} Menit (dibulatkan ke atas)
+ */
 export function detikToMenitCeil(detik) {
     if (detik <= 0) return 0;
     return Math.ceil(detik / 60);
 }
 
+// =============================================================================
+// 5. STATISTIK
+// =============================================================================
+
+/**
+ * Menghitung statistik battle (Driver vs Aplikasi) dari history items.
+ *
+ * @param {Object[]} historyItems - Array history items
+ * @returns {Object} { driver: {value, percent}, app: {value, percent}, totalMatch }
+ */
 export function calculateBattleStats(historyItems) {
     let driver = 0, app = 0;
     for (let i = 0; i < historyItems.length; i++) {
@@ -210,6 +358,12 @@ export function calculateBattleStats(historyItems) {
     };
 }
 
+/**
+ * Menghitung statistik history terperinci.
+ *
+ * @param {Object[]} filteredItems - Array history items yang sudah difilter
+ * @returns {Object} Statistik dengan driver, app, bbm, kendaraan, passenger
+ */
 export function calculateHistoryStats(filteredItems) {
     let driver = 0, app = 0, bbm = 0, kendaraan = 0, passenger = 0;
     for (let i = 0; i < filteredItems.length; i++) {
@@ -230,6 +384,12 @@ export function calculateHistoryStats(filteredItems) {
     };
 }
 
+/**
+ * Menentukan pemenang trophy: 'driver', 'app', atau null.
+ *
+ * @param {Object} data - { driver: {value}, app: {value} }
+ * @returns {string|null}
+ */
 export function getTrophyWinner(data) {
     const driver = data.driver?.value || 0;
     const app = data.app?.value || 0;
@@ -239,6 +399,16 @@ export function getTrophyWinner(data) {
     return null;
 }
 
+// =============================================================================
+// 6. HELPER DASAR
+// =============================================================================
+
+/**
+ * Escape HTML untuk mencegah XSS.
+ *
+ * @param {string} text - Teks yang akan di-escape
+ * @returns {string}
+ */
 export function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -246,6 +416,12 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
+/**
+ * Escape XML untuk mencegah invalid KML.
+ *
+ * @param {string} str - String yang akan di-escape
+ * @returns {string}
+ */
 export function escapeXml(str) {
     if (!str) return '';
     return String(str)
@@ -256,22 +432,52 @@ export function escapeXml(str) {
         .replace(/'/g, '&apos;');
 }
 
+/**
+ * Pad number dengan leading zero.
+ *
+ * @param {number} num - Angka
+ * @param {number} size - Panjang total
+ * @returns {string}
+ */
 export function padNumber(num, size) {
     let s = String(num);
     while (s.length < size) s = '0' + s;
     return s;
 }
 
+/**
+ * Kapitalisasi huruf pertama.
+ *
+ * @param {string} str - String
+ * @returns {string}
+ */
 export function capitalize(str) {
     if (!str || typeof str !== 'string') return '';
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+/**
+ * Potong string jika melebihi panjang maksimum.
+ *
+ * @param {string} str - String
+ * @param {number} maxLength - Panjang maksimum
+ * @returns {string}
+ */
 export function truncate(str, maxLength) {
     if (!str || str.length <= maxLength) return str;
     return str.substring(0, maxLength - 3) + '...';
 }
 
+// =============================================================================
+// 7. LABEL AREA
+// =============================================================================
+
+/**
+ * Mendapatkan label tampilan untuk area.
+ *
+ * @param {string} area - Kode area
+ * @returns {string}
+ */
 export function getAreaLabel(area) {
     const labels = {
         'Jabodetabek': 'Jabodetabek',
@@ -281,4 +487,11 @@ export function getAreaLabel(area) {
     return labels[area] || area;
 }
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Hapus getValidationRange, getServiceOptions, getTargetDriver
+//             (pindah ke output.js). Hanya berisi fungsi pure formatting.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
