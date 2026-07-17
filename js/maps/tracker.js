@@ -3,17 +3,37 @@
  * FILE         : /js/maps/tracker.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   TrackingCollector – satu‑satunya sumber perhitungan jarak & waktu.
+ *   - Semua pencatatan waktu menggunakan UTC dari GPS (gps.js) sebagai 
+ *     acuan tunggal, termasuk deteksi zona WIB/WITA/WIT.
+ *   - Waktu berjalan dihitung berdasarkan selisih UTC, bukan Date.now() 
+ *     lokal, untuk konsistensi lintas zona.
+ *   - Jarak dihitung per sesi (pickup/dropoff) menggunakan Haversine.
+ *   - Pause membekukan nilai sesi terakhir, tidak menampilkan total.
+ *   - Lompatan (jump) dideteksi jika kecepatan > 120 km/jam antar titik.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { GPS } from './gps.js';
 
 const EARTH_RADIUS_KM = 6371;
-const ACCURACY_THRESHOLD = 100;
-const MAX_NORMAL_SPEED_KM_PER_MIN = 2;
-const DOUGLAS_EPSILON = 0.0001;
+const ACCURACY_THRESHOLD = 100;       // meter: posisi dengan akurasi >100m diabaikan untuk jarak
+const MAX_NORMAL_SPEED_KM_PER_MIN = 2; // km/menit (120 km/jam)
+const DOUGLAS_EPSILON = 0.0001;       // untuk penyederhanaan rute
 
 class TrackingCollector {
     constructor(role) {
@@ -21,39 +41,50 @@ class TrackingCollector {
         this.reset();
     }
 
+    // =========================================================================
+    // RESET & STATE
+    // =========================================================================
+
     reset() {
-        this.status = 'idle';
-        this.session = null;
-        this.sessionActive = false;
-        this.startTimeUTC = null;
-        this.accumulatedTime = 0;
+        this.status = 'idle';          // 'idle', 'pickup', 'dropoff', 'paused'
+        this.session = null;           // 'pickup' atau 'dropoff' (fase aktif)
+        this.sessionActive = false;    // true jika sudah ada posisi pertama pasca start
+        this.startTimeUTC = null;      // timestamp UTC (ms) saat fase aktif dimulai
+        this.accumulatedTime = 0;      // detik yang sudah berjalan hingga saat ini (atau beku saat pause)
         this.isPaused = false;
-        this.pauseStartTimeUTC = null;
+        this.pauseStartTimeUTC = null; // timestamp UTC saat pause dimulai
         this.pauseCount = 0;
-        this.pauseTime = 0;
+        this.pauseTime = 0;            // total detik dalam pause
         this.jumpCount = 0;
-        this.jumpTotal = 0;
+        this.jumpTotal = 0;            // km
 
-        this.pickupDistance = 0;
-        this.dropoffDistance = 0;
+        this.pickupDistance = 0;       // km presisi penuh
+        this.dropoffDistance = 0;      // km presisi penuh
 
-        this.pickupPositions = [];
+        this.pickupPositions = [];     // array {lat, lng, accuracy, timestamp}
         this.dropoffPositions = [];
-        this.lastPosition = null;
+        this.lastPosition = null;      // posisi sebelumnya (untuk Haversine)
         this.currentAccuracy = null;
-        this.lastUpdateTimeUTC = null;
+        this.lastUpdateTimeUTC = null; // timestamp UTC posisi terakhir (untuk deteksi loncatan)
 
-        this.startOffset = 7;
+        // Informasi zona waktu dari sesi awal
+        this.startOffset = 7;          // default WIB
         this.startZone = 'WIB';
 
+        // Waktu mulai fase spesifik (UTC ms)
         this.pickupStartTimeUTC = null;
         this.dropoffStartTimeUTC = null;
 
+        // Untuk indikator sesi aktif (tidak berubah saat pause)
         this.lastActivePhase = null;
 
         this.onJump = null;
         this.onStatusChange = null;
     }
+
+    // =========================================================================
+    // STATE MACHINE (dengan GPS.getCurrentUTCTime)
+    // =========================================================================
 
     start() {
         if (this.status !== 'idle') return;
@@ -61,7 +92,7 @@ class TrackingCollector {
         const timeObj = GPS.getCurrentUTCTime(this.lastPosition?.lng);
         this.status = (this.role === 'Driver') ? 'pickup' : 'dropoff';
         this.session = this.status;
-        this.sessionActive = false;
+        this.sessionActive = false;      // menunggu posisi pertama
         this.startTimeUTC = timeObj.utc;
         this.startOffset = timeObj.offset;
         this.startZone = timeObj.zone;
@@ -157,6 +188,10 @@ class TrackingCollector {
         window.log.info('[Tracker ' + F_V + '] (5) Fase berubah ke: ' + phase);
     }
 
+    // =========================================================================
+    // POSITION & DISTANCE
+    // =========================================================================
+
     addPosition(lat, lng, accuracy, timestamp = Date.now()) {
         if (this.status === 'idle' || this.status === 'paused') return;
 
@@ -215,6 +250,10 @@ class TrackingCollector {
         this._updateLastActivePhase();
     }
 
+    // =========================================================================
+    // WAKTU (SSOT)
+    // =========================================================================
+
     _getElapsedSeconds() {
         if (!this.sessionActive) return 0;
         if (this.isPaused) return this.accumulatedTime;
@@ -225,6 +264,10 @@ class TrackingCollector {
     getElapsedSeconds() {
         return this._getElapsedSeconds();
     }
+
+    // =========================================================================
+    // DATA FASE AKTIF
+    // =========================================================================
 
     _updateLastActivePhase() {
         if (this.status === 'idle' || this.status === 'paused' || !this.session) {
@@ -249,6 +292,10 @@ class TrackingCollector {
         }
         return null;
     }
+
+    // =========================================================================
+    // DATA TOTAL
+    // =========================================================================
 
     getTotalDistance() {
         return this.pickupDistance + this.dropoffDistance;
@@ -305,6 +352,10 @@ class TrackingCollector {
             dropoffTime: this.status === 'dropoff' ? this._getElapsedSeconds() : 0
         };
     }
+
+    // =========================================================================
+    // DATA COMPACT (dengan zona)
+    // =========================================================================
 
     _formatLocalTime(utc, offset) {
         if (!utc) return '';
@@ -364,8 +415,16 @@ class TrackingCollector {
         };
     }
 
+    // =========================================================================
+    // CALLBACKS
+    // =========================================================================
+
     setOnJump(callback) { this.onJump = callback; }
     setOnStatusChange(callback) { this.onStatusChange = callback; }
+
+    // =========================================================================
+    // PRIVATE HELPERS
+    // =========================================================================
 
     _notifyJump(distance, timeDiff, excess) {
         if (this.onJump) {
@@ -437,4 +496,10 @@ export { TrackingCollector };
 
 window.log.info('[Tracker ' + F_V + '] (6) TrackingCollector dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
