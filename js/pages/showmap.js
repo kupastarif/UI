@@ -3,9 +3,30 @@
  * FILE         : /js/pages/showmap.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Show Map – Menampilkan peta rute perjalanan.
+ *   - showmappaste: mode menu, header default, footer dengan tombol menu & home.
+ *   - showmapdetail: mode peta, header landing, footer dengan tombol back, copy, export.
+ *   Info panel menampilkan zona waktu (WIB/WITA/WIT) jika tersedia di data.
+ *   Semua navigasi menggunakan Router.navigateTo().
+ *
+ *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
+ *   menggunakan karakter ikon langsung, bukan kunci registry.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *   - Hanya menggunakan fungsi Output (encode/decode/generate/parse rute).
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { Router } from '../core/router.js';
@@ -21,6 +42,10 @@ import {
     decodeRouteData, encodeRouteData, generateKML, parseKML
 } from '../helpers/output.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     CHART: '📈',
     SHOW_MAP: '🗺️',
@@ -34,15 +59,24 @@ const ICON = {
     EXPORT: '📤'
 };
 
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
+
 let isDestroyed = false;
-let mode = 'menu';
+let mode = 'menu';          // 'menu' | 'report' (untuk showmapdetail)
 let refId = null;
 let trackingData = null;
 let hasRendered = false;
 let role = 'Driver';
 let driverInfo = { name: '', plate: '', phone: '' };
 let rawPastedText = '';
+
 let currentHeader = null;
+
+// =============================================================================
+// 2. LOAD DATA
+// =============================================================================
 
 function loadTrackingData(refIdParam) {
     if (!StorageManager) return null;
@@ -57,6 +91,10 @@ function loadTrackingData(refIdParam) {
     return null;
 }
 
+// =============================================================================
+// 3. PETA
+// =============================================================================
+
 async function renderMap(containerId, data) {
     if (!MapManager) {
         window.log.error('[Showmap ' + F_V + '] (3) MapManager tidak tersedia');
@@ -64,6 +102,10 @@ async function renderMap(containerId, data) {
     }
     await MapManager.initForShowMap(containerId, data, { role });
 }
+
+// =============================================================================
+// 4. INFO PANEL (TAMPILKAN ZONA WAKTU JIKA ADA)
+// =============================================================================
 
 function renderInfoPanel(data) {
     const formatWaktu = (menit) => {
@@ -112,6 +154,10 @@ function renderInfoPanel(data) {
     </div>`;
 }
 
+// =============================================================================
+// 5. BUILD HTML
+// =============================================================================
+
 function buildReportHTML() {
     return `<div class="page-container">
         <div id="showmap-map-container" class="map-container">
@@ -136,6 +182,10 @@ function buildMenuHTML() {
         </div>
     </div>`;
 }
+
+// =============================================================================
+// 6. COPY & EXPORT
+// =============================================================================
 
 function handleCopyRute() {
     let text = '';
@@ -174,6 +224,10 @@ function handleExportKML() {
     URL.revokeObjectURL(url);
     ThemeManager?.showToast('KML berhasil diekspor', 'success');
 }
+
+// =============================================================================
+// 7. EVENT HANDLERS
+// =============================================================================
 
 function bindMenuEvents() {
     const pasteBtn = document.getElementById('paste-btn');
@@ -249,6 +303,10 @@ function bindMenuEvents() {
     }
 }
 
+// =============================================================================
+// 8. HEADER & FOOTER
+// =============================================================================
+
 function updateHeaderFooter(forMap) {
     const headerContainer = document.getElementById('app-header');
     const footerContainer = document.getElementById('app-footer');
@@ -296,12 +354,20 @@ function updateHeaderFooter(forMap) {
     }
 }
 
+// =============================================================================
+// 9. REGISTRASI DRAWER
+// =============================================================================
+
 DrawerManager.register('showmappaste', () => ({
     menuItems: null,
     onItemClick: (page) => {
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 10. RENDER & DESTROY
+// =============================================================================
 
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
@@ -365,6 +431,10 @@ function destroy() {
     }
 }
 
+// =============================================================================
+// 11. EKSPOR
+// =============================================================================
+
 export const PageShowmappaste = {
     render,
     destroy
@@ -383,4 +453,14 @@ export const PageShowmapdetail = {
 
 window.log.info('[Showmap ' + F_V + '] (6) PageShowmappaste & PageShowmapdetail dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//             Tidak ada perubahan fungsional.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.CHART, ICON.SHOW_MAP, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
