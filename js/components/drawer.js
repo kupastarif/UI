@@ -3,12 +3,37 @@
  * FILE         : /js/components/drawer.js
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Factory drawer minimalis dengan sistem registri. Halaman mendaftarkan menu
+ *   custom melalui `register(page, factoryFn)`. Fungsi `getConfig(page)` 
+ *   mengembalikan konfigurasi dari registri untuk digunakan oleh Router.
+ *   API: open(callbacks, menuItems?) dan forceClose().
+ *
+ *   Mulai rev2, ikon petir (⚡) pada fallback siteDisplay diambil dari objek
+ *   ICON, tidak lagi ditulis langsung. Seluruh ikon kini bersumber dari ICON.
+ *
+ * NOTES        :
+ *   - Klik item menu langsung memanggil onItemClick(page) tanpa menutup drawer
+ *     terlebih dahulu – penutupan drawer ditangani oleh Router melalui
+ *     navigasi kombo (closeDrawer: true).
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev2';
 
 import { StateEvents } from '../core/state.js';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
+// =============================================================================
 
 const ICON = {
     CLOSE: '❌',
@@ -23,32 +48,42 @@ const ICON = {
     DOCUMENT: '📄',
     THEME_LIGHT: '☀️',
     THEME_DARK: '🌙',
-    ELECTRIC: '⚡'
+    ELECTRIC: '⚡'           // Baru: untuk fallback siteDisplay
 };
+
+// =============================================================================
+// 1. KONSTANTA & REGISTRI
+// =============================================================================
 
 const DRAWER_CONTAINER_ID = 'drawer-container';
 const OVERLAY_CLASS = 'drawer-overlay';
 const DRAWER_CLASS = 'drawer-container';
 const CLOSE_ICON = ICON.CLOSE;
 
+/** Registri drawer custom: Map(page, factoryFn -> { menuItems, onItemClick }) */
 const registry = new Map();
 
 let isDrawerOpen = false;
 let overlayElement = null;
 let drawerElement = null;
 let themeChangeListener = null;
-let _onClose = null;
+
+let _onClose = null;   // Callback penutupan dari Router
 
 const DEFAULT_MENU_ITEMS = [
     { icon: ICON.CHART,        label: 'Riwayat',      page: 'history' },
     { icon: ICON.GEAR,         label: 'Pengaturan',   page: 'settings' },
     { icon: ICON.MAINTENANCE,  label: 'Perawatan',    page: 'maintenance' },
     { icon: ICON.SHOW_MAP,     label: 'Rute',         page: 'showmappaste' },
-    { icon: ICON.ARTICLES,     label: 'Artikel',      page: 'article' },
+  //  { icon: ICON.ARTICLES,     label: 'Artikel',      page: 'article' },
     { icon: ICON.ABOUT,        label: 'Tentang',      page: 'about' },
-    { icon: ICON.LOCK,         label: 'Privasi',      page: 'privacy' },
-    { icon: ICON.DOCUMENT,     label: 'Catatan',      page: 'catatan' }
+    { icon: ICON.LOCK,         label: 'Privasi',      page: 'privacy' }
+  //  { icon: ICON.DOCUMENT,     label: 'Catatan',      page: 'catatan' }
 ];
+
+// =============================================================================
+// 2. FUNGSI PEMBANGUN DOM
+// =============================================================================
 
 function ensureContainer() {
     let container = document.getElementById(DRAWER_CONTAINER_ID);
@@ -78,6 +113,7 @@ function createDrawerHeader() {
     const leftSide = document.createElement('div');
     const siteTitle = document.createElement('div');
     siteTitle.className = 'drawer-logo-title';
+    // Fallback menggunakan ikon dari ICON, bukan inline
     siteTitle.textContent = window.APP_CONFIG?.siteDisplay || `Kupas${ICON.ELECTRIC}Tarif`;
 
     const version = document.createElement('div');
@@ -197,6 +233,10 @@ function renderDrawer(menuItems, onItemClick) {
     container.appendChild(drawerElement);
 }
 
+// =============================================================================
+// 3. API PUBLIK
+// =============================================================================
+
 function register(page, factoryFn) {
     if (typeof factoryFn !== 'function') {
         window.log.error('[Drawer ' + F_V + '] (1) register() memerlukan factory function.');
@@ -276,6 +316,10 @@ function isOpen() {
     return isDrawerOpen;
 }
 
+// =============================================================================
+// 4. EKSPOR
+// =============================================================================
+
 export const DrawerManager = {
     register,
     getConfig,
@@ -288,4 +332,14 @@ window.DrawerManager = DrawerManager;
 
 window.log.info('[Drawer ' + F_V + '] (10) DrawerManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Update versi Engine ke 1.0.0‑beta, format header.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon drawer
+//             didefinisikan secara lokal (ICON.CHART, ICON.THEME_LIGHT, dll).
+// 2.0a-rev2 : Hapus ikon inline (⚡) pada fallback siteDisplay. Tambahkan
+//             ICON.ELECTRIC dan gunakan dalam template literal.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
