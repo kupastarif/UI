@@ -1,17 +1,18 @@
 <!--
 /**
  * =================================================================================
- * FILE: /engine.html
- * VERSI FILE  : 1.0.1-rev0
- * ENGINE VERSION: 1.0.1-beta
- * DATE: 2026-07-16
+ * FILE         : /index.html
+ * FILE VERSION : 2.0a-rev2
+ * APP VERSION  : 2.0a-beta
+ * DATE         : 16 Juli 2026
  *
- * @author: gk
+ * @author      : gk
  *
- * DESKRIPSI:
- *   Alat untuk menguji engine v1.0.1‑beta dan cache v0.5.1‑beta.
- *   Mengakomodasi perubahan API: wrapper internal dihapus, fungsi orkestrasi
- *   kini hanya mengembalikan sel target, uiStateE71 pada reality/complete.
+ * DESCRIPTION  :
+ *   Entry point aplikasi. Menampilkan loading screen dengan animasi wave,
+ *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
+ *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
+ *   Production-ready dengan PWA support dan Service Worker.
  *
  * =================================================================================
  */
@@ -21,690 +22,347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Engine Test v1.0.1‑beta · KupasTarif</title>
+    <meta name="theme-color" content="#0a1f1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- ============================================================
+         SEO DASAR (akan diupdate oleh JS untuk URL dinamis)
+         ============================================================ -->
+    <title>KupasTarif – Kalkulator Tarif Ojek Online</title>
+    <meta name="description" content="Kalkulator tarif ojek online yang transparan. Hitung pendapatan driver, rincian biaya operasional, dan bandingkan tarif. Privasi terjaga, offline-first, dan gratis.">
+    <meta name="keywords" content="kalkulator tarif ojek online, transparansi tarif, driver ojek, pendapatan driver, biaya operasional, potongan aplikasi">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://linktr.ee/kupastarif/">
+
+    <!-- ============================================================
+         OPEN GRAPH (Facebook, WhatsApp, dll.)
+         ============================================================ -->
+    <meta property="og:title" content="KupasTarif – Kalkulator Tarif Ojek Online">
+    <meta property="og:description" content="Hitung pendapatan driver, biaya operasional, dan rincian tarif secara akurat. Gratis, offline-first, dan privasi terjaga.">
+    <meta property="og:url" content="https://linktr.ee/kupastarif/">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/assets/img/og.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- ============================================================
+         TWITTER CARD
+         ============================================================ -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="KupasTarif – Kalkulator Tarif Ojek Online">
+    <meta name="twitter:description" content="Kalkulator tarif ojek online transparan. Hitung pendapatan driver dan biaya operasional dengan mudah.">
+    <meta name="twitter:image" content="/assets/img/og.jpg">
+
+    <!-- ============================================================
+         STRUCTURED DATA (JSON-LD) – Schema.org WebApplication
+         ============================================================ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "KupasTarif",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires JavaScript",
+      "description": "Kalkulator tarif ojek online transparan. Menghitung pendapatan driver, biaya operasional, dan rincian tarif berdasarkan data aktual.",
+      "url": "https://linktr.ee/kupastarif/",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "IDR"
+      }
+    }
+    </script>
+
+    <!-- Favicon & PWA -->
+    <link rel="icon" type="image/x-icon" href="/assets/img/favicon.ico">
+    <link rel="apple-touch-icon" href="/assets/img/icon192.png">
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- =================================================================
+         KONFIGURASI GLOBAL & CACHE BUST (SINGLE SOURCE OF TRUTH)
+         ================================================================= -->
+    <script>
+        // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
+        window.isDevMode = false;            // false untuk production
+        window.APP_VERSION = '2.0a-beta';
+        window.SITE_TITLE = 'KupasTarif';
+        window.SITE_DISPLAY = 'Kupas⚡Tarif';
+        window.SITE_ICON = '⚡';
+        window.LANDING_LINK = 'linktr.ee/kupastarif';
+        window.DEFAULT_THEME = 'light';
+
+        // ---------- CACHE BUST HANYA SAAT DEV MODE ----------
+        if (window.isDevMode) {
+            var CACHE_BUST = Date.now();
+            window.CACHE_BUST = CACHE_BUST;   // ekspor agar init.js bisa membaca
+            document.write('<link rel="stylesheet" href="assets/css/main.css?v=' + CACHE_BUST + '">');
+            document.write('<link rel="stylesheet" href="assets/css/components.css?v=' + CACHE_BUST + '">');
+            document.write('<link rel="stylesheet" href="assets/css/pages.css?v=' + CACHE_BUST + '">');
+        } else {
+            // Tanpa cache bust (production)
+            document.write('<link rel="stylesheet" href="assets/css/main.css">');
+            document.write('<link rel="stylesheet" href="assets/css/components.css">');
+            document.write('<link rel="stylesheet" href="assets/css/pages.css">');
+        }
+
+        // ---------- BASE URL UNTUK SCRIPT DINAMIS (fallback) ----------
+        // Akan di-override oleh init.js jika ada, tapi kita set fallback dari lokasi
+        (function() {
+            if (!window.APP_FULL_BASE) {
+                var path = window.location.pathname;
+                // Hapus bagian setelah trailing slash terakhir untuk mendapatkan base path
+                var base = path.replace(/\/[^/]*$/, '/');
+                window.APP_FULL_BASE = window.location.origin + base;
+            }
+        })();
+    </script>
+
+    <!-- Script untuk update meta canonical, og:url, dan gambar secara dinamis -->
+    <script>
+        (function() {
+            var baseUrl = window.APP_FULL_BASE || window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
+            if (!baseUrl.endsWith('/')) baseUrl += '/';
+
+            var imageUrl = baseUrl + 'assets/img/og.jpg';
+
+            // Update canonical
+            var canonical = document.querySelector('link[rel="canonical"]');
+            if (canonical) {
+                canonical.href = baseUrl;
+            } else {
+                var link = document.createElement('link');
+                link.rel = 'canonical';
+                link.href = baseUrl;
+                document.head.appendChild(link);
+            }
+
+            // Update og:url
+            var ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) ogUrl.content = baseUrl;
+
+            // Update og:image
+            var ogImage = document.querySelector('meta[property="og:image"]');
+            if (ogImage) ogImage.content = imageUrl;
+
+            // Update twitter:image
+            var twImage = document.querySelector('meta[name="twitter:image"]');
+            if (twImage) twImage.content = imageUrl;
+        })();
+    </script>
+
+    <!-- Font Inter (eksternal, tidak perlu cache bust) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+
+    <!-- CSS tambahan untuk .sr-only (SEO) -->
     <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5;color:#1e293b;background:#f1f5f9;padding:12px;display:flex;justify-content:center}
-        .container{width:100%;max-width:520px}
-        h1{font-size:20px;margin-bottom:2px;color:#0f172a}
-        h1 span{color:#3b82f6}
-        .subtitle{font-size:10px;color:#64748b;margin-bottom:12px}
-        .card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-        .card-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;margin-bottom:0}
-        .card-header h3{font-size:11px;color:#334155;margin:0;padding:0;border:none}
-        .card-header .toggle-icon{font-size:10px;color:#94a3b8;transition:transform .2s}
-        .card-header.collapsed .toggle-icon{transform:rotate(-90deg)}
-        .card-body{overflow:hidden;transition:max-height .3s ease}
-        .card-body.collapsed{max-height:0!important}
-        label{display:block;font-size:10px;font-weight:600;color:#475569;margin-bottom:2px;margin-top:6px}
-        label:first-child{margin-top:0}
-        select,input[type=number],textarea{width:100%;padding:6px 8px;font-size:13px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;background:#fff}
-        select:focus,input:focus,textarea:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
-        input[type=number]{text-align:right}
-        textarea{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11px;resize:vertical;min-height:80px}
-        .input-group{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-        .input-group-3{grid-template-columns:1fr 1fr 1fr}
-        .btn-hit{width:100%;padding:14px;font-size:14px;font-weight:700;color:#fff;background:#3b82f6;border:none;border-radius:8px;cursor:pointer;margin-top:10px;transition:all .15s;text-transform:uppercase;letter-spacing:1px}
-        .btn-hit:hover{background:#2563eb}
-        .btn-reset{width:100%;padding:8px;font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;margin-top:6px;transition:all .15s}
-        .btn-reset:hover{background:#e2e8f0;color:#334155}
-        .btn-copy{width:100%;padding:10px;font-size:12px;font-weight:600;color:#fff;background:#10b981;border:none;border-radius:6px;cursor:pointer;margin-top:6px;transition:all .15s}
-        .btn-copy:hover{background:#059669}
-        .btn-copy.copied{background:#059669}
-        table{width:100%;border-collapse:collapse;font-size:10px}
-        th,td{padding:3px 6px;border-bottom:1px solid #f1f5f9}
-        th{background:#f8fafc;font-size:8px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0}
-        td:first-child{text-align:left;font-family:'SF Mono',Menlo,Consolas,monospace;font-weight:500}
-        td:nth-child(2){text-align:left;font-size:9px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
-        td:nth-child(3){text-align:left;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:9px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px}
-        td:nth-child(4){text-align:right;font-family:'SF Mono',Menlo,Consolas,monospace}
-        .cell-none{color:#94a3b8;font-style:italic}
-        .cell-highlight{font-weight:700;color:#3b82f6}
-        .cell-danger{color:#dc2626}
-        .cell-zeronull{color:#94a3b8}
-        .table-wrapper{max-height:350px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px}
-        .table-wrapper-all{max-height:500px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px}
-        .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:8px;font-weight:600}
-        .badge-all{background:#334155;color:#f8fafc}
-        .badge-json{background:#d1fae5;color:#065f46}
-        .badge-form{background:#dbeafe;color:#1e40af}
-        .badge-error{background:#fee2e2;color:#991b1b}
-        .info-banner{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:10px;color:#1e40af}
-        .error-banner{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:10px;color:#991b1b}
-        .cell-spacer{background:#f8fafc}
-        .cell-spacer td{padding:2px 0;border:none}
-        .search-box{width:100%;padding:6px 10px;font-size:11px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:4px;font-family:inherit;background:#fff}
-        .search-box:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
-        .row-hidden{display:none}
-        .search-info{font-size:9px;color:#64748b;margin-bottom:2px}
+        /* Untuk aksesibilitas & SEO – menyembunyikan elemen secara visual tapi tetap dibaca crawler */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1><span>⚡</span> Engine Test Suite v1.0.1‑beta</h1>
-    <p class="subtitle">Cell‑by‑cell validation · Arsitektur temp/deps · Mobile First</p>
+    <!--
+        =================================================================
+        LOADING SCREEN (AWAL APLIKASI)
+        =================================================================
+        Tema: DARK HIJAU (hardcoded, tidak terpengaruh tema aplikasi)
+        Background: #0a1f1a (hijau sangat gelap)
+        Text: #f8fafc (slate-50)
+        Primary: #00a86b (hijau jade)
+        Progress Background: #1a3a2e
+        Sub Text: #94a3b8
+        Muted Text: #64748b
+    -->
+    <div id="loading-screen" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: #0a1f1a; display: flex; align-items: center; justify-content: center; z-index: 10001; transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; width: 85%; max-width: 300px; padding: 20px 0;">
 
-    <!-- Card JSON Input -->
-    <div class="card">
-        <div class="card-header" onclick="toggleCard(this)"><h3>📝 JSON Input</h3><span class="toggle-icon">▼</span></div>
-        <div class="card-body" id="json-body">
-            <label>Input JSON (abaikan form jika terisi)</label>
-            <textarea id="json-textarea" placeholder='{"function":"realityDropoff","cache":"minimal","input":{"E10":"Mobil",...}}'></textarea>
-            <button class="btn-copy" onclick="copyTemplate()" style="margin-top:4px;">📋 COPY TEMPLATE</button>
+            <!-- Logo -->
+            <div style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #00a86b; text-align: center;">Kupas⚡Tarif</div>
+
+            <!-- Wave Animation (5 batang) -->
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 4px 0;">
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.15s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.3s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.45s infinite;"></div>
+                <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.6s infinite;"></div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="width: 100%; height: 3px; background-color: #1a3a2e; border-radius: 9999px; overflow: hidden;">
+                <div id="loading-progress-bar" style="height: 100%; width: 0%; background-color: #00a86b; border-radius: 9999px; transition: width 0.1s linear;"></div>
+            </div>
+
+            <!-- Loading Text (random, hardcoded) -->
+            <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
+
+            <!-- Version -->
+            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0a-beta</div>
+
+            <!-- Reload Button (hidden by default) -->
+            <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
         </div>
     </div>
 
-    <form id="input-form" autocomplete="off">
-        <!-- Card Basic & Kendaraan -->
-        <div class="card">
-            <div class="card-header" onclick="toggleCard(this)"><h3>🚗 Basic & Kendaraan</h3><span class="toggle-icon">▼</span></div>
-            <div class="card-body" id="basic-body"><div style="margin-top:6px">
-                <label>E10 (Mode)</label><select id="in-E10"><option value="Mobil">Mobil</option><option value="Motor">Motor</option></select>
-                <label>E12 (Peran)</label><select id="in-E12"><option value="Driver">Driver</option><option value="Penumpang">Penumpang</option></select>
-                <label>E20 (Area)</label><select id="in-E20"><option value="Jabodetabek">Jabodetabek</option><option value="SumatraJawa">SumatraJawa</option><option value="TimurIndonesia">TimurIndonesia</option></select>
-                <label>E22 (CC)</label><select id="in-E22">
-                    <option value="1000cc">1000cc</option><option value="1500cc">1500cc</option><option value="2000cc">2000cc</option>
-                    <option value="125cc">125cc</option><option value="160cc">160cc</option><option value="200cc">200cc</option>
-                    <option value="Listrik">Listrik</option>
-                </select>
-                <label>E24 (BBM)</label><select id="in-E24">
-                    <option value="Pertalite">Pertalite</option><option value="Pertamax">Pertamax</option>
-                    <option value="Bio Solar">Bio Solar</option><option value="SPKLU+">SPKLU+</option>
-                    <option value="Swap Battery">Swap Battery</option>
-                </select>
-                <label>E26 (Transmisi)</label><select id="in-E26"><option value="manual">manual</option><option value="matic">matic</option></select>
-                <label>E28 (Kontrak)</label><select id="in-E28"><option value="individu">individu</option><option value="vendor">vendor</option></select>
-            </div></div>
-        </div>
+    <!-- Wave Animation Keyframes -->
+    <style>
+        @keyframes loading-wave {
+            0%, 60%, 100% { transform: scaleY(1); }
+            30% { transform: scaleY(2); }
+        }
+    </style>
 
-        <!-- Card Order -->
-        <div class="card">
-            <div class="card-header" onclick="toggleCard(this)"><h3>📋 Order</h3><span class="toggle-icon">▼</span></div>
-            <div class="card-body" id="order-body"><div style="margin-top:6px">
-                <label>E36 (Tipe)</label><select id="in-E36"><option value="online">online</option><option value="offline">offline</option></select>
-                <label>E38 (Tipe Tarif Offline)</label><select id="in-E38"><option value="wajar">wajar</option><option value="minimal">minimal</option><option value="abnormal">abnormal</option><option value="app">app</option></select>
-                <label>E40 (Kenaikan Wajar) %</label><input type="number" id="in-E40" placeholder="Mobil 0.4-3, Motor 0.2-3" step="0.1" min="0.2" max="3">
-                <label>E46 (Layanan)</label><select id="in-E46">
-                    <option value="Standar">Standar</option><option value="Hemat">Hemat</option><option value="XL">XL</option>
-                    <option value="Prioritas">Prioritas</option><option value="Premium">Premium</option><option value="Premium XL">Premium XL</option>
-                </select>
-                <label>E54 (Harga Penumpang) Rp</label><input type="number" id="in-E54" placeholder="penumpang only" step="1000">
-                <label>E56 (Pendapatan Driver) Rp</label><input type="number" id="in-E56" placeholder="kosong=11111" step="1000">
-                <label>E58 (Jarak Antar) km</label><input type="number" id="in-E58" placeholder="kosong=0" step="0.1">
-                <label>E60 (Kenaikan Tarif) %</label><input type="number" id="in-E60" placeholder="0-1000" step="1" min="0" max="1000">
-                <label>E68 (Jarak Offline) km</label><input type="number" id="in-E68" placeholder="0.01-500" step="0.1" min="0.01" max="500">
-                <label>E70 (Waktu Offline) mnt</label><input type="number" id="in-E70" placeholder="1-1000" step="1" min="1" max="1000">
-                <label>uiStateE71 (E71) Rp</label><input type="number" id="in-E71" placeholder="nilai E713 dari estimasi" step="0.01">
-            </div></div>
-        </div>
-
-        <!-- Card Reality -->
-        <div class="card">
-            <div class="card-header" onclick="toggleCard(this)"><h3>📍 Reality</h3><span class="toggle-icon">▼</span></div>
-            <div class="card-body" id="reality-body"><div style="margin-top:6px">
-                <label>E78 (Jarak Jemput) km</label><input type="number" id="in-E78" placeholder="0.01-500" step="0.1" min="0.01" max="500">
-                <label>E80 (Waktu Jemput) mnt</label><input type="number" id="in-E80" placeholder="1-1000" step="1" min="1" max="1000">
-                <label>E82 (Jarak Antar) km</label><input type="number" id="in-E82" placeholder="0.01-500" step="0.1" min="0.01" max="500">
-                <label>E84 (Waktu Antar) mnt</label><input type="number" id="in-E84" placeholder="1-1000" step="1" min="1" max="1000">
-                <label>E92 (Biaya Aplikasi Penumpang) Rp</label><input type="number" id="in-E92" placeholder="0-100000" step="1000" min="0" max="100000">
-                <div class="input-group input-group-3" style="margin-top:6px">
-                    <div><label>E100 (Parkir)</label><input type="number" id="in-E100" placeholder="0-100000" step="1000" min="0" max="100000"></div>
-                    <div><label>E102 (Toll)</label><input type="number" id="in-E102" placeholder="0-500000" step="1000" min="0" max="500000"></div>
-                    <div><label>E104 (Lainnya)</label><input type="number" id="in-E104" placeholder="0-500000" step="1000" min="0" max="500000"></div>
-                </div>
-            </div></div>
-        </div>
-    </form>
-
-    <!-- Card Fungsi & Cache -->
-    <div class="card">
-        <div class="card-header" onclick="toggleCard(this)"><h3>⚙️ Pengaturan</h3><span class="toggle-icon">▼</span></div>
-        <div class="card-body" id="settings-body"><div style="margin-top:6px">
-            <label>Fungsi</label>
-            <select id="func-select">
-                <option value="estimatePickup">estimatePickup</option>
-                <option value="estimateDropoff">estimateDropoff</option>
-                <option value="realityPickup">realityPickup</option>
-                <option value="realityDropoff" selected>realityDropoff</option>
-                <option value="reality">reality (shortcut)</option>
-                <option value="complete">complete</option>
-                <option value="getOperationalCost">getOperationalCost</option>
-            </select>
-            <label>Cache</label>
-            <select id="cache-select">
-                <option value="off">Off</option>
-                <option value="minimal" selected>Minimal</option>
-                <option value="maksimal">Maksimal</option>
-            </select>
-        </div></div>
+    <!--
+        =================================================================
+        APP CONTAINER
+        =================================================================
+    -->
+    <div id="app" class="app-container hidden">
+        <header id="app-header" class="app-header"></header>
+        <main id="app-content" class="app-content"></main>
+        <footer id="app-footer" class="app-footer"></footer>
     </div>
 
-    <button class="btn-reset" onclick="resetInputs()">🔄 RESET INPUT</button>
-    <button class="btn-hit" onclick="doCalculate()">⚡ HITUNG</button>
+    <!-- H1 tersembunyi untuk SEO & aksesibilitas -->
+    <h1 class="sr-only">KupasTarif – Kalkulator Tarif Ojek Online</h1>
 
-    <div id="output-area"><div class="card"><p style="color:#94a3b8;text-align:center;padding:30px">← Isi input, pilih fungsi & cache, klik <strong>HITUNG</strong></p></div></div>
-    <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:16px">Engine v1.0.1‑beta · Cache v0.5.1‑beta · KupasTarif Test Suite</p>
-</div>
+    <!-- Fallback untuk crawler atau pengguna tanpa JavaScript -->
+    <noscript>
+        <div style="padding: 20px; font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <h1 style="font-size: 1.5rem; color: #0a1f1a;">KupasTarif – Kalkulator Tarif Ojek Online</h1>
+            <p style="color: #334155;">Aplikasi ini memerlukan JavaScript untuk berjalan. Silakan aktifkan JavaScript di browser Anda.</p>
+            <p style="color: #475569;">Fitur: hitung pendapatan driver, rincian biaya operasional, perbandingan tarif, tracking GPS, dan laporan transparan.</p>
+            <p><a href="https://linktr.ee/kupastarif/" style="color: #0d7c4a;">Kembali ke Beranda</a></p>
+        </div>
+    </noscript>
 
-<!-- Engine v1.0.1‑beta -->
-<script src="engine/01data.js"></script>
-<script src="engine/02valid.js"></script>
-<script src="engine/03fare.js"></script>
-<script src="engine/04cost.js"></script>
-<script src="engine/05extra.js"></script>
-<script src="engine/06api.js"></script>
-<script src="engine/07cache.js"></script>
+    <!--
+        =================================================================
+        PORTAL CONTAINERS
+        =================================================================
+    -->
+    <div id="drawer-container"></div>
+    <div id="popup-container"></div>
+    <div id="toast-container" class="toast-container"></div>
 
-<script>
-'use strict';
+    <!--
+        =================================================================
+        LOADING OVERLAY (NAVIGASI GLOBAL)
+        =================================================================
+        Tema: MENGIKUTI tema aplikasi (light/dark)
+    -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+    </div>
 
-// ==================== TOGGLE CARD ====================
-function toggleCard(h) {
-    h.classList.toggle('collapsed');
-    h.nextElementSibling.classList.toggle('collapsed');
-}
-
-// ==================== DEFAULTS ====================
-const DEFAULTS = {
-    'in-E10':'Mobil', 'in-E12':'Driver', 'in-E20':'Jabodetabek',
-    'in-E22':'1000cc', 'in-E24':'Pertalite', 'in-E26':'manual', 'in-E28':'individu',
-    'in-E36':'online', 'in-E38':'wajar', 'in-E40':'', 'in-E46':'Standar',
-    'in-E54':'', 'in-E56':'', 'in-E58':'', 'in-E60':'',
-    'in-E68':'', 'in-E70':'', 'in-E71':'',
-    'in-E78':'', 'in-E80':'', 'in-E82':'', 'in-E84':'',
-    'in-E92':'', 'in-E100':'', 'in-E102':'', 'in-E104':''
-};
-
-const TEMPLATE_JSON = {
-    function: "realityDropoff",
-    cache: "minimal",
-    input: {
-        E10: "Mobil", E12: "Driver", E20: "Jabodetabek",
-        E22: "1000cc", E24: "Pertalite", E26: "manual", E28: "individu",
-        E36: "online", E38: "wajar", E40: null, E46: "Standar",
-        E54: null, E56: null, E58: null, E60: null,
-        E68: null, E70: null, E71: null,
-        E78: null, E80: null, E82: null, E84: null,
-        E92: null, E100: null, E102: null, E104: null
-    }
-};
-
-function resetInputs() {
-    for (let [id, val] of Object.entries(DEFAULTS)) {
-        let el = document.getElementById(id);
-        if (el) el.value = val;
-    }
-}
-
-// ==================== INPUT BUILDING ====================
-function getRawValues() {
-    const raw = {};
-    const inputIds = [
-        'in-E10','in-E12','in-E20','in-E22','in-E24','in-E26','in-E28',
-        'in-E36','in-E38','in-E40','in-E46','in-E54','in-E56','in-E58','in-E60',
-        'in-E68','in-E70','in-E71',
-        'in-E78','in-E80','in-E82','in-E84','in-E92','in-E100','in-E102','in-E104'
-    ];
-    inputIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const cellId = id.replace('in-', '');
-        const val = el.value.trim();
-        if (val === '') {
-            raw[cellId] = null;
-        } else if (el.tagName === 'SELECT') {
-            raw[cellId] = val;
+    <!--
+        =================================================================
+        LOADER SCRIPT (init.js dengan cache bust hanya saat dev mode)
+        =================================================================
+    -->
+    <script>
+        if (window.isDevMode && window.CACHE_BUST) {
+            document.write('<script src="js/core/init.js?v=' + window.CACHE_BUST + '"><\/script>');
         } else {
-            const num = parseFloat(val);
-            raw[cellId] = isNaN(num) ? val : num;
+            document.write('<script src="js/core/init.js"><\/script>');
         }
-    });
-    return raw;
-}
+    </script>
 
-function buildHomeInput(raw) {
-    return {
-        E10: raw.E10, E12: raw.E12, E20: raw.E20,
-        E22: raw.E22, E24: raw.E24, E26: raw.E26, E28: raw.E28
-    };
-}
+    <!--
+        =================================================================
+        INLINE: LOADING TEXT (SSOT - HARDCODED, DALAM IIFE)
+        =================================================================
+    -->
+    <script>
+        (function() {
+            'use strict';
 
-function buildOrderInput(raw) {
-    return {
-        E36: raw.E36, E38: raw.E38, E40: raw.E40,
-        E46: raw.E46, E54: raw.E54, E56: raw.E56,
-        E58: raw.E58, E60: raw.E60, E68: raw.E68,
-        E70: raw.E70, E71: raw.E71
-    };
-}
+            // DAFTAR TEKS LOADING (6 item) - SSOT HANYA DI SINI
+            var LOADING_TEXTS = [
+                "Demi sistem, driver terus bekerja...",
+                "Atas nama sistem yang selalu benar!",
+                "Menyiapkan mesin yang bijaksana...",
+                "Sekarang keliatan, besok diumpetin sistem.",
+                "Tidak ada yg lebih penting selain ketidaktahuan penumpang!"
+            ];
 
-function buildRealityInput(raw) {
-    return {
-        E78: raw.E78, E80: raw.E80, E82: raw.E82,
-        E84: raw.E84, E92: raw.E92, E100: raw.E100,
-        E102: raw.E102, E104: raw.E104
-    };
-}
+            // Pilih teks acak
+            var randomIndex = Math.floor(Math.random() * LOADING_TEXTS.length);
+            var loadingTextElement = document.getElementById('loading-text');
+            if (loadingTextElement) {
+                loadingTextElement.textContent = LOADING_TEXTS[randomIndex];
+            }
 
-// ==================== UI HELPERS ====================
-function fmt(v) {
-    if (v === null || v === undefined) return '<span class="cell-none">null</span>';
-    if (v === 0) return '0';
-    if (typeof v === 'number') {
-        if (!isFinite(v)) return '<span class="cell-none">∞</span>';
-        return Number.isInteger(v) ? v.toLocaleString('id-ID') : v.toFixed(6);
-    }
-    if (Array.isArray(v)) return '[ ' + v.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(', ') + ' ]';
-    if (typeof v === 'object') return JSON.stringify(v);
-    return String(v);
-}
+            // Reload button
+            var reloadButton = document.getElementById('loading-reload-button');
+            if (reloadButton) {
+                reloadButton.addEventListener('click', function() {
+                    window.location.reload(true);
+                });
+            }
+        })();
+    </script>
 
-function fmtRaw(v) {
-    if (v === null || v === undefined) return '<span class="cell-none">null</span>';
-    if (typeof v === 'number') return v.toLocaleString('id-ID');
-    return String(v);
-}
-
-function fmtPlain(v) {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'number') {
-        if (!isFinite(v)) return null;
-        return Number.isInteger(v) ? v : parseFloat(v.toFixed(6));
-    }
-    return v;
-}
-
-// ==================== LABEL OUTPUT ====================
-const L = {
-    E10:'Mode', E12:'Peran', E20:'Area', E22:'CC', E24:'BBM', E26:'Transmisi', E28:'Kontrak',
-    E36:'Tipe Order', E38:'Tipe Tarif Offline', E40:'Kenaikan Wajar', E46:'Layanan',
-    E54:'Harga Penumpang', E56:'Pendapatan Driver', E58:'Jarak Antar', E60:'Kenaikan Tarif',
-    E68:'Jarak Offline', E70:'Waktu Offline', E71:'uiStateE71',
-    E78:'Jarak Jemput', E80:'Waktu Jemput', E82:'Jarak Antar Real', E84:'Waktu Antar Real',
-    E92:'Biaya Aplikasi Penumpang', E100:'Parkir', E102:'Toll', E104:'Lainnya',
-    E655:'Komisi Aplikasi', E656:'Kesejahteraan Driver', E657:'Total Persentase Aplikasi',
-    E658:'Persentase Driver', E659:'Harga BBM/Listrik', E660:'Tarif Minimum Zona',
-    E661:'Tarif Min Driver', E662:'Seat', E663:'Omset Minimum', E668:'Persen Layanan',
-    E669:'Tarif Layanan', E670:'Tarif Layanan Min Driver', E671:'Estimasi Waktu Jemput',
-    E677:'Tarif Dasar Offline', E678:'Tipe Tarif Offline', E679:'Tarif Layanan Offline',
-    E680:'Tarif Waktu Offline', E682:'Fare Jarak Offline', E683:'Fare Waktu Offline',
-    E684:'Biaya Jemput Offline', E686:'Estimasi Fare Offline', E687:'Estimasi Bayar Offline',
-    E692:'Biaya Aplikasi Penumpang Est', E693:'Biaya Aplikasi Penumpang Real',
-    E694:'Fare MDriver', E695:'Potongan Aplikasi MDriver', E696:'Dibayarkan Penumpang Est',
-    E697:'Dibayarkan Penumpang Tetap', E698:'Fare PNP', E699:'Biaya Aplikasi Driver',
-    E700:'Base Diterima Driver', E701:'Kesejahteraan Driver (Rp)',
-    E706:'Jarak Order Hide', E707:'Jarak Order Ditetapkan', E708:'Jarak Order Kerja',
-    E709:'Jarak Jemput Antar Kerja', E713:'Tarif per Km', E714:'Tarif Waktu Order',
-    E715:'Waktu Antar Order', E716:'Waktu Antar Kerja', E717:'Kenaikan Tarif Jarak',
-    E718:'Kenaikan Tarif Waktu', E719:'Tipe Tarif Order Offline',
-    E725:'Selisih Jarak Jemput', E726:'Selisih Waktu Jemput', E727:'Selisih Jarak Antar',
-    E728:'Selisih Waktu Antar', E729:'Tagihan Selisih Jarak Jemput', E730:'Tagihan Selisih Waktu Jemput',
-    E731:'Tagihan Selisih Jarak Antar', E732:'Tagihan Selisih Waktu Antar',
-    E738:'Ditagih Jarak Jemput', E739:'Ditagih Waktu Jemput', E740:'Ditagih Jarak Antar',
-    E741:'Ditagih Waktu Antar', E742:'Ditagih Jemput', E743:'Ditagih Antar',
-    E744:'Biaya Tambahan (Parkir+Tol+Lain)', E745:'Total Tagihan (tanpa plus)', E746:'Total Tagihan (plus)',
-    E752:'Total Jarak Real', E753:'Total Waktu Real', E754:'Tarif Jarak Efektif', E755:'Tarif Waktu Efektif',
-    E787:'Selisih BBM Seat', E788:'Selisih BBM CC', E789:'Selisih BBM Transmisi',
-    E790:'Selisih BBM Minyak', E791:'Total Selisih BBM Jemput', E792:'Total Selisih BBM Antar',
-    E797:'Harga Penyusutan', E798:'Penyusutan per menit', E799:'Total Pajak per Tahun',
-    E800:'Pajak per menit', E801:'Atribut per menit', E802:'Total Perawatan per km',
-    E803:'Faktor Perawatan CC', E805:'Biaya Langganan', E806:'Beban Peta per Sesi',
-    E807:'Beban Peta per Order', E808:'Total Beban Driver', E809:'Total Beban Aplikasi',
-    E815:'Penyusutan Jemput Est', E816:'Penyusutan Antar Est', E817:'Penyusutan Total Est',
-    E823:'Penyusutan Jemput Real', E824:'Penyusutan Antar Real', E825:'Penyusutan Total Real',
-    E831:'Pajak Jemput Est', E832:'Pajak Antar Est', E833:'Pajak Total Est',
-    E839:'Pajak Jemput Real', E840:'Pajak Antar Real', E841:'Pajak Total Real',
-    E847:'Atribut Jemput Est', E848:'Atribut Antar Est', E849:'Atribut Total Est',
-    E855:'Atribut Jemput Real', E856:'Atribut Antar Real', E857:'Atribut Total Real',
-    E863:'Kecepatan Jemput Est', E864:'Kecepatan Antar Est', E865:'Kecepatan Total Est',
-    E871:'Kecepatan Jemput Real', E872:'Kecepatan Antar Real', E873:'Kecepatan Total Real',
-    E879:'AFC Jemput Mobil Only Est', E880:'AFC Jemput Motor Only Est', E881:'AFC Jemput Adjusted Est',
-    E882:'AFC Antar Mobil Only Est', E883:'AFC Antar Motor Only Est', E884:'AFC Antar Adjusted Est',
-    E890:'AFC Jemput Mobil Only Real', E891:'AFC Jemput Motor Only Real', E892:'AFC Jemput Adjusted Real',
-    E893:'AFC Antar Mobil Only Real', E894:'AFC Antar Motor Only Real', E895:'AFC Antar Adjusted Real',
-    E901:'BBM Jemput Est', E902:'BBM Antar Est', E903:'BBM Total Est',
-    E909:'BBM Jemput Real', E910:'BBM Antar Real', E911:'BBM Total Real',
-    E917:'Faktor Kecepatan Jemput Est', E918:'Faktor Kecepatan Antar Est',
-    E919:'Perawatan/km Jemput Est', E920:'Perawatan/km Antar Est',
-    E921:'Perawatan Jemput Est', E922:'Perawatan Antar Est', E923:'Perawatan Total Est',
-    E929:'Faktor Kecepatan Jemput Real', E930:'Faktor Kecepatan Antar Real',
-    E931:'Perawatan/km Jemput Real', E932:'Perawatan/km Antar Real',
-    E933:'Perawatan Jemput Real', E934:'Perawatan Antar Real', E935:'Perawatan Total Real',
-    E941:'Pajak+Atribut Jemput Est', E942:'Pajak+Atribut Antar Est', E943:'Pajak+Atribut Total Est',
-    E944:'Beban Total Jemput Est', E945:'Beban Total Antar Est', E946:'Beban Total Est',
-    E947:'Non-BBM Jemput Est', E948:'Non-BBM Antar Est', E949:'Non-BBM Total Est',
-    E955:'Pajak+Atribut Jemput Real', E956:'Pajak+Atribut Antar Real', E957:'Pajak+Atribut Total Real',
-    E958:'Beban Total Jemput Real', E959:'Beban Total Antar Real', E960:'Beban Total Real',
-    E961:'Non-BBM Jemput Real', E962:'Non-BBM Antar Real', E963:'Non-BBM Total Real',
-    E969:'Pendapatan Driver Est', E970:'Pendapatan Aplikasi Est', E971:'Persentase Aplikasi Est',
-    E972:'Persentase Driver Est', E973:'Persentase Operasional Est', E974:'Persentase Beban Aplikasi Est',
-    E975:'Verifikasi 100% Est',
-    E981:'Pendapatan Driver Real', E982:'Pendapatan Aplikasi Real', E983:'Persentase Aplikasi Real',
-    E984:'Persentase Driver Real', E985:'Persentase Operasional Real', E986:'Persentase Beban Aplikasi Real',
-    E987:'Verifikasi 100% Real',
-    E998:'UMR Area', E999:'Cost/km Est', E1000:'Cost/km Real', E1001:'UMR per menit', E1002:'Target Bulanan',
-    E1007:'Setara Tarif Angkot', E1008:'Jumlah Penumpang Angkot', E1009:'Konversi Tarif Angkot/km',
-    E1010:'Persentase vs Angkot', E1012:'Setara Tarif TJ', E1013:'Jumlah Penumpang TJ',
-    E1014:'Konversi Tarif TJ/km', E1015:'Persentase vs TJ',
-    E1021:'BBM/menit Est', E1022:'Non-BBM/menit Est', E1023:'Operasional/menit Est',
-    E1025:'BBM/km Est', E1026:'Non-BBM/km Est', E1027:'Operasional/km Est',
-    E1029:'Driver/menit Est', E1030:'App/menit Est', E1031:'Penumpang/menit Est',
-    E1033:'Driver/km Est', E1034:'App/km Est', E1035:'Penumpang/km Est',
-    E1041:'BBM/menit Real', E1042:'Non-BBM/menit Real', E1043:'Operasional/menit Real',
-    E1045:'BBM/km Real', E1046:'Non-BBM/km Real', E1047:'Operasional/km Real',
-    E1049:'Driver/menit Real', E1050:'App/menit Real', E1051:'Penumpang/menit Real',
-    E1053:'Driver/km Real', E1054:'App/km Real', E1055:'Penumpang/km Real',
-    E1061:'Jam Capai Target Driver', E1062:'Driver 4h', E1063:'Driver 8h', E1064:'Driver 12h',
-    E1066:'Jam Capai Target App', E1067:'App 4h', E1068:'App 8h', E1069:'App 12h',
-    E1071:'Jam Capai Target Biaya', E1072:'Biaya 4h', E1073:'Biaya 8h', E1074:'Biaya 12h',
-    E1076:'Jam Capai Target Penumpang', E1077:'Penumpang 4h', E1078:'Penumpang 8h', E1079:'Penumpang 12h',
-    E1085:'Modal Geser', E1086:'Vendor/menit', E1087:'Jam Vendor Capai UMR',
-    E1088:'Vendor 4h', E1089:'Vendor 8h', E1090:'Vendor 12h',
-    E1092:'Individu/menit', E1093:'Jam Individu Capai UMR',
-    E1094:'Individu 4h', E1095:'Individu 8h', E1096:'Individu 12h',
-    E1102:'Badge Driver Est', E1103:'Badge App Est', E1104:'Badge Tarif',
-    E1105:'Badge Jarak Hide', E1106:'Tipe Kenaikan Tarif', E1107:'Biaya App vs Wajar',
-    E1112:'Badge Driver Real', E1113:'Badge App vs Driver'
-};
-
-const INPUT_CELLS = ['E10','E12','E20','E22','E24','E26','E28','E36','E38','E40','E46','E54','E56','E58','E60','E68','E70','E71','E78','E80','E82','E84','E92','E100','E102','E104'];
-
-const OUTPUT_CELLS = [
-    'E655','E656','E657','E658','E659','E660','E661','E662','E663','E668','E669','E670','E671',
-    'E677','E678','E679','E680', null,
-    'E682','E683','E684','E686','E687','E692','E693','E694','E695','E696','E697','E698','E699','E700','E701',
-    'E706','E707','E708','E709','E713','E714','E715','E716','E717','E718','E719', null,
-    'E725','E726','E727','E728','E729','E730','E731','E732','E738','E739','E740','E741','E742','E743','E744','E745','E746',
-    'E752','E753','E754','E755', null,
-    'E787','E788','E789','E790','E791','E792','E797','E798','E799','E800','E801','E802','E803','E805','E806','E807','E808','E809', null,
-    'E863','E879','E880','E881','E901','E917','E919','E921','E815','E831','E847','E944','E947', null,
-    'E864','E865','E882','E883','E884','E902','E903','E918','E920','E922','E923','E816','E817','E832','E833','E848','E849',
-    'E941','E942','E943','E945','E948','E946','E949','E969','E970','E971','E972','E973','E974','E975', null,
-    'E871','E890','E891','E892','E909','E929','E931','E933','E823','E839','E855','E958','E961', null,
-    'E872','E873','E893','E894','E895','E910','E911','E930','E932','E934','E935','E824','E825','E840','E841','E856','E857',
-    'E955','E956','E957','E959','E962','E960','E963','E981','E982','E983','E984','E985','E986','E987', null,
-    'E998','E999','E1000','E1001','E1002','E1007','E1008','E1009','E1010','E1012','E1013','E1014','E1015', null,
-    'E1021','E1022','E1023','E1025','E1026','E1027','E1029','E1030','E1031','E1033','E1034','E1035', null,
-    'E1041','E1042','E1043','E1045','E1046','E1047','E1049','E1050','E1051','E1053','E1054','E1055', null,
-    'E1061','E1062','E1063','E1064','E1066','E1067','E1068','E1069','E1071','E1072','E1073','E1074','E1076','E1077','E1078','E1079', null,
-    'E1085','E1086','E1087','E1088','E1089','E1090','E1092','E1093','E1094','E1095','E1096', null,
-    'E1102','E1103','E1104','E1105','E1106','E1107','E1112','E1113'
-];
-
-const HL = ['E657','E660','E669','E700','E713','E714','E946','E960','E969','E970','E981','E982','E1102','E1112'];
-
-// ==================== COPY TEMPLATE ====================
-function copyTemplate() {
-    const json = JSON.stringify(TEMPLATE_JSON, null, 2);
-    navigator.clipboard.writeText(json).then(() => {
-        alert('✅ Template JSON disalin ke clipboard.');
-    }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = json;
-        ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); alert('✅ Template JSON disalin ke clipboard.'); }
-        catch (ex) { alert('❌ Gagal menyalin ke clipboard.'); }
-        document.body.removeChild(ta);
-    });
-}
-
-// ==================== COPY ALL DATA ====================
-function copyAllData(btn) {
-    if (!window._lastCopyData) {
-        alert('Data belum tersedia. Silakan klik HITUNG terlebih dahulu.');
-        return;
-    }
-    const json = JSON.stringify(window._lastCopyData, null, 2);
-    navigator.clipboard.writeText(json).then(() => {
-        btn.textContent = '✅ COPIED!';
-        btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = '📋 COPY ALL DATA'; btn.classList.remove('copied'); }, 2000);
-    }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = json;
-        ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); btn.textContent = '✅ COPIED!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = '📋 COPY ALL DATA'; btn.classList.remove('copied'); }, 2000); } catch (ex) { btn.textContent = '❌ GAGAL'; }
-        document.body.removeChild(ta);
-    });
-}
-
-// ==================== RENDER ALL CELLS DUMP ====================
-function renderAllCellsDump(c, result, valid, raw, cm, fn, source, jsonError) {
-    const d = document.createElement('div');
-    d.className = 'card';
-    const did = 'ac-' + Date.now();
-    let h = '<div class="card-header" onclick="toggleCard(this)"><h3><span class="badge badge-all">ALL CELLS DUMP</span> Semua Cell v1.0.1‑beta</h3><span class="toggle-icon">▼</span></div>';
-    h += '<div class="card-body">';
-
-    const sourceLabel = source === 'json' ? 'JSON' : 'Form';
-    const sourceClass = source === 'json' ? 'badge-json' : 'badge-form';
-    h += `<div class="info-banner">🗄️ <strong>${cm.toUpperCase()}</strong> · <strong>${fn}</strong> · Sumber Input: <span class="badge ${sourceClass}">${sourceLabel}</span> · null = tidak dihitung</div>`;
-
-    if (jsonError) {
-        h += `<div class="error-banner">⚠️ ${jsonError}</div>`;
-    }
-
-    h += `<input type="text" class="search-box" placeholder="🔍 Cari cell..." oninput="filterAC('${did}',this.value)" id="s-${did}"><p class="search-info" id="i-${did}">Menampilkan semua cell</p>`;
-    h += '<div class="table-wrapper-all"><table id="' + did + '"><thead><tr><th>Cell</th><th>Keterangan</th><th>Input Raw</th><th>Value</th></tr></thead><tbody>';
-
-    let ct = 0, cnn = 0;
-
-    INPUT_CELLS.forEach(cell => {
-        ct++;
-        const label = L[cell] || '';
-        const rawVal = raw[cell] !== undefined ? raw[cell] : null;
-        const val = valid[cell] !== undefined ? valid[cell] : (result[cell] !== undefined ? result[cell] : null);
-        const cs = (val === null || val === undefined) ? 'cell-zeronull' : '';
-        if (val !== null && val !== undefined && val !== 0) cnn++;
-        h += `<tr data-cell="${cell}"><td>${cell}</td><td>${label}</td><td>${fmtRaw(rawVal)}</td><td class="${cs}">${fmt(val)}</td></tr>`;
-    });
-
-    h += '<tr class="cell-spacer"><td colspan="4"></td></tr>';
-
-    OUTPUT_CELLS.forEach(cell => {
-        if (cell === null) {
-            h += '<tr class="cell-spacer"><td colspan="4"></td></tr>';
-            return;
-        }
-        ct++;
-        const label = L[cell] || '';
-        let val = result[cell];
-        if (val === undefined) val = (valid && valid[cell] !== undefined) ? valid[cell] : null;
-        let cs = HL.includes(cell) ? 'cell-highlight' : '';
-        if (val === null || val === undefined) cs += ' cell-zeronull';
-        else if (val === 0) cs += ' cell-zeronull';
-        else cnn++;
-        if ((cell === 'E981' || cell === 'E969') && val < 0) cs += ' cell-danger';
-        h += `<tr data-cell="${cell}"><td>${cell}</td><td>${label}</td><td>–</td><td class="${cs}">${fmt(val)}</td></tr>`;
-    });
-
-    h += '</tbody></table></div>';
-    h += `<p style="font-size:10px;color:#64748b;margin-top:4px">Total: ${ct} cell · Non-null: ${cnn} · Null/0: ${ct - cnn}</p>`;
-    h += `<button class="btn-copy" onclick="copyAllData(this)">📋 COPY ALL DATA</button>`;
-    h += '</div>';
-    d.innerHTML = h;
-    c.appendChild(d);
-}
-
-function filterAC(tid, q) {
-    const tb = document.getElementById(tid);
-    if (!tb) return;
-    const rows = tb.querySelectorAll('tbody tr');
-    let cnt = 0, ttl = 0;
-    q = q.trim().toLowerCase();
-    rows.forEach(r => {
-        if (r.classList.contains('cell-spacer')) return;
-        ttl++;
-        const cl = (r.dataset.cell || '').toLowerCase();
-        if (!q || cl.includes(q)) { r.classList.remove('row-hidden'); cnt++; }
-        else { r.classList.add('row-hidden'); }
-    });
-    const ie = document.getElementById('i-' + tid);
-    if (ie) ie.textContent = q ? cnt + ' dari ' + ttl + ' cell' : 'Menampilkan semua cell';
-}
-
-// ==================== MAIN CALCULATION ====================
-function doCalculate() {
-    const fn = document.getElementById('func-select').value;
-    const cm = document.getElementById('cache-select').value;
-
-    try { Cache.setMode(cm); } catch(e) {}
-
-    let raw, homeRaw, orderRaw, realityRaw, source = 'form', jsonError = null;
-
-    const jsonText = document.getElementById('json-textarea').value.trim();
-    if (jsonText !== '') {
-        try {
-            const parsed = JSON.parse(jsonText);
-            if (parsed && typeof parsed === 'object') {
-                source = 'json';
-                raw = parsed.input || {};
-                INPUT_CELLS.forEach(c => { if (!(c in raw)) raw[c] = null; });
-                const fnOverride = parsed.function;
-                const cmOverride = parsed.cache;
-                if (fnOverride && document.getElementById('func-select').querySelector(`option[value="${fnOverride}"]`)) {
-                    document.getElementById('func-select').value = fnOverride;
-                }
-                if (cmOverride && document.getElementById('cache-select').querySelector(`option[value="${cmOverride}"]`)) {
-                    document.getElementById('cache-select').value = cmOverride;
+    <!-- =================================================================
+         SERVICE WORKER REGISTRATION (dengan dev mode handling)
+         ================================================================= -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            if (window.isDevMode) {
+                // --- Development Mode: hapus semua service worker & cache ---
+                // Unregister service worker yang sudah terdaftar
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        registration.unregister();
+                        console.log('[DEV] Service Worker unregistered');
+                    });
+                });
+                // Hapus semua cache yang tersimpan
+                if ('caches' in window) {
+                    caches.keys().then(function(cacheNames) {
+                        cacheNames.forEach(function(cacheName) {
+                            caches.delete(cacheName);
+                            console.log('[DEV] Cache deleted:', cacheName);
+                        });
+                    });
                 }
             } else {
-                throw new Error('Format JSON tidak valid');
+                // --- Production Mode: daftarkan service worker normal ---
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                        console.log('Service Worker registered with scope:', reg.scope);
+                    }).catch(function(err) {
+                        console.error('Service Worker registration failed:', err);
+                    });
+                });
             }
-        } catch (e) {
-            jsonError = 'JSON tidak valid, menggunakan input form.';
-            source = 'form';
-            raw = getRawValues();
         }
-    } else {
-        raw = getRawValues();
-    }
+    </script>
 
-    const finalFn = document.getElementById('func-select').value;
-    const finalCm = document.getElementById('cache-select').value;
-    try { Cache.setMode(finalCm); } catch(e) {}
-
-    homeRaw = buildHomeInput(raw);
-    orderRaw = buildOrderInput(raw);
-    realityRaw = buildRealityInput(raw);
-
-    let home, order, reality, valid;
-    try {
-        home = Engine.Valid.validateHome(homeRaw);
-        order = Engine.Valid.validateOrder(orderRaw, home);
-        reality = Engine.Valid.validateReality(realityRaw);
-        valid = Object.assign({}, home, order, reality);
-
-        Object.keys(valid).forEach(cell => {
-            const inputEl = document.getElementById('in-' + cell);
-            if (inputEl) {
-                const newVal = String(valid[cell]);
-                if (inputEl.value !== newVal) {
-                    inputEl.value = newVal;
-                }
-            }
-        });
-    } catch (e) {
-        home = homeRaw; order = orderRaw; reality = realityRaw;
-        valid = Object.assign({}, home, order, reality);
-    }
-
-    const oa = document.getElementById('output-area');
-    oa.innerHTML = '';
-    try {
-        let r = null;
-        switch (finalFn) {
-            case 'estimatePickup':
-                r = Cache.estimatePickup(valid, raw.E71);
-                break;
-            case 'estimateDropoff':
-                { const pickup = Cache.estimatePickup(valid, raw.E71);
-                  r = Cache.estimateDropoff(valid, pickup); }
-                break;
-            case 'realityPickup':
-                { const est = Cache.estimateDropoff(valid, Cache.estimatePickup(valid, raw.E71));
-                  r = Cache.realityPickup(valid, est); }
-                break;
-            case 'realityDropoff':
-                { const pickupEst = Cache.estimatePickup(valid, raw.E71);
-                  const est = Cache.estimateDropoff(valid, pickupEst);
-                  const rp = Cache.realityPickup(valid, est);
-                  r = Cache.realityDropoff(valid, est, rp); }
-                break;
-            case 'reality':
-                { const est = Cache.estimateDropoff(valid, Cache.estimatePickup(valid, raw.E71));
-                  r = Cache.reality(valid, est, raw.E71); }
-                break;
-            case 'complete':
-                r = Cache.complete(valid, raw.E71);
-                break;
-            case 'getOperationalCost':
-                { const dist = (valid.E78 || 5) + (valid.E82 || 5);
-                  const time = (valid.E80 || 15) + (valid.E84 || 15);
-                  r = Cache.getOperationalCost(valid, dist, time); }
-                break;
-            default: r = null;
-        }
-        window._lastResult = r;
-        window._lastValid = valid;
-        window._lastRaw = raw;
-
-        const copyData = {
-            meta: {
-                function: finalFn,
-                cache: finalCm,
-                source: source
-            },
-            input: {
-                raw: {},
-                validated: {}
-            },
-            output: {}
-        };
-        INPUT_CELLS.forEach(c => {
-            copyData.input.raw[c] = raw[c];
-            copyData.input.validated[c] = valid[c] !== undefined ? fmtPlain(valid[c]) : null;
-        });
-        if (r && typeof r === 'object') {
-            OUTPUT_CELLS.forEach(c => {
-                if (c === null) return;
-                let val = r[c];
-                if (val === undefined) val = valid[c] !== undefined ? valid[c] : null;
-                copyData.output[c] = fmtPlain(val);
-            });
-        }
-        window._lastCopyData = copyData;
-
-        renderAllCellsDump(oa, r || {}, valid, raw, finalCm, finalFn, source, jsonError);
-    } catch (e) {
-        oa.innerHTML = `<div class="card"><p class="cell-danger">Error: ${e.message}</p><pre style="font-size:10px">${e.stack}</pre></div>`;
-        console.error(e);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof Engine === 'undefined' || typeof Cache === 'undefined') {
-        alert('Engine atau Cache gagal dimuat!');
-        return;
-    }
-    console.log('Engine ' + Engine.ENGINE_VERSION + ' siap. Cache ' + Cache.CACHE_VERSION);
-    resetInputs();
-});
-</script>
 </body>
 </html>
-<!--
+<!-- 
 // ================================= CHANGELOG =================================
-// v1.0.1-rev0:
-// - Versi header dan judul menjadi v1.0.1‑beta dan v0.5.1‑beta
-// - Hapus fungsi wrapper yang sudah tidak ada dari dropdown dan switch-case
-//   (getFareParams, getCostParams, getEstBadges, getRealBadges, calculateAllExtras)
-// - reality dan complete menerima parameter uiStateE71 dari raw.E71
-// - Sesuaikan label dan informasi versi
+// 2.0a-rev1 : isDevMode = false, tambah PWA meta (manifest, favicon, apple-touch),
+//             tambahkan registrasi Service Worker.
+// 2.0a-rev2 : Penambahan SEO: meta tags (description, keywords, robots, canonical),
+//             Open Graph, Twitter Card, JSON-LD, script URL dinamis,
+//             h1 tersembunyi (.sr-only), fallback noscript.
 //
-// =============================== End Of File ===============================
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
+// ================================ End Of File ================================ 
 -->
