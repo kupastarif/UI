@@ -33,6 +33,7 @@ const PRECACHE_URLS = [
   '/assets/img/favicon.ico',
   '/assets/img/icon192.png',
   '/assets/img/icon512.png',
+  '/assets/img/og.jpg',
   '/js/core/init.js',
   '/js/core/app.js',
   '/js/core/state.js',
