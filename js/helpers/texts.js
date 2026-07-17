@@ -3,10 +3,37 @@
  * FILE         : /js/helpers/texts.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   SSOT (Single Source of Truth) untuk teks UI statis.
+ *   Menyediakan random quotes, sarcasm, konten bantuan (OpenHelp),
+ *   konfigurasi popup default (POPUP_TEXTS), dan catatan laporan.
+ *
+ *   Bagian yang telah dihapus dan dikelola mandiri oleh masing‑masing file:
+ *   - Toast messages (TOAST_MESSAGES)
+ *   - Error messages (ERROR_MESSAGES)
+ *   - Validation messages (VALIDATION_MESSAGES)
+ *   - Icon registry (_iconRegistry) & fungsi getIcon/getThemeIcon/dll.
+ *   - Random icons untuk header (RANDOM_ICONS & getRandomIcon)
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau komponen lainnya.
+ *   - Semua konten bersifat statis dan dapat diubah tanpa mempengaruhi logika.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
+
+// =============================================================================
+// 1. RANDOM_QUOTES (3 Kategori)
+// =============================================================================
 
 const RANDOM_QUOTES = {
     driver: [
@@ -31,6 +58,10 @@ const RANDOM_QUOTES = {
         ['Hitung dulu baru jalan', 'biar nggak nyesel']
     ]
 };
+
+// =============================================================================
+// 2. SARCASM_CATEGORIES (6 kategori x 3-5 teks)
+// =============================================================================
 
 const SARCASM_CATEGORIES = {
     minus: {
@@ -95,6 +126,10 @@ const SARCASM_CATEGORIES = {
         ]
     }
 };
+
+// =============================================================================
+// 3. OPENHELP_CONTENT
+// =============================================================================
 
 const OPENHELP_CONTENT = {
     default: {
@@ -264,6 +299,10 @@ const OPENHELP_CONTENT = {
     }
 };
 
+// =============================================================================
+// 4. POPUP_TEXTS
+// =============================================================================
+
 const POPUP_TEXTS = {
     1: {
         title: 'Informasi',
@@ -334,6 +373,10 @@ const POPUP_TEXTS = {
     }
 };
 
+// =============================================================================
+// 5. REPORT_NOTES
+// =============================================================================
+
 const REPORT_NOTES = [
     { type: 'umum', text: 'HIDUP adalah syarat utama untuk melakukan semua aktifitas ini' },
     { type: 'umum', text: 'Tidak termasuk biaya hidup seperti: makan, ongkos ngider, beli kendaraan, biaya server, bayar kontrakan dan gaji pegawai' },
@@ -350,6 +393,10 @@ const REPORT_NOTES = [
     { type: 'mobil listrik', text: 'Biaya listrik sudah disesuaikan dengan biaya per kWh dan biaya admin penjualan' },
     { type: 'motor listrik', text: 'Biaya listrik sudah disesuaikan dengan biaya per kWh dan biaya admin penjualan' }
 ];
+
+// =============================================================================
+// 6. FUNGSI HELPER
+// =============================================================================
 
 function getRandomQuote(stats = {}) {
     let category;
@@ -384,6 +431,10 @@ function getSarcasm(driverIncome, appIncome) {
     return 'Hitung-hitungan selesai!';
 }
 
+// =============================================================================
+// 7. EKSPOR
+// =============================================================================
+
 export const Texts = {
     RANDOM_QUOTES,
     SARCASM_CATEGORIES,
@@ -398,4 +449,15 @@ export const Texts = {
 
 window.log.info('[Texts ' + F_V + '] Texts dimuat (rev1: pemangkasan ikon & pesan)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//             Tidak ada perubahan konten.
+// 2.0a-rev1 : Hapus TOAST_MESSAGES, ERROR_MESSAGES, VALIDATION_MESSAGES,
+//             _iconRegistry, getIcon, getThemeIcon, getVehicleIcon, getRoleIcon,
+//             RANDOM_ICONS, getRandomIcon. Konten dikelola mandiri oleh
+//             masing‑masing file. Sisa konten dipertahankan.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
