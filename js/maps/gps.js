@@ -3,9 +3,25 @@
  * FILE         : /js/maps/gps.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Wrapper untuk navigator.geolocation dengan fitur retry, interval
+ *   update, auto-stop saat berpindah halaman, serta otoritas waktu UTC
+ *   dan deteksi zona waktu Indonesia (WIB, WITA, WIT) berdasarkan
+ *   longitude. Menyediakan data posisi mentah tanpa filter atau kalkulasi.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { StateEvents } from '../core/state.js';
@@ -23,6 +39,7 @@ const ERROR_CODES = {
     TIMEOUT: 'E-GPS-004'
 };
 
+// Zona waktu Indonesia berdasarkan rentang longitude (perkiraan)
 const ZONE_BOUNDARIES = [
     { zone: 'WIB', offset: 7, longMin: 95, longMax: 115 },
     { zone: 'WITA', offset: 8, longMin: 115, longMax: 130 },
@@ -78,6 +95,10 @@ function getCurrentPosition(callback) {
 function isSupported() { return 'geolocation' in navigator; }
 function isActive() { return isTracking; }
 
+// =============================================================================
+// OTORITAS WAKTU UTC & ZONA WAKTU INDONESIA
+// =============================================================================
+
 function _detectZoneByLongitude(lng) {
     for (const entry of ZONE_BOUNDARIES) {
         if (lng >= entry.longMin && lng < entry.longMax) {
@@ -117,6 +138,10 @@ function getCurrentUTCTime(referenceLng) {
         localTimeString: _formatLocalTime(now, offset)
     };
 }
+
+// =============================================================================
+// FUNGSI PRIVAT
+// =============================================================================
 
 function _startWatching() {
     const options = { enableHighAccuracy: HIGH_ACCURACY, timeout: TIMEOUT, maximumAge: MAXIMUM_AGE };
@@ -203,4 +228,10 @@ export const GPS = {
 
 window.log.info('[GPS ' + F_V + '] (9) GPS dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
