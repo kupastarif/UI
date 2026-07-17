@@ -3,10 +3,34 @@
  * FILE         : /js/maps/map.js
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Wrapper untuk Leaflet map library dengan lazy loading. Menyediakan
+ *   fungsi untuk inisialisasi peta, render marker, polyline, kontrol,
+ *   overlay status (teks, akurasi, GPS), default center berdasarkan area,
+ *   dan aturan ikon baru: Driver selalu tampil ikon kendaraan.
+ *   Mendukung mode interaktif (Tracking) dan statis (Show Map).
+ *
+ *   Mulai rev2, tidak ada lagi ikon yang ditulis langsung (inline).
+ *   Seluruh ikon didefinisikan di awal file dalam objek ICON.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev2';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
+// =============================================================================
 
 const ICON = {
     MOBIL: '🚗',
@@ -17,7 +41,7 @@ const ICON = {
     MAP_FINISH: '🏁',
     WARNING_BOLD: '⚠️',
     SHOW_MAP: '🗺️',
-    MAP_DEFAULT: '📍'
+    MAP_DEFAULT: '📍'    // Baru: fallback untuk marker yang tidak dikenal
 };
 
 const DEFAULT_CENTER = [-6.200000, 106.816666];
@@ -61,6 +85,10 @@ let currentIsOperational = false;
 
 let centerButton = null;
 let warningButton = null;
+
+// =============================================================================
+// LAZY LOADING LEAFLET
+// =============================================================================
 
 function loadLeafletCSS() {
     return new Promise(resolve => {
@@ -109,9 +137,17 @@ async function loadLeaflet() {
     return loadPromise;
 }
 
+// =============================================================================
+// DEFAULT CENTER BERDASARKAN AREA
+// =============================================================================
+
 function getDefaultCenter(area) {
     return AREA_CENTERS[area] || DEFAULT_CENTER;
 }
+
+// =============================================================================
+// OVERLAY API
+// =============================================================================
 
 function _initOverlays(containerId) {
     const container = document.getElementById(containerId);
@@ -164,6 +200,10 @@ function setGPSStatusOverlay(active) {
         el.style.color = active ? 'var(--success)' : 'var(--danger)';
     }
 }
+
+// =============================================================================
+// INISIALISASI PETA
+// =============================================================================
 
 async function init(containerId, options = {}) {
     if (options.force && isInitialized) destroy();
@@ -256,6 +296,10 @@ function isReady() {
     return isInitialized && map !== null;
 }
 
+// =============================================================================
+// TOMBOL CENTER (ATURAN IKON BARU)
+// =============================================================================
+
 function addCenterButton() {
     if (!map || !map._container) return;
     if (map._container.querySelector('.map-center-btn')) return;
@@ -282,6 +326,10 @@ function addCenterButton() {
     centerButton = button;
 }
 
+// =============================================================================
+// TOMBOL WARNING
+// =============================================================================
+
 function addWarningButton(onClick) {
     if (warningButton) return;
 
@@ -306,6 +354,10 @@ function addWarningButton(onClick) {
 
     window.log.info('[Map ' + F_V + '] (5) Tombol warning ditambahkan');
 }
+
+// =============================================================================
+// MARKER (ATURAN IKON BARU)
+// =============================================================================
 
 function _createMarkerIcon(type, role, vehicleMode) {
     if (!window.L) return null;
@@ -332,7 +384,7 @@ function _createMarkerIcon(type, role, vehicleMode) {
         pickup: ICON.MAP_PICKUP,
         finish: ICON.MAP_FINISH
     };
-    iconChar = mapIcons[type] || ICON.MAP_DEFAULT;
+    iconChar = mapIcons[type] || ICON.MAP_DEFAULT;   // Gunakan ICON.MAP_DEFAULT sebagai fallback
 
     return window.L.divIcon({
         html: `<div style="font-size: 30px; line-height: 1; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));">${iconChar}</div>`,
@@ -398,6 +450,10 @@ function updateUserMarker(lat, lng, role, vehicleMode) {
 function getMarker(type) {
     return markers[type] || null;
 }
+
+// =============================================================================
+// POLYLINE
+// =============================================================================
 
 function _getWeightByAccuracy(accuracy) {
     if (!accuracy || accuracy <= 10) return POLYLINE_WEIGHT_HIGH;
@@ -475,6 +531,10 @@ function getPolyline(type) {
     return polylines[type] || null;
 }
 
+// =============================================================================
+// KONTROL & VIEW
+// =============================================================================
+
 function fitBounds(positions, options = {}) {
     if (!isReady() || !positions || positions.length === 0) return;
     const L = window.L;
@@ -518,6 +578,10 @@ function panTo(lat, lng, options = {}) {
     if (isReady()) map.panTo([lat, lng], options);
 }
 
+// =============================================================================
+// PLACEHOLDER
+// =============================================================================
+
 function showPlaceholder(containerId, message, subMessage) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -529,6 +593,10 @@ function showPlaceholder(containerId, message, subMessage) {
             ${subMessage ? `<div class="map-placeholder-submessage">${subMessage}</div>` : ''}
         </div>`;
 }
+
+// =============================================================================
+// MODE KHUSUS
+// =============================================================================
 
 async function initForTracking(containerId, options = {}) {
     currentRole = options.role || 'Driver';
@@ -630,6 +698,10 @@ function renderFromCompactData(data, role) {
     }
 }
 
+// =============================================================================
+// GETTER
+// =============================================================================
+
 function getLeaflet() { return window.L || null; }
 function getMap() { return map; }
 function setRole(role) { currentRole = role; }
@@ -637,6 +709,10 @@ function getRole() { return currentRole; }
 function setVehicleMode(mode) { currentVehicleMode = mode; }
 function getVehicleMode() { return currentVehicleMode; }
 function isLeafletLoaded() { return leafletLoaded; }
+
+// =============================================================================
+// EKSPOR
+// =============================================================================
 
 export const MapManager = {
     init,
@@ -690,4 +766,14 @@ export const MapManager = {
 
 window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon peta
+//             didefinisikan secara lokal (ICON.MOBIL, ICON.MAP_START, dll).
+// 2.0a-rev2 : Hapus ikon inline terakhir (📍 fallback marker). Tambahkan
+//             ICON.MAP_DEFAULT. Semua ikon kini merujuk ke objek ICON.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
