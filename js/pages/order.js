@@ -3,9 +3,33 @@
  * FILE         : /js/pages/order.js
  * FILE VERSION : 2.0a-rev3
  * APP VERSION  : 2.0a-beta
+ * DATE         : 2 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Order – Step 1. Input estimasi order sebelum perjalanan.
+ *   Mendukung mode online dan offline. Semua orkestrasi melalui Cache,
+ *   data statis melalui Output.
+ *
+ *   Mulai rev3, ditambahkan dukungan mode "Cek Tarif Offline" via flag
+ *   isCheckOffline. Jika flag aktif, header role berubah menjadi ikon offline
+ *   dan label "CEK TARIF", tombol switch mode disembunyikan, dan footer
+ *   menampilkan tombol HOME (bukan LANJUT) meskipun offlineOrderEnabled true.
+ *   Nilai E40 selalu divalidasi melalui Engine (SSOT) di loadInitialData,
+ *   handleReset, dan performSwitch.
+ *
+ * NOTES        :
+ *   - Slider E40 hanya muncul saat mode offline dan tipe "wajar".
+ *   - Cache diinvalidasi saat input berubah atau mode berganti.
+ *   - uiStateE71 (nilai E713 dari estimasi sebelumnya) dikirim sebagai number.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev3';
 
 import { StateManager } from '../core/state.js';
@@ -27,12 +51,33 @@ import {
 } from '../helpers/output.js';
 import { LocationPicker } from '../maps/picker.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
-    MOTOR: '🏍️', MOBIL: '🚗', DRIVER: '👤', PENUMPANG: '🧑',
-    INFO: 'ⓘ', OFFLINE: '📴', APP: '📱', RESET: '🔁',
-    TARGET: '🎯', COPY: '📋', SPINNER: '⏳', UP_ARROW: '🔺',
-    DOWN_ARROW: '🔻', BACK: '◀', SELESAI: '✅', HOME: '🏠', LOCATION: '📍'
+    MOTOR: '🏍️',
+    MOBIL: '🚗',
+    DRIVER: '👤',
+    PENUMPANG: '🧑',
+    INFO: 'ⓘ',
+    OFFLINE: '📴',
+    APP: '📱',
+    RESET: '🔁',
+    TARGET: '🎯',
+    COPY: '📋',
+    SPINNER: '⏳',
+    UP_ARROW: '🔺',
+    DOWN_ARROW: '🔻',
+    BACK: '◀',
+    SELESAI: '✅',
+    HOME: '🏠',
+    LOCATION: '📍'
 };
+
+// =============================================================================
+// 1. STATE INTERNAL & PREFERENSI
+// =============================================================================
 
 let isDestroyed = false;
 let isSubmitting = false;
@@ -46,12 +91,19 @@ let isValid = false;
 let alwaysGPS = false;
 let offlineOrderEnabled = false;
 let hideSafetyReminder = false;
-let isCheckOffline = false;
+let isCheckOffline = false;          // v2.0a-rev3: flag untuk mode cek tarif
+
 let currentHeader = null;
 
 let formData = {
-    E56: null, E54: null, E58: null, E68: null, E70: null,
-    E46: 'Standar', E38: 'wajar', E40: 0.4
+    E56: null,
+    E54: null,
+    E58: null,
+    E68: null,
+    E70: null,
+    E46: 'Standar',
+    E38: 'wajar',
+    E40: 0.4                       // akan divalidasi ulang via Engine di loadInitialData
 };
 
 let estimateTimer = null;
@@ -72,15 +124,22 @@ LocationPicker.onComplete = (result) => {
     estimateTimer = setTimeout(() => callPickupEstimate(), 300);
 };
 
+// =============================================================================
+// 2. LOAD DATA AWAL
+// =============================================================================
+
 function loadInitialData(direction) {
     const prefs = StateManager.get('preferences') || PreferencesManager.load();
     offlineOrderEnabled = prefs.offlineOrder === true;
     hideSafetyReminder = prefs.hideSafetyReminder === true;
     alwaysGPS = prefs.alwaysGPS === true;
+
+    // v2.0a-rev3: baca flag cek tarif dari state
     isCheckOffline = StateManager.get('isCheckOffline') || false;
 
     const input = StateManager.get('input') || {};
     mode = input.E36 || 'online';
+    // v2.0a-rev3: izinkan offline saat isCheckOffline meskipun offlineOrderEnabled false
     if (mode === 'offline' && !isCheckOffline && !offlineOrderEnabled) {
         mode = 'online';
     }
@@ -94,7 +153,9 @@ function loadInitialData(direction) {
     formData.E70 = input.E70 ?? null;
     formData.E46 = input.E46 || 'Standar';
     formData.E38 = input.E38 || 'wajar';
+    // v2.0a-rev3: validasi E40 via Engine, bukan hardcode
     formData.E40 = validateCell('E40', input.E40, { E10: vehicleMode });
+    StateManager.updateInput('E40', formData.E40);
 
     const isBack = direction === 'back';
 
@@ -140,6 +201,10 @@ function loadInitialData(direction) {
         ' | isCheckOffline=' + isCheckOffline);
 }
 
+// =============================================================================
+// 3. ENGINE CALLS (melalui Cache)
+// =============================================================================
+
 function buildEstimateInput() {
     return StateManager.get('input');
 }
@@ -149,13 +214,16 @@ async function callPickupEstimate() {
     try {
         const valid = buildEstimateInput();
         let uiStateE71;
+
         if (mode === 'offline' && formData.E38 === 'app') {
             const estState = StateManager?.get('estimateState');
             if (estState && typeof estState.E713 === 'number') {
                 uiStateE71 = estState.E713;
             }
         }
+
         pickupEstimate = window.Cache.estimatePickup(valid, uiStateE71);
+
         if (isValid) {
             callDropoffEstimate();
         } else {
@@ -175,6 +243,7 @@ async function callDropoffEstimate() {
     try {
         const valid = buildEstimateInput();
         estimateResult = window.Cache.estimateDropoff(valid, pickupEstimate);
+
         if (estimateResult && mode === 'online') {
             StateManager.set('estimateState', {
                 E713: estimateResult.E713,
@@ -191,6 +260,10 @@ async function callDropoffEstimate() {
     updatePreviewContent();
 }
 
+// =============================================================================
+// 4. VALIDASI FORM
+// =============================================================================
+
 function validateForm() {
     if (mode === 'online') {
         if (role === 'Driver') {
@@ -205,10 +278,22 @@ function validateForm() {
     return isValid;
 }
 
+// =============================================================================
+// 5. RENDER FORM
+// =============================================================================
+
+/**
+ * renderFormCard
+ * v2.0a-rev3: header role dapat berubah menjadi "CEK TARIF" dengan ikon OFFLINE
+ * jika isCheckOffline aktif. Tombol switch mode juga disembunyikan.
+ * Posisi tombol reset (dan cari lokasi) tetap rata kanan menggunakan spacer.
+ */
 function renderFormCard() {
     const modeIcon = vehicleMode === 'Motor' ? ICON.MOTOR : ICON.MOBIL;
     const roleIcon = role === 'Driver' ? ICON.DRIVER : ICON.PENUMPANG;
     const cc = StateManager.get('input')?.E22 || '125cc';
+
+    // v2.0a-rev3: jika cek tarif, ganti ikon dan label role
     const headerRoleIcon = isCheckOffline ? ICON.OFFLINE : roleIcon;
     const headerRoleLabel = isCheckOffline ? 'CEK TARIF' : role.toUpperCase();
 
@@ -237,6 +322,7 @@ function renderFormCard() {
     svc.forEach(o => opts += `<option value="${o}" ${formData.E46 === o ? 'selected' : ''}>${o}</option>`);
     h += `<div class="input-wrapper"><span class="input-label">Layanan <span class="input-info" data-help="order-layanan">${ICON.INFO}</span></span><div class="input-field-container"><select class="input-select" id="input-E46" data-cell="E46">${opts}</select></div></div>`;
 
+    // v2.0a-rev3: tombol switch hanya muncul jika bukan mode cek tarif
     let switchButtonHtml = '';
     if (!isCheckOffline) {
         const switchLabel = mode === 'online'
@@ -245,6 +331,7 @@ function renderFormCard() {
         switchButtonHtml = `<button class="btn btn-outline btn-sm" id="switch-mode-btn">${switchLabel}</button>`;
     }
 
+    // Layout flex dengan spacer agar tombol kanan selalu rata kanan
     h += `<div class="flex items-center mt-sm">
         ${switchButtonHtml}
         <div style="flex: 1;"></div>
@@ -283,6 +370,7 @@ function renderTariffTypeCard() {
     });
     h += '</div>';
 
+    // Slider E40 hanya untuk mode "wajar"
     const range = getValidationRange('E40', { E10: vehicleMode });
     const showSlider = formData.E38 === 'wajar';
     h += `<div id="e40-slider-container" style="margin-top:12px; ${showSlider ? '' : 'display:none;'}">
@@ -309,6 +397,10 @@ function renderPreviewCard() {
     </div>`;
 }
 
+// =============================================================================
+// 6. UPDATE PREVIEW CONTENT
+// =============================================================================
+
 function updatePreviewContent() {
     const body = document.getElementById('preview-body');
     const copyBtn = document.getElementById('copy-preview-btn');
@@ -327,6 +419,7 @@ function updatePreviewContent() {
 
     if (copyBtn) copyBtn.disabled = false;
     const r = estimateResult;
+
     const maxJemputKm = getMaxPickupDistance();
     const maxJemputMnt = getMaxPickupTime();
 
@@ -360,7 +453,7 @@ function updatePreviewContent() {
         const biayaLabel = isBiayaTidakWajar ? 'Biaya Aplikasi Serakah > Rp 2.000' : 'Biaya Aplikasi Wajar';
         const biayaClass = isBiayaTidakWajar ? 'text-danger font-bold' : '';
 
-        const persentaseAplikasi = r.E657 != null ? formatPersen(r.E657) : '-';
+        const persentaseAplikasi = r.E971 != null ? formatPersen(r.E971) : '-';
         const jaminanPendapatan = r.E692 != null ? formatRupiah(r.E692) : '-';
         const komisiPerjalanan = r.E699 != null ? formatRupiah(r.E699) : '-';
         const umrPerMenit = r.E1001 != null ? formatRupiah(r.E1001) : '-';
@@ -385,7 +478,6 @@ function updatePreviewContent() {
 
         const subCardBawah = `
             <div class="preview-estimasi">
-                <div class="flex justify-between"><span class="${biayaClass}">${biayaLabel}</span><span class="${biayaClass}">${biayaAplikasi > 0 ? formatRupiah(biayaAplikasi) : '-'}</span></div>
                 <div class="flex justify-between"><span>Persentase Aplikasi</span><span>${persentaseAplikasi} (total)</span></div>
                 <div class="flex justify-between"><span class="text-muted italic">Jaminan Pendapatan Minimum</span><span class="text-muted italic">${jaminanPendapatan}</span></div>
                 <div class="flex justify-between"><span class="text-muted italic">Komisi Perjalanan</span><span class="text-muted italic">${komisiPerjalanan}</span></div>
@@ -454,6 +546,10 @@ function updatePreviewContent() {
     }
 }
 
+// =============================================================================
+// 7. POPUP KESELAMATAN (INDEX 17)
+// =============================================================================
+
 function createSafetyPopupContent() {
     const container = document.createElement('div');
     container.innerHTML = `
@@ -511,6 +607,10 @@ function createSafetyPopupContent() {
 
 PopupManager.register(17, () => createSafetyPopupContent());
 
+// =============================================================================
+// 8. EVENT HANDLERS
+// =============================================================================
+
 function handleInputChange(e) {
     const cell = e.target.dataset.cell;
     const v = e.target.value.trim();
@@ -565,11 +665,13 @@ function handleTariffTypeClick(e) {
     formData.E38 = type;
     StateManager.updateInput('E38', type);
 
+    // Tampilkan/sembunyikan slider E40
     const sliderContainer = document.getElementById('e40-slider-container');
     if (sliderContainer) {
         sliderContainer.style.display = type === 'wajar' ? '' : 'none';
     }
 
+    // Update tombol aktif
     document.querySelectorAll('.tariff-type-btn').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline');
@@ -600,10 +702,28 @@ async function handleSwitchMode() {
     performSwitch(newMode);
 }
 
+/**
+ * performSwitch(newMode)
+ * Menangani peralihan mode online ↔ offline.
+ * - Saat online → offline: menyimpan estimateState (jika ada), mengosongkan field online,
+ *   memvalidasi ulang E40 sesuai mode kendaraan, dan mengisi field offline (E68, E70)
+ *   berdasarkan ketersediaan estimateState.
+ * - Saat offline → online: menghapus estimateState, mengosongkan field offline.
+ * Setelah perubahan state, form direfresh, preview diupdate, footer diupdate,
+ * popup keselamatan ditampilkan jika offline dan belum disembunyikan,
+ * dan estimasi pickup dipanggil ulang.
+ *
+ * @param {string} newMode - "online" atau "offline"
+ */
 function performSwitch(newMode) {
     window.log.info('[Order ' + F_V + '] (4) performSwitch: ' + mode + ' -> ' + newMode);
 
+    // ========================================================================
+    // 1. ONLINE → OFFLINE
+    // ========================================================================
     if (mode === 'online' && newMode === 'offline') {
+
+        // Simpan hasil estimasi sebelumnya ke state (jika ada)
         if (estimateResult) {
             StateManager.set('estimateState', {
                 E713: estimateResult.E713,
@@ -615,23 +735,29 @@ function performSwitch(newMode) {
             StateManager.set('estimateState', null);
         }
 
+        // Kosongkan input khusus online
         formData.E56 = null;
         formData.E54 = null;
         formData.E58 = null;
         StateManager.batchUpdateInput({ E56: null, E54: null, E58: null });
 
+        // Ubah mode ke offline
         mode = 'offline';
         StateManager.updateInput('E36', 'offline');
 
+        // ✅ v2.0a-rev3: Validasi ulang E40 terhadap mode kendaraan saat ini (SSOT via Engine)
         formData.E40 = validateCell('E40', formData.E40, { E10: vehicleMode });
         StateManager.updateInput('E40', formData.E40);
 
+        // Tentukan tipe tarif dan isi field jarak/waktu offline
         if (!StateManager.get('estimateState')) {
+            // Tidak ada data estimasi sebelumnya → set ke mode wajar, kosongkan jarak/waktu
             formData.E38 = 'wajar';
             StateManager.updateInput('E38', 'wajar');
             formData.E68 = null;
             formData.E70 = null;
         } else {
+            // Ada data estimasi → set ke mode app, ambil jarak/waktu dari estimateState
             formData.E38 = 'app';
             StateManager.updateInput('E38', 'app');
             const es = StateManager.get('estimateState');
@@ -641,10 +767,17 @@ function performSwitch(newMode) {
             StateManager.updateInput('E70', formData.E70);
         }
 
+        // Hapus hasil estimasi dan pickup sementara
         estimateResult = null;
         pickupEstimate = null;
         StateManager.set('estimateResult', null);
-    } else if (mode === 'offline' && newMode === 'online') {
+    }
+
+    // ========================================================================
+    // 2. OFFLINE → ONLINE
+    // ========================================================================
+    else if (mode === 'offline' && newMode === 'online') {
+        // Hapus estimateState, field offline, dan set tipe tarif ke wajar
         StateManager.set('estimateState', null);
         formData.E68 = null;
         formData.E70 = null;
@@ -654,22 +787,28 @@ function performSwitch(newMode) {
         mode = 'online';
         StateManager.updateInput('E36', 'online');
 
+        // Hapus hasil estimasi
         estimateResult = null;
         pickupEstimate = null;
         StateManager.set('estimateResult', null);
     }
 
+    // ========================================================================
+    // 3. PASCAPEMROSESAN: Refresh UI, popup, estimasi ulang
+    // ========================================================================
     validateForm();
-    refreshForm();
-    updatePreviewContent();
-    updateFooter();
+    refreshForm();                // Membangun ulang form (slider akan tampil jika offline, dsb.)
+    updatePreviewContent();       // Reset tampilan estimasi
+    updateFooter();               // Tombol footer disesuaikan (Back, Lanjut, dsb.)
 
+    // Tampilkan popup keselamatan hanya saat pertama kali masuk mode offline
     if (mode === 'offline' && !hideSafetyReminder) {
         setTimeout(() => {
             Router.navigateTo({ target: 'popup17' });
         }, 300);
     }
 
+    // Panggil ulang estimasi pickup setelah jeda
     if (estimateTimer) clearTimeout(estimateTimer);
     estimateTimer = setTimeout(() => {
         pickupEstimate = null;
@@ -707,6 +846,7 @@ function handleReset() {
         }
     }
 
+    // v2.0a-rev3: reset E40 ke default Engine sesuai mode kendaraan
     formData.E40 = validateCell('E40', null, { E10: vehicleMode });
     StateManager.updateInput('E40', formData.E40);
 
@@ -772,6 +912,10 @@ function handleSubmit() {
     }
 }
 
+// =============================================================================
+// 9. REFRESH UI & BINDING
+// =============================================================================
+
 function refreshForm() {
     const fc = document.getElementById('form-container');
     if (fc) {
@@ -790,6 +934,7 @@ function refreshForm() {
                     btn.classList.add('btn-outline');
                 }
             });
+            // Tampilkan/sembunyikan slider sesuai tipe
             const sliderContainer = document.getElementById('e40-slider-container');
             if (sliderContainer) {
                 sliderContainer.style.display = formData.E38 === 'wajar' ? '' : 'none';
@@ -819,6 +964,7 @@ function bindEvents() {
     document.getElementById('open-locpicker-btn')?.addEventListener('click', () => {
         LocationPicker.open();
     });
+    // v2.0a-rev3: tombol switch hanya ada jika tidak isCheckOffline
     document.getElementById('switch-mode-btn')?.addEventListener('click', handleSwitchMode);
     document.getElementById('copy-preview-btn')?.addEventListener('click', handleCopy);
     document.querySelectorAll('[data-help]').forEach(el => {
@@ -828,6 +974,10 @@ function bindEvents() {
         });
     });
 }
+
+// =============================================================================
+// 10. FOOTER DAN HEADER
+// =============================================================================
 
 function updateSubmitButton() {
     const footerContainer = document.getElementById('app-footer');
@@ -861,9 +1011,11 @@ function updateFooter() {
 
     if (mode === 'offline') {
         const backTarget = 'home';
+        // v2.0a-rev3: cek apakah pengguna bisa order offline
         const canOrderOffline = offlineOrderEnabled && !isCheckOffline;
 
         if (canOrderOffline) {
+            // Tombol LANJUT (submit order)
             const f = FooterManager.create('layoutA', {
                 frame1: { type: 'icon', content: FooterManager.createIconButton(ICON.BACK, () => {
                     Router.navigateTo({ target: backTarget });
@@ -873,6 +1025,7 @@ function updateFooter() {
             fc.innerHTML = '';
             if (f) fc.appendChild(f);
         } else {
+            // Tombol HOME (cek tarif atau offline tidak diizinkan)
             const f = FooterManager.create('layoutA', {
                 frame1: { type: 'icon', content: FooterManager.createIconButton(ICON.BACK, () => {
                     Router.navigateTo({ target: backTarget });
@@ -899,6 +1052,10 @@ function updateFooter() {
     }
 }
 
+// =============================================================================
+// 11. BUILD HTML
+// =============================================================================
+
 function buildHTML() {
     const landingLink = window.APP_CONFIG?.landingLink || 'linktr.ee/KUPASTARIF';
     return `<div class="page-container">
@@ -906,10 +1063,13 @@ function buildHTML() {
         <div id="preview-container">${renderPreviewCard()}</div>
         <div class="text-muted text-xs text-center mt-sm" style="opacity: 0.7;">
             Transparansi rumus dan perhitungan: <a href="https://${landingLink}" target="_blank" rel="noopener noreferrer" style="color: var(--primary);">${landingLink}</a><br>
-            Perhitungan berdasarkan pelajaran matematika SD, bukan berdasarkan ilmu metafisika
         </div>
     </div>`;
 }
+
+// =============================================================================
+// 12. RENDER & DESTROY
+// =============================================================================
 
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
@@ -918,6 +1078,8 @@ async function render(params, context = {}) {
     isDestroyed = false;
     isSubmitting = false;
 
+    // v2.0a-rev3: tidak ada lagi paksaan mode online di sini,
+    // semuanya diserahkan ke loadInitialData yang sudah mendukung isCheckOffline.
     const direction = context.direction || 'forward';
     loadInitialData(direction);
 
@@ -946,7 +1108,33 @@ function destroy() {
     window.log.info('[Order ' + F_V + '] (6) Order dihancurkan');
 }
 
-export const PageOrder = { render, destroy };
+// =============================================================================
+// 13. EKSPOR
+// =============================================================================
+
+export const PageOrder = {
+    render,
+    destroy
+};
+
 window.log.info('[Order ' + F_V + '] (7) PageOrder dimuat (Cache API, slider E40, Cek Tarif Offline)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Cache API, slider E40, validasi & dropdown via Output.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.MOTOR, ICON.INFO, dll).
+// 2.0a-rev2 : Hapus ikon inline terakhir (📍 Cari Lokasi), tambahkan
+//             ICON.LOCATION. Semua ikon kini merujuk ke objek ICON.
+// 2.0a-rev3 : Tambah dukungan mode Cek Tarif Offline: flag isCheckOffline,
+//             header role berubah, tombol switch disembunyikan, footer
+//             menampilkan HOME jika flag aktif. Reset E40 via Engine di
+//             loadInitialData, handleReset, performSwitch.
+//             Perbaikan: loadInitialData tidak lagi memaksa online jika
+//             isCheckOffline aktif.
+//             Perbaikan: layout tombol menggunakan spacer agar posisi reset
+//             selalu rata kanan meski tombol switch hilang.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
