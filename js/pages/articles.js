@@ -3,9 +3,27 @@
  * FILE         : /js/pages/articles.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Artikel – Menampilkan daftar dan detail artikel.
+ *   Selalu memuat ulang data dari server saat render (maju maupun mundur)
+ *   agar list tidak hilang.
+ *
+ *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
+ *   menggunakan karakter ikon langsung, bukan kunci registry.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { Router } from '../core/router.js';
@@ -14,6 +32,10 @@ import { HeaderManager } from '../components/header.js';
 import { FooterManager } from '../components/footer.js';
 import { DrawerManager } from '../components/drawer.js';
 import { escapeHtml } from '../helpers/format.js';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
 
 const ICON = {
     ARTICLES: '📚',
@@ -24,9 +46,17 @@ const ICON = {
     MENU: '☰'
 };
 
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
+
 let isDestroyed = false;
 let articles = [];
 let currentHeader = null;
+
+// =============================================================================
+// 2. LOAD DATA
+// =============================================================================
 
 async function loadArticleList() {
     try {
@@ -66,6 +96,10 @@ function findArticleById(id) {
     return articles.find(a => a.id === id);
 }
 
+// =============================================================================
+// 3. RENDER
+// =============================================================================
+
 function renderList() {
     if (articles.length === 0) {
         return `<div class="page-container"><div class="page-title">${ICON.ARTICLES} ARTIKEL</div><div class="card text-center p-lg"><p class="text-muted">Belum ada artikel.</p></div></div>`;
@@ -102,6 +136,10 @@ function renderArticleNotFound() {
     </div>`;
 }
 
+// =============================================================================
+// 4. NAVIGASI INTERNAL
+// =============================================================================
+
 function goToDetail(articleId) {
     if (isDestroyed) return;
     Router.navigateTo({ target: 'articledetail', articleid: articleId });
@@ -111,6 +149,10 @@ function goBackToArticles() {
     if (isDestroyed) return;
     Router.navigateTo({ target: 'article' });
 }
+
+// =============================================================================
+// 5. BIND EVENTS
+// =============================================================================
 
 function bindEvents(isDetail) {
     if (!isDetail) {
@@ -129,12 +171,20 @@ function bindNotFoundEvents() {
     });
 }
 
+// =============================================================================
+// 6. REGISTRASI DRAWER
+// =============================================================================
+
 DrawerManager.register('article', () => ({
     menuItems: null,
     onItemClick: (page) => {
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 7. HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const container = document.getElementById('app-header');
@@ -180,6 +230,10 @@ function updateFooter(isDetail) {
         if (footer) container.appendChild(footer);
     }
 }
+
+// =============================================================================
+// 8. RENDER & DESTROY
+// =============================================================================
 
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
@@ -232,6 +286,7 @@ async function render(params, context = {}) {
             }
         }
     } else {
+        // selalu muat ulang daftar artikel tanpa memandang arah
         articles = await loadArticleList();
 
         content.innerHTML = renderList();
@@ -249,6 +304,10 @@ function destroy() {
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
 
+// =============================================================================
+// 9. EKSPOR
+// =============================================================================
+
 export const PageArticle = {
     render,
     destroy
@@ -261,4 +320,13 @@ export const PageArticledetail = {
 
 window.log.info('[Articles ' + F_V + '] (7) PageArticle & PageArticledetail dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.ARTICLES, ICON.BACK, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
