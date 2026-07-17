@@ -92,7 +92,22 @@ export class Calculate {
 
     getStatus() { return this.tracker ? this.tracker.getStatus() : null; }
 
-    getSummary() { return this.tracker ? this.tracker.getSummary() : null; }
+ //   getSummary() { return this.tracker ? this.tracker.getSummary() : null; }
+getSummary() {
+    if (!this.tracker) return null;
+    const raw = this.tracker.getSummary();
+    if (!raw) return null;
+    // Konversi waktu dari detik ke menit (pembulatan ke atas)
+    const toMinutes = (seconds) => Math.ceil((seconds || 0) / 60);
+    return {
+        ...raw,
+        pickupTime: toMinutes(raw.pickupTime),
+        dropoffTime: toMinutes(raw.dropoffTime),
+        totalTime: toMinutes(raw.totalTime),
+        pauseTime: Math.ceil((raw.pauseTime || 0) / 60)  // pauseTime juga dalam detik
+    };
+}
+
 
     getPolylineData() {
         return this.tracker ? this.tracker.getPolylineDataWithAccuracy() : { pickup: [], dropoff: [] };
