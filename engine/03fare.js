@@ -1,18 +1,46 @@
 /**
  * =============================================================================
  * FILE        : /engine/03fare.js
- * VERSI FILE  : 1.0.0-rev3
- * ENGINE      : 1.0.0-beta
- * DATA SOURCE : Excel "v9.7j masterapp.xlsx" — Sheet "v9.7j-All"
+ * VERSI FILE  : 1.0.1-rev0
+ * ENGINE      : 1.0.1-beta
+ * DATE        : 16 Juli 2026
+ * AUTHOR      : gk
+ *
+ * DATA SOURCE : Excel "v9.7k masterapp.xlsx" — Sheet "v9.7k-All"
+ *
+ * DESKRIPSI   :
+ *   Modul kalkulasi tarif (fare) berbasis objek kalkulasi sementara `temp`.
+ *   Setiap sel formula dari Excel (E655, E656, …) diimplementasikan sebagai
+ *   pure function dengan signature `(temp) => value` dan properti `deps`
+ *   yang mendeklarasikan sel‑sel lain yang diperlukan.
+ *   Semua wrapper internal dihapus — orkestrasi dilakukan oleh 06api.js.
+ *
+ * CATATAN     :
+ *   - Seluruh akses ke konstanta diambil dari DATA (global).
+ *   - `temp.E71` (uiStateE71) disediakan oleh wrapper untuk mode offline "app".
+ *   - Fallback `temp.E71` ke `temp.E677` jika bukan number tetap dipertahankan.
+ *   - Komentar pada setiap fungsi sel merujuk langsung ke sel Excel untuk
+ *     memudahkan sinkronisasi.
+ * =============================================================================
  */
+
 const Fare = (function() {
     'use strict';
 
-    const F_V = '1.0.0-rev3';
+    // ==================== VERSI FILE ====================
+    const F_V = '1.0.1-rev0';
 
-    function E655(v) {
-        const mode = v.E10;
-        const layanan = v.E46;
+    // ==================== FUNGSI CELL ====================
+
+    /**
+     * E655 - Persentase aplikasi (komisi per layanan)
+     * Excel: =IF(E10="Mobil", IFS(...), IF(E10="Motor", IFS(...), E201))
+     * @param {Object} temp - objek kalkulasi sementara
+     * @returns {number}
+     */
+    function E655(temp) {
+        const mode = temp.E10;
+        const layanan = temp.E46;
         if (mode === 'Mobil') {
             const map = {
                 'Hemat': DATA.E200, 'Standar': DATA.E201, 'XL': DATA.E202,
@@ -26,12 +54,19 @@ const Fare = (function() {
             };
             return map[layanan] !== undefined ? map[layanan] : DATA.E211;
         }
-        return DATA.E201;
+        return DATA.E201; // fallback
     }
+    E655.deps = ['E10', 'E46'];
 
-    function E656(v) {
-        const mode = v.E10;
-        const layanan = v.E46;
+    /**
+     * E656 - Persentase driver tapi aplikasi (kesejahteraan)
+     * Excel: =IF(E10="Mobil", IFS(...), IF(E10="Motor", IFS(...), E221))
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E656(temp) {
+        const mode = temp.E10;
+        const layanan = temp.E46;
         if (mode === 'Mobil') {
             const map = {
                 'Hemat': DATA.E220, 'Standar': DATA.E221, 'XL': DATA.E222,
@@ -47,17 +82,38 @@ const Fare = (function() {
         }
         return DATA.E221;
     }
+    E656.deps = ['E10', 'E46'];
 
-    function E657(v) {
-        return E655(v) + E656(v);
+    /**
+     * E657 - Total persentase aplikasi
+     * Excel: =E655+E656
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E657(temp) {
+        return temp.E655 + temp.E656;
     }
+    E657.deps = ['E655', 'E656'];
 
-    function E658(v) {
-        return 1 - E657(v);
+    /**
+     * E658 - Persentase driver
+     * Excel: =1-E657
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E658(temp) {
+        return 1 - temp.E657;
     }
+    E658.deps = ['E657'];
 
-    function E659(v) {
-        const bbm = v.E24;
+    /**
+     * E659 - Harga energi (BBM/Listrik)
+     * Excel: =IFS(E24="Pertalite",E302,...)
+     * @param {Object} temp
+     * @returns {number} Rp/liter atau Rp/kWh
+     */
+    function E659(temp) {
+        const bbm = temp.E24;
         const map = {
             'Pertalite': DATA.E302,
             'Bio Solar': DATA.E303,
@@ -67,10 +123,17 @@ const Fare = (function() {
         };
         return map[bbm] !== undefined ? map[bbm] : DATA.E302;
     }
+    E659.deps = ['E24'];
 
-    function E660(v) {
-        const mode = v.E10;
-        const area = v.E20;
+    /**
+     * E660 - Tarif minimum zona
+     * Excel: =IFS(AND(E10="Mobil",E20="Jabodetabek"),E124,...)
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E660(temp) {
+        const mode = temp.E10;
+        const area = temp.E20;
         if (mode === 'Mobil') {
             if (area === 'Jabodetabek') return DATA.E124;
             if (area === 'SumatraJawa') return DATA.E125;
@@ -84,23 +147,50 @@ const Fare = (function() {
         }
         return DATA.E124;
     }
+    E660.deps = ['E10', 'E20'];
 
-    function E661(v) {
-        return E660(v) - (E660(v) * E657(v));
+    /**
+     * E661 - Tarif min driver (setelah potongan)
+     * Excel: =E660-(E660*E657)
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E661(temp) {
+        return temp.E660 - (temp.E660 * temp.E657);
     }
+    E661.deps = ['E660', 'E657'];
 
-    function E662(v) {
-        const layanan = v.E46;
-        if (layanan === 'XL' || layanan === 'Premium XL') return '6seat';
-        return '4seat';
+    /**
+     * E662 - Tipe seat ("4seat" atau "6seat")
+     * Excel: =IF(OR(E46="XL",E46="Premium XL"),"6seat","4seat")
+     * @param {Object} temp
+     * @returns {string}
+     */
+    function E662(temp) {
+        const layanan = temp.E46;
+        return (layanan === 'XL' || layanan === 'Premium XL') ? '6seat' : '4seat';
     }
+    E662.deps = ['E46'];
 
-    function E663(v) {
-        return v.E10 === 'Mobil' ? DATA.E274 : DATA.E275;
+    /**
+     * E663 - Omset minimum (Rp)
+     * Excel: =IF(E10="Mobil",E274,E275)
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E663(temp) {
+        return temp.E10 === 'Mobil' ? DATA.E274 : DATA.E275;
     }
+    E663.deps = ['E10'];
 
-    function E668(v) {
-        const layanan = v.E46;
+    /**
+     * E668 - Persen tarif layanan (markup)
+     * Excel: =IFS(E46="Hemat",E285,...)
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E668(temp) {
+        const layanan = temp.E46;
         const map = {
             'Hemat': DATA.E285,
             'Standar': DATA.E286,
@@ -111,65 +201,123 @@ const Fare = (function() {
         };
         return map[layanan] !== undefined ? map[layanan] : DATA.E286;
     }
+    E668.deps = ['E46'];
 
-    function E669(v) {
-        return E660(v) + (E660(v) * E668(v));
+    /**
+     * E669 - Tarif layanan (E660 + markup)
+     * Excel: =E660+(E660*E668)
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E669(temp) {
+        return temp.E660 + (temp.E660 * temp.E668);
     }
+    E669.deps = ['E660', 'E668'];
 
-    function E670(v) {
-        return E669(v) - (E669(v) * E657(v));
+    /**
+     * E670 - Tarif layanan minimum driver
+     * Excel: =E669-(E669*E657)
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E670(temp) {
+        return temp.E669 - (temp.E669 * temp.E657);
     }
+    E670.deps = ['E669', 'E657'];
 
-    function E671() {
+    /**
+     * E671 - Estimasi rerata waktu jemput (menit)
+     * Excel: =E268+E269
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E671(temp) {
         return DATA.E268 + DATA.E269;
     }
+    E671.deps = [];
 
-    function E677(v) {
-        return v.E10 === 'Mobil' ? DATA.E133 : DATA.E149;
+    /**
+     * E677 - Tarif dasar offline (Rp/km)
+     * Excel: =IF(E10="Mobil",E133,E149)
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E677(temp) {
+        return temp.E10 === 'Mobil' ? DATA.E133 : DATA.E149;
     }
+    E677.deps = ['E10'];
 
-    function E678(v, fareParams, uiStateE71) {
-        const mode = v.E10;
-        const tipe = v.E38;
-        const e660 = fareParams ? fareParams.E660 : E660(v);
-        const e661 = fareParams ? fareParams.E661 : E661(v);
-        const e677 = fareParams ? fareParams.E677 : E677(v);
-        const e40 = v.E40;
+    /**
+     * E678 - Tarif offline yang diterapkan
+     * Excel: =IFS(AND(E10="Mobil",E38="wajar"),E660+(E660*E40), ...)
+     * Mode "app" mengambil dari E71 (uiStateE71).
+     * Fallback ke E677 jika E71 bukan number.
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E678(temp) {
+        const mode = temp.E10;
+        const tipe = temp.E38;
+        const e660 = temp.E660;
+        const e661 = temp.E661;
+        const e677 = temp.E677;
+        const e40 = temp.E40;
 
         if (mode === 'Mobil') {
             if (tipe === 'wajar') return e660 + (e660 * e40);
             if (tipe === 'minimal') return e660;
             if (tipe === 'abnormal') return e661;
-            if (tipe === 'app') return (typeof uiStateE71 === 'number') ? uiStateE71 : e677;
+            if (tipe === 'app') return (typeof temp.E71 === 'number') ? temp.E71 : e677;
         } else if (mode === 'Motor') {
             if (tipe === 'wajar') return e660 + (e660 * e40);
             if (tipe === 'minimal') return e660;
             if (tipe === 'abnormal') return e661;
-            if (tipe === 'app') return (typeof uiStateE71 === 'number') ? uiStateE71 : e677;
+            if (tipe === 'app') return (typeof temp.E71 === 'number') ? temp.E71 : e677;
         }
         return e677;
     }
+    E678.deps = ['E10', 'E38', 'E660', 'E661', 'E677', 'E40', 'E71'];
 
-    function E679(v, fareParams, uiStateE71) {
-        const e678 = E678(v, fareParams, uiStateE71);
-        const e668 = fareParams ? fareParams.E668 : E668(v);
-        return e678 + (e678 * e668);
+    /**
+     * E679 - Tarif layanan offline (setelah markup)
+     * Excel: =E678+(E678*E668)
+     * @param {Object} temp
+     * @returns {number} Rp/km
+     */
+    function E679(temp) {
+        return temp.E678 + (temp.E678 * temp.E668);
     }
+    E679.deps = ['E678', 'E668'];
 
-    function E680(v) {
-        const mode = v.E10;
-        const jarakOff = v.E68;
+    /**
+     * E680 - Tarif waktu offline (Rp/menit)
+     * Excel: =IF(E10="Mobil", E134 + MAX(0, E68 - E265) * E263, ...)
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E680(temp) {
+        const mode = temp.E10;
+        const jarakOff = temp.E68;
         if (mode === 'Mobil') {
             return DATA.E134 + Math.max(0, jarakOff - DATA.E265) * DATA.E263;
         } else {
             return DATA.E150 + Math.max(0, jarakOff - DATA.E265) * DATA.E264;
         }
     }
+    E680.deps = ['E10', 'E68'];
 
-    function E692(v) {
-        if (v.E36 === 'offline') return 0;
-        const mode = v.E10;
-        const layanan = v.E46;
+    // --- FUNGSI ONLINE / OFFLINE UMUM ---
+
+    /**
+     * E692 - Biaya aplikasi penumpang estimasi
+     * Online: sesuai layanan; Offline: 0
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E692(temp) {
+        if (temp.E36 === 'offline') return 0;
+        const mode = temp.E10;
+        const layanan = temp.E46;
         const map = {
             Mobil: { Hemat: DATA.E127, Standar: DATA.E128, XL: DATA.E129, Prioritas: DATA.E130, Premium: DATA.E131, 'Premium XL': DATA.E132 },
             Motor: { Hemat: DATA.E143, Standar: DATA.E144, XL: DATA.E145, Prioritas: DATA.E146, Premium: DATA.E147, 'Premium XL': DATA.E148 }
@@ -178,154 +326,282 @@ const Fare = (function() {
         if (modeMap && modeMap[layanan] !== undefined) return modeMap[layanan];
         return mode === 'Motor' ? DATA.E144 : DATA.E128;
     }
+    E692.deps = ['E36', 'E10', 'E46'];
 
-    function E693(v) {
-        if (v.E36 === 'offline') return 0;
-        if (typeof v.E92 === 'number' && v.E92 !== 0) return v.E92;
-        return E692(v);
+    /**
+     * E693 - Biaya aplikasi penumpang REAL
+     * Online: input E92 jika ada, else E692; Offline: 0
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E693(temp) {
+        if (temp.E36 === 'offline') return 0;
+        if (typeof temp.E92 === 'number' && temp.E92 !== 0) return temp.E92;
+        return temp.E692;
     }
+    E693.deps = ['E36', 'E92', 'E692'];
 
-    function E694(v, fp) {
-        if (v.E36 === 'offline') return E686(v, fp);
-        return v.E56 / (1 - fp.E657);
+    /**
+     * E694 - Fare Mdriver (sebelum potongan)
+     * Online: E56/(1-E657); Offline: E686
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E694(temp) {
+        if (temp.E36 === 'offline') return temp.E686;
+        return temp.E56 / (1 - temp.E657);
     }
+    E694.deps = ['E36', 'E56', 'E657', 'E686'];
 
-    function E695(v, fp) {
-        if (v.E36 === 'offline') return 0;
-        const e694 = E694(v, fp);
-        return e694 - v.E56;
+    /**
+     * E695 - Potongan aplikasi Mdriver
+     * Online: E694 - E56; Offline: 0
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E695(temp) {
+        if (temp.E36 === 'offline') return 0;
+        return temp.E694 - temp.E56;
     }
+    E695.deps = ['E36', 'E694', 'E56'];
 
-    function E696(v, fp) {
-        if (v.E36 === 'offline') return E687(v, fp);
-        const e56 = v.E56;
-        const e692 = E692(v);
-        const e695 = E695(v, fp);
-        return e56 + e692 + e695;
+    /**
+     * E696 - Total dibayarkan penumpang estimasi
+     * Online: E56 + E692 + E695; Offline: E687
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E696(temp) {
+        if (temp.E36 === 'offline') return temp.E687;
+        return temp.E56 + temp.E692 + temp.E695;
     }
+    E696.deps = ['E36', 'E56', 'E692', 'E695', 'E687'];
 
-    function E697(v, fp) {
-        if (v.E36 === 'offline') return E687(v, fp);
-        if (v.E12 === 'Driver') return E696(v, fp);
-        return v.E54;
+    /**
+     * E697 - Total dibayarkan penumpang ditetapkan
+     * Online: Driver?E696:E54; Offline: E687
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E697(temp) {
+        if (temp.E36 === 'offline') return temp.E687;
+        return (temp.E12 === 'Driver') ? temp.E696 : temp.E54;
     }
+    E697.deps = ['E36', 'E687', 'E12', 'E696', 'E54'];
 
-    function E698(v, fp) {
-        const e697 = E697(v, fp);
-        if (v.E36 === 'offline') return e697 - E684(v);
-        return e697 - E693(v);
+    /**
+     * E698 - Fare penumpang setelah biaya aplikasi
+     * Online: E697 - E693; Offline: E697 - E684
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E698(temp) {
+        const e697 = temp.E697;
+        return (temp.E36 === 'offline') ? e697 - temp.E684 : e697 - temp.E693;
     }
+    E698.deps = ['E36', 'E697', 'E684', 'E693'];
 
-    function E699(v, fp) {
-        const e698 = E698(v, fp);
-        if (v.E36 === 'offline') return e698 * 0;
-        return e698 * fp.E657;
+    /**
+     * E699 - Biaya aplikasi driver
+     * Online: E698 * E657; Offline: 0
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E699(temp) {
+        if (temp.E36 === 'offline') return 0;
+        return temp.E698 * temp.E657;
     }
+    E699.deps = ['E36', 'E698', 'E657'];
 
-    function E700(v, fp) {
-        const e698 = E698(v, fp);
-        const e699 = E699(v, fp);
-        return e698 - e699;
+    /**
+     * E700 - Base fare diterima driver (omset)
+     * Excel: =E698-E699
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E700(temp) {
+        return temp.E698 - temp.E699;
     }
+    E700.deps = ['E698', 'E699'];
 
-    function E701(v, fp) {
-        const e698 = E698(v, fp);
-        if (v.E36 === 'offline') return e698 * 0;
-        return fp.E656 * e698;
+    /**
+     * E701 - Kesejahteraan driver tapi aplikasi
+     * Online: E698 * E656; Offline: 0
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E701(temp) {
+        if (temp.E36 === 'offline') return 0;
+        return temp.E656 * temp.E698;
     }
+    E701.deps = ['E36', 'E656', 'E698'];
 
-    function E706(v, fp) {
-        const e697 = E697(v, fp);
-        if (v.E36 === 'offline') return e697 / fp.E679;
-        const e698 = E698(v, fp);
-        const e669 = fp.E669;
-        const e60 = v.E60;
-        return (e698 / e669) / (1 + e60 / 100);
+    /**
+     * E706 - Jarak antar order hide (km)
+     * Online: (E698/E669) / (1 + E60/100); Offline: E697 / E679
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E706(temp) {
+        if (temp.E36 === 'offline') return temp.E697 / temp.E679;
+        return (temp.E698 / temp.E669) / (1 + temp.E60 / 100);
     }
+    E706.deps = ['E36', 'E697', 'E679', 'E698', 'E669', 'E60'];
 
-    function E707(v, fp) {
-        if (v.E36 === 'offline') return v.E68;
-        if (v.E58 > 0) return v.E58;
-        return E706(v, fp);
+    /**
+     * E707 - Jarak antar order ditetapkan
+     * Online: E58>0 ? E58 : E706; Offline: E68
+     * @param {Object} temp
+     * @returns {number} km
+     */
+    function E707(temp) {
+        if (temp.E36 === 'offline') return temp.E68;
+        return (temp.E58 > 0) ? temp.E58 : temp.E706;
     }
+    E707.deps = ['E36', 'E68', 'E58', 'E706'];
 
-    function E708(v, fp) {
-        const e707 = E707(v, fp);
-        return e707 + DATA.E271;
+    /**
+     * E708 - Jarak antar order kerja (+E271)
+     * Excel: =E707+E271
+     * @param {Object} temp
+     * @returns {number} km
+     */
+    function E708(temp) {
+        return temp.E707 + DATA.E271;
     }
+    E708.deps = ['E707'];
 
-    function E709(v, fp) {
-        const e707 = E707(v, fp);
-        return e707 + DATA.E260;
+    /**
+     * E709 - Jarak jemput antar order kerja (+E260)
+     * Excel: =E707+E260
+     * @param {Object} temp
+     * @returns {number} km
+     */
+    function E709(temp) {
+        return temp.E707 + DATA.E260;
     }
+    E709.deps = ['E707'];
 
-    function E713(v, fp) {
-        const e698 = E698(v, fp);
-        const e707 = E707(v, fp);
-        return e698 / e707;
+    /**
+     * E713 - Tarif jarak order (Rp/km)
+     * Excel: =E698/E707
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E713(temp) {
+        return temp.E698 / temp.E707;
     }
+    E713.deps = ['E698', 'E707'];
 
-    function E714(v, fp) {
-        if (v.E36 === 'offline') return E680(v);
-        const e10 = v.E10;
-        const e707 = E707(v, fp);
-        if (e10 === 'Motor') {
+    /**
+     * E714 - Tarif waktu order (Rp/menit)
+     * Online: sesuai rumus; Offline: E680
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E714(temp) {
+        if (temp.E36 === 'offline') return temp.E680;
+        const e707 = temp.E707;
+        if (temp.E10 === 'Motor') {
             return DATA.E262 + Math.max(0, e707 - DATA.E265) * DATA.E264;
         } else {
             return DATA.E261 + Math.max(0, e707 - DATA.E265) * DATA.E263;
         }
     }
+    E714.deps = ['E36', 'E680', 'E707', 'E10'];
 
-    function E715(v, fp) {
-        const e698 = E698(v, fp);
-        const e714 = E714(v, fp);
-        return e698 / e714;
+    /**
+     * E715 - Waktu antar order (menit)
+     * Excel: =E698/E714
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E715(temp) {
+        return temp.E698 / temp.E714;
     }
+    E715.deps = ['E698', 'E714'];
 
-    function E716(v, fp) {
-        const e715 = E715(v, fp);
-        const e671 = fp.E671;
-        return e715 + e671;
+    /**
+     * E716 - Waktu jemput antar order kerja (menit)
+     * Excel: =E715+E671
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E716(temp) {
+        return temp.E715 + temp.E671;
     }
+    E716.deps = ['E715', 'E671'];
 
-    function E717(v, fp) {
-        const e713 = E713(v, fp);
-        const e660 = fp.E660;
-        return (e713 - e660) / e660;
+    /**
+     * E717 - Kenaikan tarif dasar jarak (%)
+     * Excel: =(E713-E660)/E660
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E717(temp) {
+        return (temp.E713 - temp.E660) / temp.E660;
     }
+    E717.deps = ['E713', 'E660'];
 
-    function E718(v, fp) {
-        const e714 = E714(v, fp);
-        const e261 = DATA.E261;
-        const e262 = DATA.E262;
-        const e10 = v.E10;
-        if (e10 === 'Mobil') return (e714 - e261) / e261;
-        return (e714 - e262) / e262;
+    /**
+     * E718 - Kenaikan tarif dasar waktu (%)
+     * Excel: =IF(E10="Mobil",(E714-E261)/E261,(E714-E262)/E262)
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E718(temp) {
+        const e714 = temp.E714;
+        return (temp.E10 === 'Mobil') ? ((e714 - DATA.E261) / DATA.E261) : ((e714 - DATA.E262) / DATA.E262);
     }
+    E718.deps = ['E714', 'E10'];
 
-    function E719(v, fp) {
-        if (v.E36 !== 'offline') return '';
-        const e682 = E682(v, fp);
-        const e683 = E683(v, fp);
-        return e682 > e683 ? 'jarak' : 'waktu';
+    /**
+     * E719 - Tipe tarif order offline ("jarak" atau "waktu")
+     * Excel: =IF(E682>E683,"jarak","waktu")
+     * @param {Object} temp
+     * @returns {string}
+     */
+    function E719(temp) {
+        if (temp.E36 !== 'offline') return '';
+        return temp.E682 > temp.E683 ? 'jarak' : 'waktu';
     }
+    E719.deps = ['E36', 'E682', 'E683'];
 
-    function E682(v, fp) {
-        const e68 = v.E68;
-        const e679 = fp.E679;
-        return (e68 < 1) ? e679 : e68 * e679;
+    // --- FUNGSI OFFLINE SPESIFIK ---
+
+    /**
+     * E682 - Fare jarak offline
+     * Excel: =IF(E68<1, E679, E68*E679)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E682(temp) {
+        const e68 = temp.E68;
+        return (e68 < 1) ? temp.E679 : e68 * temp.E679;
     }
+    E682.deps = ['E68', 'E679'];
 
-    function E683(v, fp) {
-        const e70 = v.E70;
-        const e680 = E680(v);
-        return e70 * e680;
+    /**
+     * E683 - Fare waktu offline
+     * Excel: =E70*E680
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E683(temp) {
+        return temp.E70 * temp.E680;
     }
+    E683.deps = ['E70', 'E680'];
 
-    function E684(v) {
-        if (v.E36 === 'online') return 0;
-        const mode = v.E10;
-        const layanan = v.E46;
+    /**
+     * E684 - Biaya jemput offline layanan
+     * Online: 0; Offline: sesuai layanan
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E684(temp) {
+        if (temp.E36 === 'online') return 0;
+        const mode = temp.E10;
+        const layanan = temp.E46;
         const map = {
             Mobil: { Hemat: DATA.E127, Standar: DATA.E128, XL: DATA.E129, Prioritas: DATA.E130, Premium: DATA.E131, 'Premium XL': DATA.E132 },
             Motor: { Hemat: DATA.E143, Standar: DATA.E144, XL: DATA.E145, Prioritas: DATA.E146, Premium: DATA.E147, 'Premium XL': DATA.E148 }
@@ -334,235 +610,280 @@ const Fare = (function() {
         if (modeMap && modeMap[layanan] !== undefined) return modeMap[layanan];
         return mode === 'Motor' ? DATA.E144 : DATA.E128;
     }
+    E684.deps = ['E36', 'E10', 'E46'];
 
-    function E686(v, fp) {
-        const e682 = E682(v, fp);
-        const e683 = E683(v, fp);
-        return Math.max(e682, e683);
+    /**
+     * E686 - Estimasi fare penumpang offline (max jarak/waktu)
+     * Excel: =IF(E682>E683, E682, E683)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E686(temp) {
+        return Math.max(temp.E682, temp.E683);
     }
+    E686.deps = ['E682', 'E683'];
 
-    function E687(v, fp) {
-        const e686 = E686(v, fp);
-        const e684 = E684(v);
-        return e686 + e684;
+    /**
+     * E687 - Estimasi pembayaran penumpang offline (+biaya jemput)
+     * Excel: =E686+E684
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E687(temp) {
+        return temp.E686 + temp.E684;
     }
+    E687.deps = ['E686', 'E684'];
 
-    function E725(est, v) {
-        return DATA.E260 - v.E78;
+    // --- ADJUSTMENT REALITAS ---
+
+    /**
+     * E725 - Selisih jarak jemput ideal-real (km)
+     * Excel: =E260-E78
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E725(temp) {
+        return DATA.E260 - temp.E78;
     }
+    E725.deps = ['E78'];
 
-    function E726(est, v) {
-        return DATA.E267 - v.E80;
+    /**
+     * E726 - Selisih waktu jemput ideal-real (menit)
+     * Excel: =E267-E80
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E726(temp) {
+        return DATA.E267 - temp.E80;
     }
+    E726.deps = ['E80'];
 
-    function E727(est, v) {
-        return est.E707 - v.E82;
+    /**
+     * E727 - Selisih jarak antar ideal-real
+     * Excel: =E707-E82
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E727(temp) {
+        return temp.E707 - temp.E82;
     }
+    E727.deps = ['E707', 'E82'];
 
-    function E728(est, v) {
-        return est.E715 - v.E84;
+    /**
+     * E728 - Selisih waktu antar ideal-real
+     * Excel: =E715-E84
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E728(temp) {
+        return temp.E715 - temp.E84;
     }
+    E728.deps = ['E715', 'E84'];
 
-    function E729(est, v) {
-        return est.E713 * E725(est, v);
+    /**
+     * E729 - Tagihan selisih jarak jemput
+     * Excel: =E713*E725
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E729(temp) {
+        return temp.E713 * temp.E725;
     }
+    E729.deps = ['E713', 'E725'];
 
-    function E730(est, v) {
-        return est.E714 * E726(est, v);
+    /**
+     * E730 - Tagihan selisih waktu jemput
+     * Excel: =E714*E726
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E730(temp) {
+        return temp.E714 * temp.E726;
     }
+    E730.deps = ['E714', 'E726'];
 
-    function E731(est, v) {
-        return est.E713 * E727(est, v);
+    /**
+     * E731 - Tagihan selisih jarak antar
+     * Excel: =E713*E727
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E731(temp) {
+        return temp.E713 * temp.E727;
     }
+    E731.deps = ['E713', 'E727'];
 
-    function E732(est, v) {
-        return est.E714 * E728(est, v);
+    /**
+     * E732 - Tagihan selisih waktu antar
+     * Excel: =E714*E728
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E732(temp) {
+        return temp.E714 * temp.E728;
     }
+    E732.deps = ['E714', 'E728'];
 
-    function E738(est, v) {
-        const val = E729(est, v);
+    /**
+     * E738 - Ditagih selisih jarak jemput (>=0)
+     * Excel: =IF(E729<0, ABS(E729), 0)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E738(temp) {
+        const val = temp.E729;
         return val < 0 ? Math.abs(val) : 0;
     }
+    E738.deps = ['E729'];
 
-    function E739(est, v) {
-        const val = E730(est, v);
+    /**
+     * E739 - Ditagih selisih waktu jemput
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E739(temp) {
+        const val = temp.E730;
         return val < 0 ? Math.abs(val) : 0;
     }
+    E739.deps = ['E730'];
 
-    function E740(est, v) {
-        const val = E731(est, v);
+    /**
+     * E740 - Ditagih selisih jarak antar
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E740(temp) {
+        const val = temp.E731;
         return val < 0 ? Math.abs(val) : 0;
     }
+    E740.deps = ['E731'];
 
-    function E741(est, v) {
-        const val = E732(est, v);
+    /**
+     * E741 - Ditagih selisih waktu antar
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E741(temp) {
+        const val = temp.E732;
         return val < 0 ? Math.abs(val) : 0;
     }
+    E741.deps = ['E732'];
 
-    function E742(est, v) {
-        return Math.max(E738(est, v), E739(est, v));
+    /**
+     * E742 - Ditagih jemput (max E738, E739)
+     * Excel: =IF(E738>E739, E738, E739)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E742(temp) {
+        return Math.max(temp.E738, temp.E739);
     }
+    E742.deps = ['E738', 'E739'];
 
-    function E743(est, v) {
-        return Math.max(E740(est, v), E741(est, v));
+    /**
+     * E743 - Ditagih antar (max E740, E741)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E743(temp) {
+        return Math.max(temp.E740, temp.E741);
     }
+    E743.deps = ['E740', 'E741'];
 
-    function E744(v) {
-        return v.E100 + v.E102 + v.E104;
+    /**
+     * E744 - Total biaya tambahan (parkir + tol + lainnya)
+     * Excel: =E100+E102+E104
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E744(temp) {
+        return temp.E100 + temp.E102 + temp.E104;
     }
+    E744.deps = ['E100', 'E102', 'E104'];
 
-    function E745(est, v) {
-        return E742(est, v) + E743(est, v);
+    /**
+     * E745 - Ditagih total (jemput + antar)
+     * Excel: =E742+E743
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E745(temp) {
+        return temp.E742 + temp.E743;
     }
+    E745.deps = ['E742', 'E743'];
 
-    function E746(est, v) {
-        return E745(est, v) + E744(v);
+    /**
+     * E746 - Ditagih total plus (E745 + E744)
+     * @param {Object} temp
+     * @returns {number} Rp
+     */
+    function E746(temp) {
+        return temp.E745 + temp.E744;
     }
+    E746.deps = ['E745', 'E744'];
 
-    function E752(v) {
-        return v.E78 + v.E82;
+    /**
+     * E752 - Total jarak jemput-antar real
+     * Excel: =E78+E82
+     * @param {Object} temp
+     * @returns {number} km
+     */
+    function E752(temp) {
+        return temp.E78 + temp.E82;
     }
+    E752.deps = ['E78', 'E82'];
 
-    function E753(v) {
-        return v.E80 + v.E84;
+    /**
+     * E753 - Total waktu jemput-antar real
+     * Excel: =E80+E84
+     * @param {Object} temp
+     * @returns {number} menit
+     */
+    function E753(temp) {
+        return temp.E80 + temp.E84;
     }
+    E753.deps = ['E80', 'E84'];
 
-    function E754(est, v) {
-        return est.E698 / E752(v);
+    /**
+     * E754 - Tarif jarak efektif real (Rp/km)
+     * Excel: =E698/E752
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E754(temp) {
+        return temp.E698 / temp.E752;
     }
+    E754.deps = ['E698', 'E752'];
 
-    function E755(est, v) {
-        return est.E698 / E753(v);
+    /**
+     * E755 - Tarif waktu efektif real (Rp/menit)
+     * Excel: =E698/E753
+     * @param {Object} temp
+     * @returns {number}
+     */
+    function E755(temp) {
+        return temp.E698 / temp.E753;
     }
+    E755.deps = ['E698', 'E753'];
 
-    function getFareParams(valid, uiStateE71) {
-        const fp = {};
-        fp.E655 = E655(valid);
-        fp.E656 = E656(valid);
-        fp.E657 = E657(valid);
-        fp.E658 = E658(valid);
-        fp.E659 = E659(valid);
-        fp.E660 = E660(valid);
-        fp.E661 = E661(valid);
-        fp.E662 = E662(valid);
-        fp.E663 = E663(valid);
-        fp.E668 = E668(valid);
-        fp.E669 = E669(valid);
-        fp.E670 = E670(valid);
-        fp.E671 = E671();
-        fp.E677 = E677(valid);
-        fp.E678 = E678(valid, fp, uiStateE71);
-        fp.E679 = E679(valid, fp, uiStateE71);
-        return fp;
-    }
-
-    function calcOnlineFare(valid, fp) {
-        const res = {};
-        res.E692 = E692(valid);
-        res.E693 = E693(valid);
-        res.E694 = E694(valid, fp);
-        res.E695 = E695(valid, fp);
-        res.E696 = E696(valid, fp);
-        res.E697 = E697(valid, fp);
-        res.E698 = E698(valid, fp);
-        res.E699 = E699(valid, fp);
-        res.E700 = E700(valid, fp);
-        res.E701 = E701(valid, fp);
-        res.E706 = E706(valid, fp);
-        res.E707 = E707(valid, fp);
-        res.E708 = E708(valid, fp);
-        res.E709 = E709(valid, fp);
-        res.E713 = E713(valid, fp);
-        res.E714 = E714(valid, fp);
-        res.E715 = E715(valid, fp);
-        res.E716 = E716(valid, fp);
-        res.E717 = E717(valid, fp);
-        res.E718 = E718(valid, fp);
-        return res;
-    }
-
-    function calcOfflineFare(valid, fp) {
-        const res = {};
-        res.E680 = E680(valid);
-        res.E682 = E682(valid, fp);
-        res.E683 = E683(valid, fp);
-        res.E684 = E684(valid);
-        res.E686 = E686(valid, fp);
-        res.E687 = E687(valid, fp);
-        res.E692 = E692(valid);
-        res.E693 = E693(valid);
-        res.E694 = E694(valid, fp);
-        res.E695 = E695(valid, fp);
-        res.E696 = E696(valid, fp);
-        res.E697 = E697(valid, fp);
-        res.E698 = E698(valid, fp);
-        res.E699 = E699(valid, fp);
-        res.E700 = E700(valid, fp);
-        res.E701 = E701(valid, fp);
-        res.E706 = E706(valid, fp);
-        res.E707 = E707(valid, fp);
-        res.E708 = E708(valid, fp);
-        res.E709 = E709(valid, fp);
-        res.E713 = E713(valid, fp);
-        res.E714 = E714(valid, fp);
-        res.E715 = E715(valid, fp);
-        res.E716 = E716(valid, fp);
-        res.E717 = E717(valid, fp);
-        res.E718 = E718(valid, fp);
-        res.E719 = E719(valid, fp);
-        return res;
-    }
-
-    function calcPickupAdj(est, valid) {
-        return {
-            E725: E725(est, valid),
-            E726: E726(est, valid),
-            E729: E729(est, valid),
-            E730: E730(est, valid),
-            E738: E738(est, valid),
-            E739: E739(est, valid),
-            E742: E742(est, valid)
-        };
-    }
-
-    function calcDropoffAdj(est, valid) {
-        return {
-            E727: E727(est, valid),
-            E728: E728(est, valid),
-            E731: E731(est, valid),
-            E732: E732(est, valid),
-            E740: E740(est, valid),
-            E741: E741(est, valid),
-            E743: E743(est, valid),
-            E744: E744(valid),
-            E745: E745(est, valid),
-            E746: E746(est, valid),
-            E752: E752(valid),
-            E753: E753(valid),
-            E754: E754(est, valid),
-            E755: E755(est, valid)
-        };
-    }
-
+    // ==================== EKSPOR ====================
     return {
         F_V,
+
+        // Semua fungsi sel
         E655, E656, E657, E658, E659, E660, E661, E662, E663,
         E668, E669, E670, E671, E677, E678, E679, E680,
+        E682, E683, E684, E686, E687,
         E692, E693, E694, E695, E696, E697, E698, E699, E700, E701,
         E706, E707, E708, E709,
         E713, E714, E715, E716, E717, E718, E719,
-        E682, E683, E684, E686, E687,
         E725, E726, E727, E728, E729, E730, E731, E732,
         E738, E739, E740, E741, E742, E743, E744, E745, E746,
-        E752, E753, E754, E755,
-        getFareParams,
-        calcOnlineFare,
-        calcOfflineFare,
-        calcPickupAdj,
-        calcDropoffAdj
+        E752, E753, E754, E755
     };
 })();
 
+// ==================== EKSPOR GLOBAL & LOG FILE VERSION ====================
 if (typeof window !== 'undefined') {
     window.Fare = Fare;
     console.log('[FARE] v' + Fare.F_V + ' dimuat');
@@ -572,4 +893,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { Fare };
 }
 
+// ================================= CHANGELOG =================================
+// 1.0.1-rev0 : Seluruh fungsi sel diubah menjadi (temp) => value + properti
+//              deps. Wrapper internal (getFareParams, calcOnlineFare, dll.)
+//              dihapus. Parameter buatan dihilangkan. Komentar tetap merujuk
+//              ke sel Excel untuk sinkronisasi.
 // ================================ End Of File ================================
