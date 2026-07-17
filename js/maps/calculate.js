@@ -3,9 +3,31 @@
  * FILE         : /js/maps/calculate.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Jembatan antara TrackingCollector (data mentah) dan Cache (orkestrasi).
+ *   Bertanggung jawab untuk:
+ *   - Menerima data mentah dari tracker.
+ *   - Melakukan SEMUA pembulatan (≥ 0.01 km, ≥ 1 menit) sebelum dikirim
+ *     ke Cache atau ditampilkan di UI.
+ *   - Memanggil Cache untuk live income dan finalisasi.
+ *   - Menyediakan data fase aktif (pickup/dropoff) untuk indikator UI.
+ *   - Untuk mode operasional: menangani kalkulasi share cost & set limit
+ *     (live dan final), menyertakan hasilnya di output (bukan di tracking data).
+ *
+ * NOTES        :
+ *   - Semua pemanggilan orkestrasi dilakukan melalui Cache.
+ *   - Tidak ada akses langsung ke Engine di file ini.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { TrackingCollector } from './tracker.js';
@@ -93,14 +115,39 @@ export class Calculate {
         return this.tracker ? this.tracker.getElapsedSeconds() : 0;
     }
 
+    // =========================================================================
+    // KONFIGURASI (via Cache)
+    // =========================================================================
+
+    /**
+     * Mendapatkan batas maksimal jarak penjemputan gratis.
+     * @returns {number} km
+     */
     getMaxPickupDistance() {
         return window.Cache?.getMaxPickupDistance() || 2;
     }
 
+    /**
+     * Mendapatkan batas maksimal waktu penjemputan gratis.
+     * @returns {number} menit
+     */
     getMaxPickupTime() {
         return window.Cache?.getMaxPickupTime() || 15;
     }
 
+    // =========================================================================
+    // LIVE INCOME (dengan share/limit untuk operasional)
+    // =========================================================================
+
+    /**
+     * Menghitung pendapatan live berdasarkan data tracking terkini.
+     * @param {Object} vehicleData - Data kendaraan
+     * @param {Object} estimateResult - Hasil estimasi (null untuk operasional)
+     * @param {Object} [options={}] - Opsi tambahan
+     * @param {number} [options.shareCount=1] - Jumlah pembagi share cost (1–6)
+     * @param {number} [options.setLimit=0] - Nilai limit (min 1000)
+     * @returns {Object|null} Data live income
+     */
     getLiveIncome(vehicleData, estimateResult, options = {}) {
         if (!this.tracker || !window.Cache) return null;
 
@@ -218,6 +265,12 @@ export class Calculate {
         this._snapshotCompactData = null;
     }
 
+    /**
+     * Finalisasi perhitungan dengan data tambahan (termasuk share/limit).
+     * @param {Object} vehicleData - Data kendaraan
+     * @param {Object} [additionalData={}] - Data tambahan (E92, E100, shareCount, dll.)
+     * @returns {Object} Hasil final + properti share/limit
+     */
     finalize(vehicleData, additionalData = {}) {
         if (!window.Cache) throw new Error('Cache tidak tersedia');
 
@@ -238,6 +291,7 @@ export class Calculate {
 
         let engineResult;
         if (this.trackingMode === 'operational') {
+            // Gunakan Cache.getOperationalCost karena tidak ada getOperationalReality
             const totalDistance = snapshot.pickupDistance + snapshot.dropoffDistance;
             const totalTime = snapshot.pickupTime + snapshot.dropoffTime;
             const opCost = window.Cache.getOperationalCost(vehicleData, totalDistance, totalTime);
@@ -247,11 +301,12 @@ export class Calculate {
                 E935: opCost.maintenance,
                 E825: opCost.depreciation,
                 E841: opCost.tax,
-                E807: 0,
+                E807: 0,           // tidak ada map load di operasional
                 E752: totalDistance,
                 E753: totalTime
             };
         } else {
+            // Gunakan Cache.reality dengan estimateResult yang sudah ada
             engineResult = window.Cache.reality(input, this.estimateResult);
         }
 
@@ -279,6 +334,10 @@ export class Calculate {
         return this._snapshotEngineData;
     }
 
+    // =========================================================================
+    // PRIVATE HELPERS (pembulatan)
+    // =========================================================================
+
     _roundSessionData(rawData) {
         return {
             pickupDistance: this._roundKm(rawData.pickupDistance),
@@ -300,6 +359,9 @@ export class Calculate {
         return Math.max(minutes, 1);
     }
 
+    /**
+     * Membangun input untuk Cache/Engine dari data mentah tracker.
+     */
     _buildEngineInput(vehicleData, rawData, elapsedMinutes, status) {
         const input = { ...vehicleData };
 
@@ -319,4 +381,11 @@ export class Calculate {
 
 window.log.info('[Calculate ' + F_V + '] (4) Calculate dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Ganti semua akses Engine menjadi Cache,
+//             finalize operasional menggunakan getOperationalCost.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
