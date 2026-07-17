@@ -3,28 +3,64 @@
  * FILE         : /js/components/popup.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Factory popup tangguh (robust) dengan sistem registri. Popup default (1–9)
+ *   diambil dari texts.js. Custom popup (11+) didaftarkan melalui register().
+ *   Setiap bagian divalidasi; jika tidak valid, fallback ke popup generik (index 1).
+ *   API: register(), open(), forceClose().
+ *
+ *   Mulai rev1, ikon close didefinisikan secara lokal, tidak lagi bergantung
+ *   pada icon registry terpusat di texts.js.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { Texts } from '../helpers/texts.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     CLOSE: '❌'
 };
+
+// =============================================================================
+// 1. KONSTANTA & REGISTRI
+// =============================================================================
 
 const POPUP_CONTAINER_ID = 'popup-container';
 const OVERLAY_CLASS = 'popup-overlay';
 const POPUP_CLASS = 'popup-container';
 const CLOSE_ICON = ICON.CLOSE;
 
+/** Registri popup custom: Map(index, factoryFn -> { contentElement, options }) */
 const registry = new Map();
 
-let activePopup = null;
+// =============================================================================
+// 2. STATE INTERNAL
+// =============================================================================
+
+let activePopup = null;   // { index, type: 'default'|'custom' }
 let overlayElement = null;
 let popupElement = null;
-let _onClose = null;
+let _onClose = null;      // Callback penutupan dari Router
+
+// =============================================================================
+// 3. FUNGSI VALIDASI KONFIGURASI (dengan dukungan helpKey)
+// =============================================================================
 
 function collectConfig(index, data = {}) {
     window.log.info('[Popup ' + F_V + '] (1) collectConfig dipanggil: index=' + index + ' helpKey=' + (data.helpKey || 'none'));
@@ -36,6 +72,7 @@ function collectConfig(index, data = {}) {
         buttons: [{ text: 'MENGERTI', action: 'confirm' }]
     };
 
+    // Special handling for OpenHelp popup (index 2) with helpKey
     if (index === 2 && data.helpKey) {
         const help = Texts.getOpenHelp(data.helpKey);
         if (help) {
@@ -138,6 +175,10 @@ function collectConfig(index, data = {}) {
     };
 }
 
+// =============================================================================
+// 4. FUNGSI PEMBANGUN FRAME
+// =============================================================================
+
 function ensureContainer() {
     let container = document.getElementById(POPUP_CONTAINER_ID);
     if (!container) {
@@ -224,6 +265,10 @@ function buildFrame(config) {
     return { overlay, popup, bodyContainer, footerContainer };
 }
 
+// =============================================================================
+// 5. RENDER
+// =============================================================================
+
 function renderPopup(config, data = {}) {
     window.log.info('[Popup ' + F_V + '] (5) renderPopup dipanggil');
 
@@ -255,16 +300,26 @@ function renderPopup(config, data = {}) {
             else button.classList.add('btn-outline');
             button.textContent = btnConfig.text;
 
-            button.addEventListener('click', async () => {
-                if (i === 0 && typeof data.onCancel === 'function') {
-                    await data.onCancel();
-                } else if (i === 1 && typeof data.onConfirm === 'function') {
-                    await data.onConfirm();
-                }
-                if (typeof _onClose === 'function') {
-                    _onClose();
-                }
-            });
+button.addEventListener('click', async () => {
+    // 1. Utamakan onClick tombol (untuk popup custom)
+    if (typeof btnConfig.onClick === 'function') {
+        await btnConfig.onClick();
+        // onClick biasanya sudah menangani penutupan sendiri (mis. Router.navigateTo)
+        return;
+    }
+
+    // 2. Fallback ke callback popup standar (untuk popup default)
+    if (i === 0 && typeof data.onCancel === 'function') {
+        await data.onCancel();
+    } else if (i === 1 && typeof data.onConfirm === 'function') {
+        await data.onConfirm();
+    }
+
+    // 3. Tutup popup jika belum ditutup oleh callback di atas
+    if (typeof _onClose === 'function') {
+        _onClose();
+    }
+});
 
             footerContainer.appendChild(button);
         }
@@ -279,6 +334,10 @@ function renderPopup(config, data = {}) {
     overlayElement = overlay;
     popupElement = popup;
 }
+
+// =============================================================================
+// 6. API PUBLIK
+// =============================================================================
 
 function register(index, factoryFn) {
     if (typeof factoryFn !== 'function') {
@@ -336,6 +395,10 @@ function forceClose() {
     window.log.info('[Popup ' + F_V + '] (12) Popup ditutup');
 }
 
+// =============================================================================
+// 7. GETTER
+// =============================================================================
+
 function isOpen() {
     return activePopup !== null;
 }
@@ -343,6 +406,10 @@ function isOpen() {
 function getActiveIndex() {
     return activePopup ? activePopup.index : 0;
 }
+
+// =============================================================================
+// 8. EKSPOR
+// =============================================================================
 
 export const PopupManager = {
     register,
@@ -356,4 +423,13 @@ window.PopupManager = PopupManager;
 
 window.log.info('[Popup ' + F_V + '] (13) PopupManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon close
+//             didefinisikan secara lokal (ICON.CLOSE). Impor Texts untuk
+//             POPUP_TEXTS dan getOpenHelp tetap dipertahankan.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
