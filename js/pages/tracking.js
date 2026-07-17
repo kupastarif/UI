@@ -3,9 +3,30 @@
  * FILE         : /js/pages/tracking.js
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
+ *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
+ *   dan komponen UI (Header, Footer, Popup).
+ *
+ *   Mulai rev2, seluruh ikon didefinisikan dalam ICON dan tidak ada
+ *   lagi ikon yang ditulis langsung (inline). Setiap file menjadi
+ *   sumber kebenaran tunggal untuk ikon yang digunakan.
+ *
+ * NOTES        :
+ *   - Seluruh orkestrasi dilakukan melalui Calculate (yang menggunakan Cache).
+ *   - Validasi sel menggunakan Output (validateCell).
+ *   - Invalidasi cache menggunakan Cache.invalidate.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev2';
 
 import { StateManager } from '../core/state.js';
@@ -26,6 +47,10 @@ import {
 } from '../helpers/format.js';
 import { getDriverColorAndBlink, validateCell } from '../helpers/output.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     FUEL: '⛽',
     MAINTENANCE: '🔧',
@@ -41,10 +66,14 @@ const ICON = {
     PAUSE: '⏸',
     PLAY: '▶️',
     STOP: '🟥',
-    LOCATION: '📍',
-    MAP: '🗺',
-    GEAR: '⚙️'
+    LOCATION: '📍',   // Baru: lompatan jarak
+    MAP: '🗺',         // Baru: load Google Map
+    GEAR: '⚙️'         // Baru: pengaturan share/limit
 };
+
+// =============================================================================
+// 1. STATE INTERNAL (dibagi antara idle dan active)
+// =============================================================================
 
 let isDestroyed = false;
 let calculate = null;
@@ -93,6 +122,10 @@ let isOfflineMode = false;
 
 let offlineAdditionalData = {};
 
+// =============================================================================
+// 2. HELPER: DEBOUNCE
+// =============================================================================
+
 function debounce(fn, delay) {
     let timer;
     return function(...args) {
@@ -100,6 +133,10 @@ function debounce(fn, delay) {
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
 }
+
+// =============================================================================
+// 3. STAGE MANAGEMENT
+// =============================================================================
 
 function goToStage(newStage) {
     if (isDestroyed) return;
@@ -175,6 +212,10 @@ function resetToIdle() {
     renderTripSummaryCard();
 }
 
+// =============================================================================
+// 4. HANDLER GPS
+// =============================================================================
+
 function handleGPSPosition(pos) {
     if (!calculate) return;
     currentPosition = { lat: pos.lat, lng: pos.lng };
@@ -194,6 +235,10 @@ function handleGPSError(error) {
         'warning'
     );
 }
+
+// =============================================================================
+// 5. PETA & GPS AWAL
+// =============================================================================
 
 function requestGPSPermission() {
     GPS.getCurrentPosition(
@@ -258,6 +303,10 @@ async function initMap() {
         if (el) el.innerHTML = '<div class="map-placeholder"><p>Peta gagal dimuat</p></div>';
     }
 }
+
+// =============================================================================
+// 6. UI UPDATE (PLACEHOLDER & OVERLAY MAP)
+// =============================================================================
 
 function updateStatusText() {
     const texts = {
@@ -350,6 +399,10 @@ function scheduleLiveIncomeUpdate() {
     }
 }
 
+// =============================================================================
+// 7. LIVE INCOME & SHARE/LIMIT (OPERASIONAL)
+// =============================================================================
+
 function updateLiveIncome(options = {}) {
     if (!calculate) return;
 
@@ -387,6 +440,10 @@ function renderShareLimitResult() {
     }
     container.innerHTML = html;
 }
+
+// =============================================================================
+// 8. RENDER LIVE INCOME (KOLAPSIBEL INDEPENDEN)
+// =============================================================================
 
 function renderLiveIncome() {
     const container = document.getElementById('live-income-container');
@@ -494,6 +551,10 @@ function handleAppToggle() {
     renderLiveIncome();
 }
 
+// =============================================================================
+// 9. CARD RINGKASAN PERJALANAN
+// =============================================================================
+
 function renderTripSummaryCard() {
     const card = document.getElementById('trip-summary-card');
     if (!card) return;
@@ -581,6 +642,10 @@ function renderTripSummaryCard() {
     }
 }
 
+// =============================================================================
+// 10. KONTEN POPUP (tetap, tidak berubah)
+// =============================================================================
+
 function createCancelPopupContent() {
     const container = document.createElement('div');
     container.innerHTML = '<p>Data tracking akan dihentikan. Lanjutkan?</p>';
@@ -650,7 +715,7 @@ function createSelesaiPopupContent() {
 
     let formHtml = '';
     if (isOnline) {
-        formHtml += `<div class="input-wrapper"><span class="input-label">BIAYA RAHASIA</span><div class="input-field-container"><input type="number" class="input-field" id="popup-E92" placeholder="namanya aja rahasia.." inputmode="numeric"><span class="input-unit">Rp</span></div></div>`;
+        formHtml += `<div class="input-wrapper"><span class="input-label">BIAYA APLIKASI</span><div class="input-field-container"><input type="number" class="input-field" id="popup-E92" placeholder="namanya aja rahasia.." inputmode="numeric"><span class="input-unit">Rp</span></div></div>`;
         if (isPenumpang) {
             formHtml += `<div class="popup-divider"></div><div class="input-section-label">PENJEMPUTAN</div><div class="input-note">* otomatis terisi max jemput, bisa diubah</div>
             <div class="input-dual">
@@ -753,24 +818,29 @@ function createOfflineBiayaTambahanContent() {
             {
                 text: `${ICON.SAVE} SIMPAN`,
                 type: 'primary',
-                onClick: () => {
-                    const e100 = parseNumber(document.getElementById('popup-offline-E100')?.value || '');
-                    const e104 = parseNumber(document.getElementById('popup-offline-E104')?.value || '');
-                    offlineAdditionalData.E100 = e100 || null;
-                    offlineAdditionalData.E104 = e104 || null;
+onClick: () => {
+    const e100 = parseNumber(document.getElementById('popup-offline-E100')?.value || '');
+    const e104 = parseNumber(document.getElementById('popup-offline-E104')?.value || '');
+    offlineAdditionalData.E100 = e100 || null;
+    offlineAdditionalData.E104 = e104 || null;
 
-                    if (!isMotor) {
-                        const e102 = parseNumber(document.getElementById('popup-offline-E102')?.value || '');
-                        offlineAdditionalData.E102 = e102 || null;
-                    } else {
-                        offlineAdditionalData.E102 = null;
-                    }
+    // Simpan ke state input
+    StateManager.updateInput('E100', offlineAdditionalData.E100);
+    StateManager.updateInput('E104', offlineAdditionalData.E104);
 
-                    StateManager.set('tracking.offlineAdditionalData', { ...offlineAdditionalData });
+    if (!isMotor) {
+        const e102 = parseNumber(document.getElementById('popup-offline-E102')?.value || '');
+        offlineAdditionalData.E102 = e102 || null;
+        StateManager.updateInput('E102', offlineAdditionalData.E102);
+    } else {
+        offlineAdditionalData.E102 = null;
+        StateManager.updateInput('E102', null);
+    }
 
-                    renderTripSummaryCard();
-                    Router.navigateTo({ popup: 0 });
-                }
+    StateManager.set('tracking.offlineAdditionalData', { ...offlineAdditionalData });
+    renderTripSummaryCard();
+    Router.navigateTo({ popup: 0 });
+}
             }
         ]
     };
@@ -844,6 +914,10 @@ function createWarningPopupContent() {
     return container;
 }
 
+// =============================================================================
+// 11. FINALISASI & PEMBATALAN
+// =============================================================================
+
 function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
     GPS.stop();
@@ -902,6 +976,7 @@ async function finalizeTracking(isOnline, isPenumpang) {
     _trackingModule = null;
     window.trackingModule = null;
 
+    // Invalidasi cache tracking
     if (window.Cache) {
         window.Cache.invalidate('tracking');
     }
@@ -930,6 +1005,14 @@ async function goToRealityManual(isPenumpang, isOnline) {
             E82: data.E82 ?? data.dropoffDistance,
             E84: data.E84 ?? data.dropoffTime
         });
+        
+// Setelah StateManager.batchUpdateInput untuk E78-E84
+if (isOfflineMode) {
+    StateManager.updateInput('E100', offlineAdditionalData.E100 ?? null);
+    StateManager.updateInput('E102', offlineAdditionalData.E102 ?? null);
+    StateManager.updateInput('E104', offlineAdditionalData.E104 ?? null);
+}
+        
         StateManager.set('trackingData', null);
         StateManager.set('realityResult', null);
         window.log.info('[Tracking ' + F_V + '] (14) goToRealityManual: data realitas diset ulang');
@@ -957,6 +1040,10 @@ function parsePopupInput(id, cell) {
     if (isNaN(num)) return null;
     return validateCell(cell, num) ?? num;
 }
+
+// =============================================================================
+// 12. FOOTER & HEADER
+// =============================================================================
 
 function updateFooterForIdle() {
     const footerContainer = document.getElementById('app-footer');
@@ -1071,6 +1158,10 @@ function updateHeader() {
     else { currentHeader = null; }
 }
 
+// =============================================================================
+// 13. BUILD HTML
+// =============================================================================
+
 function buildHTML() {
     return `
     <div class="page-container tracking-page">
@@ -1112,6 +1203,10 @@ function buildHTML() {
     </div>`;
 }
 
+// =============================================================================
+// 14. RENDER IDLE
+// =============================================================================
+
 async function renderIdle(params, context = {}) {
     const content = document.getElementById('app-content');
     if (!content) return;
@@ -1123,6 +1218,13 @@ async function renderIdle(params, context = {}) {
     shareCount = 1;
     setLimit = 0;
     offlineAdditionalData = {};
+    
+// renderIdle() - setelah deklarasi offlineAdditionalData
+StateManager.updateInput('E100', null);
+StateManager.updateInput('E102', null);
+StateManager.updateInput('E104', null);
+StateManager.set('tracking.offlineAdditionalData', null);
+offlineAdditionalData = { E100: null, E102: null, E104: null };
 
     liveIncome = { driver: 0, app: 0, passengerPayment: 0, passengerBill: 0, bbm: 0, maintenance: 0, total: 0 };
     lastUpdateDistance = 0;
@@ -1201,6 +1303,10 @@ async function renderIdle(params, context = {}) {
     window.log.info('[Tracking ' + F_V + '] (16) renderIdle() selesai');
 }
 
+// =============================================================================
+// 15. RENDER ACTIVE
+// =============================================================================
+
 async function renderActive(params, context = {}) {
     const content = document.getElementById('app-content');
     if (!content) return;
@@ -1269,10 +1375,11 @@ async function renderActive(params, context = {}) {
         }
     });
 
-    StateManager.batchUpdateInput({
-        E78: null, E80: null, E82: null, E84: null,
-        E92: null, E100: null, E102: null, E104: null
-    });
+    // StateManager.batchUpdateInput({
+    //    E78: null, E80: null, E82: null, E84: null,
+    //    E92: null, E100: null, E102: null, E104: null
+    // });
+    
     calculate.start();
     GPS.start(handleGPSPosition, handleGPSError);
     startClockTimer();
@@ -1307,6 +1414,10 @@ async function renderActive(params, context = {}) {
     window.log.info('[Tracking ' + F_V + '] (18) renderActive() selesai');
 }
 
+// =============================================================================
+// 16. POLYLINE RENCANA (PICKER)
+// =============================================================================
+
 function drawPlannedRoute() {
     if (!isOfflineMode) {
         window.log.info('[Tracking ' + F_V + '] (19) drawPlannedRoute: bukan mode offline, lewati');
@@ -1327,6 +1438,10 @@ function drawPlannedRoute() {
 
     window.log.info('[Tracking ' + F_V + '] (21) drawPlannedRoute: polyline rencana ditambahkan ke peta');
 }
+
+// =============================================================================
+// 17. INISIALISASI SHARE COST & SET LIMIT UI
+// =============================================================================
 
 function initShareLimitUI() {
     const slider = document.getElementById('share-slider');
@@ -1356,6 +1471,10 @@ function initShareLimitUI() {
     renderShareLimitResult();
 }
 
+// =============================================================================
+// 18. DESTROY
+// =============================================================================
+
 function destroy() {
     window.log.info('[Tracking ' + F_V + '] (22) destroy()');
     isDestroyed = true;
@@ -1380,6 +1499,10 @@ function destroy() {
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
 
+// =============================================================================
+// 19. FORCE STOP TRACKING
+// =============================================================================
+
 window.forceStopTracking = function() {
     window.log.info('[Tracking ' + F_V + '] (23) forceStopTracking() dipanggil');
     if (typeof GPS !== 'undefined') GPS.stop();
@@ -1397,10 +1520,18 @@ window.forceStopTracking = function() {
     window.trackingModule = null;
 };
 
+// =============================================================================
+// 20. REGISTRASI POPUP CUSTOM
+// =============================================================================
+
 PopupManager.register(14, () => createCancelPopupContent());
 PopupManager.register(15, () => createSelesaiPopupContent());
 PopupManager.register(18, () => createWarningPopupContent());
 PopupManager.register(19, () => createOfflineBiayaTambahanContent());
+
+// =============================================================================
+// 21. EKSPOR
+// =============================================================================
 
 export const PageTrackingidle = {
     render: renderIdle,
@@ -1414,4 +1545,16 @@ export const PageTrackingactive = {
 
 window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (Cache API, Output validasi)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Ganti clearMemo/resetTrackingCache dengan
+//             Cache.invalidate, validasi sel via Output.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.FUEL, ICON.DRIVER, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+// 2.0a-rev2 : Seluruh ikon inline dihapus, objek ICON diperluas dengan
+//             LOCATION, MAP, GEAR. Semua string ikon kini merujuk ke ICON.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
