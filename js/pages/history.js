@@ -3,9 +3,27 @@
  * FILE         : /js/pages/history.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Riwayat – Menampilkan daftar riwayat perjalanan.
+ *   Selalu memuat ulang data dari storage saat render agar data selalu akurat.
+ *
+ *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
+ *   menggunakan karakter ikon langsung, bukan kunci registry.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache. Hanya membaca data dari
+ *     StorageManager dan menghitung statistik dengan fungsi format murni.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { Router } from '../core/router.js';
@@ -20,6 +38,10 @@ import {
     formatRupiah, formatKm, formatMenit, formatPersen, formatRelativeTime,
     calculateHistoryStats, escapeHtml
 } from '../helpers/format.js';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
 
 const ICON = {
     DRIVER: '👤',
@@ -39,6 +61,10 @@ const ICON = {
     HOME: '🏠'
 };
 
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
+
 let isDestroyed = false;
 let historyItems = [];
 let filteredItems = [];
@@ -56,6 +82,10 @@ let stats = {
     kendaraan: { value: 0, percent: 0 },
     passenger: { value: 0, percent: 100 }
 };
+
+// =============================================================================
+// 2. LOAD DATA
+// =============================================================================
 
 function loadHistoryData() {
     if (StorageManager) {
@@ -99,6 +129,10 @@ function applyFilter() {
     stats = calculateHistoryStats(filteredItems);
     currentPage = 1;
 }
+
+// =============================================================================
+// 3. RENDER
+// =============================================================================
 
 function renderStats() {
     return `<div class="card">
@@ -361,6 +395,10 @@ function bindEvents() {
     }
 }
 
+// =============================================================================
+// 4. EKSEKUSI DELETE
+// =============================================================================
+
 function executeDelete(refId) {
     if (StorageManager) StorageManager.deleteHistoryItem(refId);
     loadHistoryData();
@@ -376,6 +414,10 @@ function executeClearAll() {
     ThemeManager?.showToast('Semua riwayat dihapus', 'success');
     window.log.info('[History ' + F_V + '] (3) Semua history dihapus');
 }
+
+// =============================================================================
+// 5. REGISTRASI POPUP & DRAWER
+// =============================================================================
 
 PopupManager.register(6, () => ({
     defaultOnly: true,
@@ -397,6 +439,10 @@ DrawerManager.register('history', () => ({
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 6. UPDATE HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const container = document.getElementById('app-header');
@@ -431,12 +477,17 @@ function updateFooter() {
     if (footer) container.appendChild(footer);
 }
 
+// =============================================================================
+// 7. RENDER & DESTROY
+// =============================================================================
+
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
     if (!content) return;
 
     isDestroyed = false;
 
+    // selalu muat ulang data tanpa peduli arah navigasi
     currentFilter = params?.filter || 'all';
     operationalToggle = false;
     currentPage = 1;
@@ -457,6 +508,10 @@ function destroy() {
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
 
+// =============================================================================
+// 8. EKSPOR
+// =============================================================================
+
 export const PageHistory = {
     render,
     destroy
@@ -464,4 +519,14 @@ export const PageHistory = {
 
 window.log.info('[History ' + F_V + '] (5) PageHistory dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//             Tidak ada perubahan fungsional.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.DRIVER, ICON.MOTOR, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
