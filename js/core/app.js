@@ -3,14 +3,35 @@
  * FILE         : /js/core/app.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Inisialisasi aplikasi dan lifecycle management. Mengatur loading screen
+ *   awal, memuat preferensi, inisialisasi state, dan memulai router.
+ *   Mengecek keberadaan Engine v1.0.0‑beta dan versinya sebagai dependency kritis.
+ *
+ * NOTES        :
+ *   - Cache dikelola oleh modul Cache (07cache.js). Mode default sudah diatur
+ *     oleh init.js, dan preferensi cacheMaksimal diterapkan oleh preferences.js.
+ *   - Semua pemanggilan orkestrasi wajib melalui Cache, bukan Engine langsung.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { StateManager, StateEvents } from './state.js';
 import { StorageManager } from './storage.js';
 import { PreferencesManager } from './preferences.js';
+
+// =============================================================================
+// 1. FALLBACK UNTUK window.log
+// =============================================================================
 
 if (!window.log) {
     window.log = {
@@ -19,6 +40,10 @@ if (!window.log) {
         error: function() { console.error.apply(console, arguments); }
     };
 }
+
+// =============================================================================
+// 2. KONSTANTA DAN REFERENSI DOM
+// =============================================================================
 
 const CONFIG = window.APP_CONFIG || {
     timeout: 10000,
@@ -39,6 +64,10 @@ let loadingStartTime = 0;
 let progressAnimationFrame = null;
 let timeoutTimer = null;
 let minLoadingTimer = null;
+
+// =============================================================================
+// 3. FUNGSI LOADING SCREEN
+// =============================================================================
 
 function startLoading() {
     window.log.info('[App ' + F_V + '] (1) startLoading() dipanggil');
@@ -155,13 +184,19 @@ function showErrorScreen(message, canReload) {
 
 function reloadApp() {
     window.log.info('[App ' + F_V + '] (7) Reload aplikasi');
+    // Cache eksternal – bersihkan semua cache sebelum reload
     if (window.Cache && typeof window.Cache.clear === 'function') {
         window.Cache.clear();
     }
     window.location.reload(true);
 }
 
+// =============================================================================
+// 4. CEK ENGINE (KRITIS) – v1.0.0‑beta
+// =============================================================================
+
 function checkEngine() {
+    // Gunakan referensi Engine dari Cache jika tersedia, fallback ke window.Engine
     const engineRef = (window.Cache && window.Cache.Engine) ? window.Cache.Engine : window.Engine;
 
     if (!engineRef) {
@@ -182,6 +217,10 @@ function checkEngine() {
     return true;
 }
 
+/**
+ * Memeriksa kompatibilitas versi dengan format major.minor.patch[-tag].
+ * Hanya membandingkan bagian numerik (major.minor.patch). Tag diabaikan.
+ */
 function isVersionCompatible(current, minimum) {
     function parseVersion(v) {
         const match = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9]+))?$/);
@@ -198,14 +237,20 @@ function isVersionCompatible(current, minimum) {
     const min = parseVersion(minimum);
 
     if (!cur || !min) {
+        // Jika parsing gagal, gunakan perbandingan string sederhana
         return current >= minimum;
     }
 
     if (cur.major !== min.major) return cur.major > min.major;
     if (cur.minor !== min.minor) return cur.minor > min.minor;
     if (cur.patch !== min.patch) return cur.patch > min.patch;
+    // Versi numerik sama, tag tidak mempengaruhi kompatibilitas minimum
     return true;
 }
+
+// =============================================================================
+// 5. LISTENER LOADING OVERLAY GLOBAL
+// =============================================================================
 
 function setupLoadingOverlayListener() {
     if (!StateEvents || !loadingOverlay) return;
@@ -222,6 +267,10 @@ function setupLoadingOverlayListener() {
 
     window.log.info('[App ' + F_V + '] (11) Loading overlay listener siap');
 }
+
+// =============================================================================
+// 6. FUNGSI INISIALISASI APLIKASI
+// =============================================================================
 
 async function initializeApp() {
     if (isInitialized) {
@@ -240,8 +289,10 @@ async function initializeApp() {
 
         setupLoadingOverlayListener();
 
+        // Preferensi dimuat otomatis oleh preferences.js (setTimeout)
         window.log.info('[App ' + F_V + '] (15) Preferensi akan dimuat oleh preferences.js');
 
+        // Informasi driver disinkronkan ke StateManager untuk kemudahan akses global.
         if (StorageManager) {
             const driverInfo = StorageManager.getDriverInfo();
             if (StateManager) {
@@ -254,6 +305,7 @@ async function initializeApp() {
             window.log.warn('[App ' + F_V + '] (17) StorageManager tidak tersedia, driver info tidak disinkronkan');
         }
 
+        // Dynamic import router menggunakan cache buster terpusat (window.cacheBust)
         window.log.info('[App ' + F_V + '] (18) Memuat Router...');
         const { Router } = await import('./router.js');
         await Router.init();
@@ -269,6 +321,10 @@ async function initializeApp() {
         showErrorScreen('Gagal memulai aplikasi: ' + error.message, true);
     }
 }
+
+// =============================================================================
+// 7. GLOBAL ERROR HANDLING
+// =============================================================================
 
 function handleGlobalError(event) {
     const error = event.error || event.reason || event;
@@ -290,6 +346,10 @@ function handleGlobalError(event) {
 window.addEventListener('error', handleGlobalError);
 window.addEventListener('unhandledrejection', handleGlobalError);
 
+// =============================================================================
+// 8. EVENT LISTENER UNTUK RELOAD BUTTON
+// =============================================================================
+
 if (reloadButton) {
     reloadButton.addEventListener('click', function(e) {
         e.preventDefault();
@@ -297,7 +357,15 @@ if (reloadButton) {
     });
 }
 
+// =============================================================================
+// 9. INISIALISASI - SEGERA JALANKAN
+// =============================================================================
+
 initializeApp();
+
+// =============================================================================
+// 10. EKSPOR
+// =============================================================================
 
 export const App = {
     reload: reloadApp,
@@ -311,4 +379,11 @@ if (typeof window !== 'undefined') {
 
 window.log.info('[App ' + F_V + '] (22) App core dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Engine v1.0.0‑beta, Cache.clear() untuk reload,
+//             isVersionCompatible mendukung format versi baru.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
