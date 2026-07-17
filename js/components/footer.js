@@ -3,14 +3,41 @@
  * FILE         : /js/components/footer.js
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Factory footer minimalis. HANYA membuat elemen DOM footer sesuai layout
+ *   yang diminta. Tidak memiliki ketergantungan pada Router, DrawerManager,
+ *   atau komponen navigasi lainnya. Semua aksi tombol (onClick) disediakan
+ *   oleh pemanggil (halaman) melalui objek frames.
+ *
+ *   Mulai rev2, karakter ▶ pada slider thumb didefinisikan dalam ICON lokal,
+ *   tidak lagi ditulis langsung. Seluruh simbol UI kini merujuk ke ICON.
+ *
+ * NOTES        :
+ *   - FooterManager tidak memiliki ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev2';
 
+// =============================================================================
+// 0. IKON LOKAL (hanya untuk penggunaan internal footer)
+// =============================================================================
+
 const ICON = {
-    SLIDE_THUMB: '▶'
+    SLIDE_THUMB: '▶'       // Karakter panah kanan untuk thumb slider
 };
+
+// =============================================================================
+// 1. FACTORY FRAME & KOMPONEN
+// =============================================================================
 
 function createFrame(type) {
     const frame = document.createElement('div');
@@ -20,6 +47,13 @@ function createFrame(type) {
     return frame;
 }
 
+/**
+ * Membuat tombol ikon footer.
+ * @param {string} iconChar - Karakter ikon langsung (misal '☰')
+ * @param {Function} onClick
+ * @param {string} ariaLabel
+ * @returns {HTMLButtonElement}
+ */
 function createIconButton(iconChar, onClick, ariaLabel) {
     const btn = document.createElement('button');
     btn.className = 'footer-icon';
@@ -30,6 +64,13 @@ function createIconButton(iconChar, onClick, ariaLabel) {
     return btn;
 }
 
+/**
+ * Membuat konten teks dengan ikon opsional.
+ * @param {string} text - Teks tombol
+ * @param {string} iconChar - Karakter ikon langsung (string kosong jika tidak ada)
+ * @param {Function} onClick
+ * @returns {HTMLDivElement}
+ */
 function createFlexContent(text, iconChar, onClick) {
     const container = document.createElement('div');
     container.className = 'footer-flex-content';
@@ -50,6 +91,13 @@ function createFlexContent(text, iconChar, onClick) {
     return container;
 }
 
+/**
+ * Membuat elemen slider (slide-to-action).
+ * @param {string} label - Teks yang tampil di track (contoh: 'MULAI')
+ * @param {string} iconChar - Karakter ikon langsung (string kosong jika tidak ada)
+ * @param {Function} onActivate - Callback saat slide berhasil
+ * @returns {HTMLElement}
+ */
 function createSlideContent(label, iconChar, onActivate) {
     const container = document.createElement('div');
     container.className = 'slide-action';
@@ -175,6 +223,10 @@ function createSlideContent(label, iconChar, onActivate) {
     return container;
 }
 
+// =============================================================================
+// 2. LAYOUT FOOTER
+// =============================================================================
+
 function createLayoutA(frame1, frame2) {
     if (!frame1 || !frame2) {
         window.log.warn('[Footer ' + F_V + '] (1) createLayoutA: frame1 atau frame2 tidak tersedia');
@@ -245,4 +297,15 @@ export const FooterManager = { create, createIconButton, createFlexContent, crea
 
 window.log.info('[Footer ' + F_V + '] (5) FooterManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Parameter iconKey diganti
+//             menjadi iconChar (karakter langsung). Pemanggil wajib mengirim
+//             string ikon, bukan kunci registry.
+// 2.0a-rev2 : Hapus ikon inline ▶ pada slider thumb. Tambahkan ICON.SLIDE_THUMB
+//             dan gunakan di createSlideContent. Semua simbol UI kini dari ICON.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
