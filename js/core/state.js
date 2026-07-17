@@ -3,12 +3,35 @@
  * FILE         : /js/core/state.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Manajemen state global aplikasi dengan event emitter sederhana.
+ *   Semua state disimpan dalam satu objek terpusat (AppState).
+ *   Menyediakan state untuk input, hasil, tracking, preferensi,
+ *   dan flag navigasi internal (popup, drawer).
+ *
+ * NOTES        :
+ *   - Seluruh kunci input mengacu ke Engine v1.0.0‑beta (E10..E104).
+ *   - Input E40 ditambahkan untuk persentase kenaikan tarif wajar.
+ *   - Default input diambil dari Output (helpers/output.js) untuk mematuhi
+ *     aturan akses Engine.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { getDefaultValues } from '../helpers/output.js';
+
+// =============================================================================
+// 1. EVENT EMITTER SEDERHANA
+// =============================================================================
 
 class EventEmitter {
     constructor() {
@@ -52,10 +75,18 @@ class EventEmitter {
     }
 }
 
+// =============================================================================
+// 2. HELPER: DEFAULT INPUT (diambil dari Output)
+// =============================================================================
+
 function getDefaultInput() {
     try {
-        const def = getDefaultValues();
+        const def = getDefaultValues();   // Output.getDefaultValues()
         return {
+          // TODO: kesalahan pada engine tentang default value: default value dan validated value adalah berbeda
+          // TODO: default value semua input numeric adalah null
+          // TODO: default value jika terdapat dependesi maka periksa dulu default value sebelumnya
+          // TODO: beberapa bagian seperti E40 ketika render harus validated value karena dependensi berantai
             E10: def.E10 || 'Mobil',
             E12: def.E12 || 'Driver',
             E20: def.E20 || 'Jabodetabek',
@@ -65,22 +96,22 @@ function getDefaultInput() {
             E28: def.E28 || 'individu',
             E36: def.E36 || 'online',
             E38: def.E38 || 'wajar',
-            E40: null,
+            E40: null,   // disamakan dengan input numerik lain; halaman akan mengisi default via Engine
             E46: def.E46 || 'Standar',
-            E54: def.E54 ?? null,
-            E56: def.E56 ?? null,
-            E58: def.E58 ?? null,
-            E60: def.E60 ?? null,
-            E68: def.E68 ?? null,
-            E70: def.E70 ?? null,
-            E78: def.E78 ?? null,
-            E80: def.E80 ?? null,
-            E82: def.E82 ?? null,
-            E84: def.E84 ?? null,
-            E92: def.E92 ?? null,
-            E100: def.E100 ?? null,
-            E102: def.E102 ?? null,
-            E104: def.E104 ?? null
+            E54: null,
+            E56: null,
+            E58: null,
+            E60: null,
+            E68: null,
+            E70: null,
+            E78: null,
+            E80: null,
+            E82: null,
+            E84: null,
+            E92: null,
+            E100: null,
+            E102: null,
+            E104: null
         };
     } catch (e) {
         window.log.warn('[State ' + F_V + '] (2) Output.getDefaultValues() gagal, gunakan fallback');
@@ -96,30 +127,39 @@ function getDefaultInput() {
     }
 }
 
+// =============================================================================
+// 3. APP STATE - OBJEK STATE GLOBAL
+// =============================================================================
+
 const AppState = {
     currentPage: 'home',
     previousPage: 'KT',
     pageParams: {},
 
+    // Input pengguna (SSOT)
     input: getDefaultInput(),
 
+    // Hasil kalkulasi
     estimateResult: null,
     realityResult: null,
     extraResult: null,
 
+    // Mode kalkulasi dan data tracking terkait
     calcMode: null,
     trackingData: null,
     
+    // Mode ceck tarif offline
     isCheckOffline: false,
 
+    // Preferensi pengguna (nilai awal, akan ditimpa oleh PreferencesManager)
     preferences: {
         quickOrder: false,
         alwaysGPS: false,
         offlineOrder: false,
         alwaysOperational: false,
         largeText: false,
-        hideSafetyReminder: false,
-        cacheMaksimal: false,
+        hideSafetyReminder: false,          // v2.0a-rev0
+        cacheMaksimal: false,               // v2.0a-rev0
         defaultVehicle: {
             mode: 'Mobil', role: 'Driver', area: 'Jabodetabek',
             cc: '1000cc', fuel: 'Pertalite', transmission: 'manual',
@@ -143,21 +183,28 @@ const AppState = {
 
     _appInitialized: false,
 
+    // Anti‑duplikasi result
     lastSavedFingerprint: null,
     lastRefId: null,
     lastTimestamp: null,
     lastInput: null
 };
 
+// =============================================================================
+// 4. STATE MANAGER
+// =============================================================================
+
 function _safeClone(value) {
     if (typeof value !== 'object' || value === null) return value;
     try {
         return structuredClone(value);
     } catch (e) {
+        // DOM element, function, Symbol, etc.
     }
     try {
         return JSON.parse(JSON.stringify(value));
     } catch (e) {
+        // circular reference, BigInt, etc.
     }
     return value;
 }
@@ -253,9 +300,12 @@ const StateManager = {
         this.set('trackingData', null);
         this.set('toastQueue', []);
         this.set('activeToasts', []);
+        // Reset flag cek mode offline
         this.set('isCheckOffline', false);
+        // Reset flag internal navigasi
         AppState.navigation.popup = 0;
         AppState.navigation.drawer = 0;
+        // Reset session anti‑duplikasi
         AppState.lastSavedFingerprint = null;
         AppState.lastRefId = null;
         AppState.lastTimestamp = null;
@@ -269,10 +319,21 @@ const StateManager = {
     }
 };
 
+// =============================================================================
+// 5. INSTANCE EVENT EMITTER
+// =============================================================================
+
 const StateEvents = new EventEmitter();
 
 export { AppState, StateManager, StateEvents };
 
 window.log.info('[State ' + F_V + '] (5) StateManager dimuat (via Output)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Ambil default input dari Output, tambah E40,
+//             preferensi cacheMaksimal dan hideSafetyReminder.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
