@@ -3,13 +3,35 @@
  * FILE         : /js/components/theme.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Mengelola tema aplikasi (light/dark) dan sistem toast notifikasi.
+ *   Tema hijau gelap untuk v2.0, semua warna dikendalikan oleh CSS
+ *   variables di main.css.
+ *
+ *   Mulai rev1, ikon yang digunakan didefinisikan secara lokal, tidak lagi
+ *   bergantung pada icon registry terpusat di texts.js.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine atau Cache.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { StateManager, StateEvents } from '../core/state.js';
 import { StorageManager } from '../core/storage.js';
+
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
+// =============================================================================
 
 const ICON = {
     THEME_LIGHT: '☀️',
@@ -20,6 +42,10 @@ const ICON = {
     INFO: 'ⓘ'
 };
 
+// =============================================================================
+// 1. KONSTANTA
+// =============================================================================
+
 const THEME_ATTR = 'data-theme';
 const TOAST_CONTAINER_ID = 'toast-container';
 
@@ -27,11 +53,19 @@ const MAX_TOASTS = window.APP_CONFIG?.maxToasts || 3;
 const MAX_TOAST_QUEUE = window.APP_CONFIG?.maxToastQueue || 10;
 const DEFAULT_TOAST_DURATION = 3000;
 
+// =============================================================================
+// 2. STATE INTERNAL
+// =============================================================================
+
 let currentTheme = 'light';
 const toastQueue = [];
 const activeToasts = [];
 let toastIdCounter = 0;
 let toastContainer = null;
+
+// =============================================================================
+// 3. THEME MANAGER
+// =============================================================================
 
 function applyTheme(theme) {
     const resolved = theme === 'dark' ? 'dark' : 'light';
@@ -81,6 +115,10 @@ function toggleTheme() {
 function getCurrentTheme() {
     return currentTheme;
 }
+
+// =============================================================================
+// 4. TOAST SYSTEM
+// =============================================================================
 
 function ensureToastContainer() {
     if (toastContainer) return toastContainer;
@@ -239,6 +277,10 @@ function initToast() {
     window.log.info('[Theme ' + F_V + '] (10) Toast system diinisialisasi');
 }
 
+// =============================================================================
+// 5. INISIALISASI
+// =============================================================================
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initTheme);
 } else {
@@ -251,6 +293,10 @@ if (StateEvents) {
     StateEvents.on('theme:change', applyTheme);
     window.log.info('[Theme ' + F_V + '] (11) Listener theme:change terpasang');
 }
+
+// =============================================================================
+// 6. EKSPOR
+// =============================================================================
 
 export const ThemeManager = {
     init: initTheme,
@@ -267,4 +313,12 @@ window.ThemeManager = ThemeManager;
 
 window.log.info('[Theme ' + F_V + '] (12) ThemeManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon tema dan
+//             toast didefinisikan secara lokal (ICON.THEME_LIGHT, ICON.CHECK, dll).
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
