@@ -3,9 +3,30 @@
  * FILE         : /js/pages/reality.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Reality – Step 2. Input data real perjalanan.
+ *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
+ *   Popup custom (index 13) dan popup bantuan (index 2) dibuka melalui target overlay.
+ *   Perhitungan dilakukan melalui Cache.reality().
+ *   ** v2.0a-rev0: pastikan biaya tambahan offline tidak hilang saat pindah halaman **
+ *
+ *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
+ *   menggunakan karakter ikon langsung, bukan kunci registry.
+ *
+ * NOTES        :
+ *   - Semua akses data statis Engine melalui Output (getMaxPickupDistance, dll.).
+ *   - Orkestrasi reality menggunakan Cache.reality().
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { StateManager } from '../core/state.js';
@@ -21,6 +42,10 @@ import {
     getMaxPickupDistance, getMaxPickupTime, validateCell, getValidationRange
 } from '../helpers/output.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     GPS: '📍',
     INFO: 'ⓘ',
@@ -29,6 +54,10 @@ const ICON = {
     BACK: '◀',
     SELESAI: '✅'
 };
+
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
 
 let isDestroyed = false;
 let isSubmitting = false;
@@ -54,6 +83,10 @@ let formData = {
 let maxJemput = { distance: 2, time: 15 };
 let maxAntar = { distance: 0, time: 0 };
 
+// =============================================================================
+// 2. LOAD DATA AWAL
+// =============================================================================
+
 function loadInitialData(direction) {
     window.log.info('[Reality ' + F_V + '] (1) loadInitialData dipanggil, direction=' + direction);
 
@@ -73,6 +106,7 @@ function loadInitialData(direction) {
 
     estimateResult = StateManager.get('estimateResult');
 
+    // Gunakan Output untuk konstanta
     maxJemput.distance = getMaxPickupDistance();
     maxJemput.time = getMaxPickupTime();
 
@@ -89,17 +123,20 @@ function loadInitialData(direction) {
             StateManager.set('reality.fromTracking', null);
             window.log.info('[Reality ' + F_V + '] (2) Data dari tracking dipertahankan');
         } else {
+            // Reset form utama, tapi pertahankan biaya tambahan untuk offline
             formData.E78 = null;
             formData.E80 = null;
             formData.E82 = null;
             formData.E84 = null;
             formData.E92 = null;
 
+            // Untuk mode offline, jangan reset biaya tambahan jika sudah ada di input
             if (mode !== 'offline') {
                 formData.E100 = null;
                 formData.E102 = null;
                 formData.E104 = null;
             } else {
+                // Pulihkan dari state (jika ada), agar tidak hilang
                 if (input.E100) formData.E100 = input.E100;
                 if (input.E102) formData.E102 = input.E102;
                 if (input.E104) formData.E104 = input.E104;
@@ -122,6 +159,10 @@ function loadInitialData(direction) {
     window.log.info('[Reality ' + F_V + '] (4) loadInitialData selesai');
 }
 
+// =============================================================================
+// 3. VALIDASI (via Output)
+// =============================================================================
+
 function validateField(cell, value) {
     if (value === null || value === undefined || value === '') return false;
     try {
@@ -141,6 +182,10 @@ function validateForm() {
     return true;
 }
 
+// =============================================================================
+// 4. RENDER
+// =============================================================================
+
 function renderInfoCard() {
     return `<div class="card">
         <div class="info-row"><span>Max Jemput</span><span>${formatKm(maxJemput.distance)}, ${formatMenit(maxJemput.time)}</span></div>
@@ -155,7 +200,7 @@ function renderForm() {
 
     if (mode === 'online') {
         formHTML += `<div class="input-wrapper">
-            <span class="input-label">BIAYA RAHASIA <span class="input-info input-info-danger" data-help="reality-biaya-rahasia">${ICON.INFO}</span></span>
+            <span class="input-label">BIAYA APLIKASI <span class="input-info input-info-danger" data-help="reality-biaya-rahasia">${ICON.INFO}</span></span>
             <div class="input-field-container">
                 <input type="number" class="input-field" id="input-E92" value="${formData.E92 !== null ? formData.E92 : ''}"
                     placeholder="namanya aja rahasia..." inputmode="numeric" data-cell="E92" autocomplete="off">
@@ -218,6 +263,10 @@ function renderBiayaTambahanSummary() {
 
     return `<div class="reality-additional-summary"><span class="summary-label">Biaya Tambahan:</span> <span class="summary-value">${parts.join(' · ')}</span></div>`;
 }
+
+// =============================================================================
+// 5. KONTEN POPUP (DIPANGGIL OLEH POPUPMANAGER)
+// =============================================================================
 
 function createBiayaTambahanContent() {
     const input = StateManager.get('input') || {};
@@ -297,19 +346,29 @@ function createBiayaTambahanContent() {
 }
 
 function updateFormField(cell, value) {
+    console.log(`[updateFormField] cell=${cell}, value='${value}'`);
     if (value === '') {
+        console.log('  -> empty, set null');
         formData[cell] = null;
         StateManager.updateInput(cell, null);
         return;
     }
 
     const num = parseNumber(value);
+    console.log(`  -> parsed: ${num}, isNaN: ${isNaN(num)}`);
     if (!isNaN(num)) {
         const validated = validateCell(cell, num);
+        console.log(`  -> validated: ${validated}`);
         formData[cell] = validated;
         StateManager.updateInput(cell, validated);
+    } else {
+        console.log('  -> parseNumber returned NaN, abort');
     }
 }
+
+// =============================================================================
+// 6. ENGINE CALL (melalui Cache)
+// =============================================================================
 
 function buildEngineInput() {
     const input = StateManager.get('input') || {};
@@ -344,6 +403,10 @@ async function callReality() {
     }
 }
 
+// =============================================================================
+// 7. BUILD HTML & REFRESH
+// =============================================================================
+
 function buildHTML() {
     return `<div class="page-container">
         <div id="info-container">${renderInfoCard()}</div>
@@ -363,6 +426,10 @@ function refreshUI() {
 
     bindEvents();
 }
+
+// =============================================================================
+// 8. EVENT HANDLERS
+// =============================================================================
 
 function handleInputChange(e) {
     const input = e.target;
@@ -411,6 +478,10 @@ async function handleSubmit() {
     isSubmitting = false;
 }
 
+// =============================================================================
+// 9. BIND EVENTS
+// =============================================================================
+
 function bindEvents() {
     document.querySelectorAll('#form-container .input-field').forEach(input => {
         input.addEventListener('input', handleInputChange);
@@ -439,6 +510,10 @@ function bindEvents() {
         });
     });
 }
+
+// =============================================================================
+// 10. UPDATE HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const headerContainer = document.getElementById('app-header');
@@ -483,7 +558,15 @@ function updateSubmitButton() {
     }
 }
 
+// =============================================================================
+// 11. REGISTRASI POPUP CUSTOM
+// =============================================================================
+
 PopupManager.register(13, () => createBiayaTambahanContent());
+
+// =============================================================================
+// 12. RENDER & DESTROY
+// =============================================================================
 
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
@@ -514,6 +597,10 @@ function destroy() {
     window.log.info('[Reality ' + F_V + '] (13) Reality dihancurkan');
 }
 
+// =============================================================================
+// 13. EKSPOR
+// =============================================================================
+
 export const PageReality = {
     render,
     destroy
@@ -521,4 +608,13 @@ export const PageReality = {
 
 window.log.info('[Reality ' + F_V + '] (14) PageReality dimuat (Cache API, Output validasi)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Gunakan Cache.reality(), validasi & konstanta via Output.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.GPS, ICON.INFO, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
