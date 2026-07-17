@@ -3,18 +3,43 @@
  * FILE         : /js/core/preferences.js
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   SSOT (Single Source of Truth) untuk preferensi pengguna. Menyediakan
+ *   fungsi untuk memuat, menyimpan, dan mereset preferensi. Semua nilai
+ *   default diambil melalui Output (helpers/output.js) – tidak ada akses
+ *   langsung ke Engine.
+ *
+ * NOTES        :
+ *   - Preferensi cacheMaksimal digunakan untuk mengatur mode Cache.
+ *   - Hanya diaktifkan jika bukan dev mode (isDevMode = false).
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev0';
 
 import { StorageManager } from './storage.js';
 import { StateManager } from './state.js';
 import { getDefaultValues, validateCell } from '../helpers/output.js';
 
+// =============================================================================
+// 1. FUNGSI HELPER - AMBIL DEFAULT DARI OUTPUT
+// =============================================================================
+
+/**
+ * Mendapatkan default vehicle dari Output.
+ * @returns {Object} Default vehicle
+ */
 function getEngineDefaults() {
     try {
-        const defaults = getDefaultValues();
+        const defaults = getDefaultValues();   // Output.getDefaultValues()
         return {
             mode: defaults.E10,
             role: defaults.E12,
@@ -38,6 +63,11 @@ function getEngineDefaults() {
     }
 }
 
+/**
+ * Membangun preferensi default.
+ * Semua toggle OFF, vehicle dari Engine default.
+ * @returns {Object} Preferensi default
+ */
 function buildDefaultPreferences() {
     return {
         quickOrder: false,
@@ -46,13 +76,22 @@ function buildDefaultPreferences() {
         alwaysOperational: false,
         largeText: false,
         hideSafetyReminder: false,
-        cacheMaksimal: false,
+        cacheMaksimal: false,               // v2.0a-rev0: toggle cache maksimal
         defaultVehicle: getEngineDefaults(),
         driverInfo: { name: '', plate: '', phone: '' },
         customCopy: { enabled: false, template: '' }
     };
 }
 
+// =============================================================================
+// 2. VALIDASI DEFAULT VEHICLE (via Output)
+// =============================================================================
+
+/**
+ * Memvalidasi default vehicle menggunakan Output.validateCell().
+ * @param {Object} vehicle - Data vehicle yang akan divalidasi
+ * @returns {Object} Vehicle yang sudah tervalidasi
+ */
 function validateDefaultVehicle(vehicle) {
     if (!vehicle || typeof vehicle !== 'object') {
         window.log.warn('[Preferences ' + F_V + '] (2) Validasi vehicle: input bukan objek, mengembalikan default');
@@ -84,6 +123,14 @@ function validateDefaultVehicle(vehicle) {
     return validated;
 }
 
+// =============================================================================
+// 3. FUNGSI UTAMA
+// =============================================================================
+
+/**
+ * Memuat preferensi dari storage.
+ * @returns {Object} Preferensi yang sudah tervalidasi
+ */
 function loadPreferences() {
     window.log.info('[Preferences ' + F_V + '] (4) Memulai loadPreferences()');
     try {
@@ -103,12 +150,14 @@ function loadPreferences() {
             customCopy: stored.customCopy || defaults.customCopy
         };
 
+        // Apply large text setting ke DOM
         if (preferences.largeText) {
             document.documentElement.setAttribute('data-large-text', 'true');
         } else {
             document.documentElement.removeAttribute('data-large-text');
         }
 
+        // Terapkan mode cache sesuai preferensi (jika bukan dev mode)
         if (!window.APP_CONFIG?.isDevMode && window.Cache) {
             const newMode = preferences.cacheMaksimal ? 'maksimal' : 'minimal';
             if (window.Cache.getMode() !== newMode) {
@@ -116,6 +165,7 @@ function loadPreferences() {
             }
         }
 
+        // Simpan ke StateManager
         if (StateManager) {
             StateManager.set('preferences', preferences);
             window.log.info('[Preferences ' + F_V + '] (5) Preferensi dimuat dan disimpan ke StateManager');
@@ -132,6 +182,11 @@ function loadPreferences() {
     }
 }
 
+/**
+ * Menyimpan preferensi ke storage.
+ * @param {Object} prefs - Preferensi yang akan disimpan
+ * @returns {boolean} true jika berhasil
+ */
 function savePreferences(prefs) {
     window.log.info('[Preferences ' + F_V + '] (8) Memulai savePreferences()');
     try {
@@ -151,6 +206,7 @@ function savePreferences(prefs) {
             }
         };
 
+        // Simpan ke StorageManager
         if (StorageManager) {
             StorageManager.savePreferences(validated);
             window.log.info('[Preferences ' + F_V + '] (9) Preferensi disimpan ke StorageManager');
@@ -158,16 +214,19 @@ function savePreferences(prefs) {
             window.log.warn('[Preferences ' + F_V + '] (10) StorageManager tidak tersedia, gagal menyimpan ke storage');
         }
 
+        // Update StateManager
         if (StateManager) {
             StateManager.set('preferences', validated);
         }
 
+        // Apply large text setting ke DOM
         if (validated.largeText) {
             document.documentElement.setAttribute('data-large-text', 'true');
         } else {
             document.documentElement.removeAttribute('data-large-text');
         }
 
+        // Terapkan mode cache sesuai preferensi (jika bukan dev mode)
         if (!window.APP_CONFIG?.isDevMode && window.Cache) {
             const newMode = validated.cacheMaksimal ? 'maksimal' : 'minimal';
             if (window.Cache.getMode() !== newMode) {
@@ -182,6 +241,10 @@ function savePreferences(prefs) {
     }
 }
 
+/**
+ * Reset preferensi ke default.
+ * @returns {boolean} true jika berhasil
+ */
 function resetToDefault() {
     window.log.info('[Preferences ' + F_V + '] (12) Memulai resetToDefault()');
     try {
@@ -193,8 +256,18 @@ function resetToDefault() {
     }
 }
 
+// =============================================================================
+// 4. DEBOUNCED SAVE (UNTUK UI)
+// =============================================================================
+
 let saveDebounceTimer = null;
 
+/**
+ * Menyimpan preferensi dengan debounce 500ms.
+ * Digunakan untuk dropdown dan checkbox di halaman Settings.
+ *
+ * @param {Object} prefs - Preferensi yang akan disimpan
+ */
 function debouncedSave(prefs) {
     window.log.info('[Preferences ' + F_V + '] (14) debouncedSave dipicu');
     if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
@@ -204,6 +277,10 @@ function debouncedSave(prefs) {
         saveDebounceTimer = null;
     }, 500);
 }
+
+// =============================================================================
+// 5. HELPER GETTERS
+// =============================================================================
 
 function getDefaultVehicle() {
     const prefs = StateManager ? StateManager.get('preferences') : loadPreferences();
@@ -240,12 +317,21 @@ function isSafetyReminderHidden() {
     return prefs.hideSafetyReminder === true;
 }
 
+/**
+ * Mengecek apakah cache maksimal diaktifkan.
+ * @returns {boolean}
+ */
 function isCacheMaksimalEnabled() {
     const prefs = StateManager ? StateManager.get('preferences') : loadPreferences();
     return prefs.cacheMaksimal === true;
 }
 
+// =============================================================================
+// 6. INISIALISASI OTOMATIS
+// =============================================================================
+
 setTimeout(() => {
+    // Output tidak memiliki penanda khusus, cukup coba panggil getDefaultValues
     try {
         getDefaultValues();
         window.log.info('[Preferences ' + F_V + '] (16) Output tersedia, memulai auto-load preferences');
@@ -264,6 +350,10 @@ setTimeout(() => {
         }, 100);
     }
 }, 50);
+
+// =============================================================================
+// 7. EKSPOR
+// =============================================================================
 
 export const PreferencesManager = {
     load: loadPreferences,
@@ -287,4 +377,11 @@ export const PreferencesManager = {
 
 window.log.info('[Preferences ' + F_V + '] (21) PreferencesManager dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Akses Engine melalui Output, tambah properti
+//             cacheMaksimal, validasi via Output.validateCell.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
