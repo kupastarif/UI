@@ -3,9 +3,29 @@
  * FILE         : /js/pages/maintenance.js
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
+ * DATE         : 1 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Halaman Perawatan – Menampilkan progress perawatan, pajak, atribut,
+ *   dan penyusutan kendaraan berdasarkan akumulasi history.
+ *   Semua akses data statis melalui Output (helpers/output.js).
+ *
+ *   Mulai rev2, tidak ada lagi ikon yang ditulis langsung (inline) di
+ *   dalam kode. Objek ICON menjadi sumber kebenaran tunggal.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan langsung pada Engine.
+ *   - Menggunakan fungsi calculateMaintenanceProgress dan
+ *     calculateDepreciationSummary dari Output.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev2';
 
 import { Router } from '../core/router.js';
@@ -25,17 +45,25 @@ import {
     getConstant
 } from '../helpers/output.js';
 
+// =============================================================================
+// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// =============================================================================
+
 const ICON = {
     MOBIL: '🚗',
     MOTOR: '🏍️',
     INFO: 'ⓘ',
     MAINTENANCE: '🔧',
     FUEL: '⛽',
-    TAX: '📄',
+    TAX: '📄',           // pajak tidak punya ikon khusus di registry, pakai DOCUMENT
     DOCUMENT: '📄',
     MENU: '☰',
     HOME: '🏠'
 };
+
+// =============================================================================
+// 1. STATE INTERNAL
+// =============================================================================
 
 let isDestroyed = false;
 let currentFilter = 'Mobil';
@@ -54,6 +82,10 @@ let tripCountMotor = 0;
 
 let extraKmGemukCost = 0;
 
+// =============================================================================
+// 2. HELPER
+// =============================================================================
+
 function getCurrentCC() {
     const stateInput = StateManager?.get('input');
     if (stateInput?.E22) return stateInput.E22;
@@ -64,11 +96,16 @@ function getCurrentCC() {
 
 function getFuelPrice() {
     const cc = getCurrentCC();
+    // Gunakan Output untuk konstanta
     if (currentFilter === 'Mobil' && cc === '2000cc') {
         return getConstant('E303') || 6500;
     }
     return getConstant('E302') || 10000;
 }
+
+// =============================================================================
+// 3. LOAD DATA
+// =============================================================================
 
 function loadAccumulatedData() {
     let totalDistance = 0, totalTime = 0, totalDepreciation = 0, totalWelfare = 0, totalFuelRupiah = 0;
@@ -121,14 +158,18 @@ function loadCycleData() {
 function loadMaintenanceData() {
     const cc = getCurrentCC();
 
+    // Ambil data mentah melalui Output (wrapper DATA)
     maintenanceItems = getMaintenanceItems(currentFilter, cc) || [];
     taxItems = getTaxItems(currentFilter, cc) || [];
     attributeItems = getAttributeItems(currentFilter) || [];
 
+    // Filter item Penyusutan Tambahan (Eks Ojol) – label sesuai data baru
     maintenanceItems = maintenanceItems.filter(item => item.label !== 'Penyusutan Extra Km Gemuk (bekas ojol)');
 
+    // Hitung biaya extra km gemuk: value=10, interval=1 → Rp 10 per km
     extraKmGemukCost = accumulatedData.totalDistance * 10;
 
+    // Proses progress melalui Output
     maintenanceItems = calculateMaintenanceProgress(
         maintenanceItems,
         accumulatedData.totalDistance,
@@ -148,15 +189,21 @@ function loadMaintenanceData() {
         cycleData
     );
 
+    // Urutkan berdasarkan progress menurun
     maintenanceItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
     taxItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
     attributeItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
 
+    // Hitung depresiasi
     depreciationSummary = calculateDepreciationSummary(
         { E10: currentFilter, E22: cc },
         accumulatedData.totalDepreciation
     );
 }
+
+// =============================================================================
+// 4. RESET CYCLE
+// =============================================================================
 
 function handleReset(itemLabel, intervalKm, cost) {
     if (debounceTimers[itemLabel]) {
@@ -181,6 +228,10 @@ function handleReset(itemLabel, intervalKm, cost) {
         debounceTimers[itemLabel] = null;
     }, 500);
 }
+
+// =============================================================================
+// 5. RENDER
+// =============================================================================
 
 function renderFilter() {
     const active = (f) => currentFilter === f ? 'active' : '';
@@ -249,6 +300,7 @@ function renderProgressList(title, icon, helpKey, items) {
             detailText = `${formatKm(effectiveDistance, false)} / ${formatKm(interval, false)}`;
             if (cycleCount > 0) detailText += ` · Servis ke-${cycleCount + 1}`;
         } else {
+            // Jika bukan interval km, tidak ditampilkan
             detailText = '-';
         }
 
@@ -270,6 +322,7 @@ function renderProgressList(title, icon, helpKey, items) {
         </div>`;
     });
 
+    // Gunakan ICON.MAINTENANCE sebagai fallback aman jika icon tidak disediakan
     const displayIcon = icon || ICON.MAINTENANCE;
 
     return `<div class="card">
@@ -310,6 +363,7 @@ function renderDepreciation() {
             <span class="maint-depreciation-label">Umur Penyusutan</span>
             <span class="maint-depreciation-value">${d.umurTahun || 0} tahun</span>
         </div>
+        <!-- Extra km gemuk -->
         <div class="maint-depreciation-row" style="margin-top: var(--space-sm); border-top: 1px solid var(--border); padding-top: var(--space-xs);">
             <span class="maint-depreciation-label">Extra km gemuk (bekas ojol)</span>
             <span class="maint-depreciation-value">${formatRupiah(extraKmGemukCost)}</span>
@@ -335,6 +389,10 @@ function refreshUI() {
     content.innerHTML = buildHTML();
     bindEvents();
 }
+
+// =============================================================================
+// 6. BIND EVENTS
+// =============================================================================
 
 function bindEvents() {
     document.querySelectorAll('.maint-filter-btn').forEach(btn => {
@@ -364,6 +422,10 @@ function bindEvents() {
         });
     });
 }
+
+// =============================================================================
+// 7. UPDATE HEADER & FOOTER
+// =============================================================================
 
 function updateHeader() {
     const container = document.getElementById('app-header');
@@ -398,12 +460,20 @@ function updateFooter() {
     if (footer) container.appendChild(footer);
 }
 
+// =============================================================================
+// 8. REGISTRASI DRAWER
+// =============================================================================
+
 DrawerManager.register('maintenance', () => ({
     menuItems: null,
     onItemClick: (page) => {
         Router.navigateTo({ target: page, closeDrawer: true });
     }
 }));
+
+// =============================================================================
+// 9. RENDER & DESTROY
+// =============================================================================
 
 async function render(params, context = {}) {
     const content = document.getElementById('app-content');
@@ -446,6 +516,10 @@ function destroy() {
     if (currentHeader) { HeaderManager.destroy(currentHeader); currentHeader = null; }
 }
 
+// =============================================================================
+// 10. EKSPOR
+// =============================================================================
+
 export const PageMaintenance = {
     render,
     destroy
@@ -453,4 +527,16 @@ export const PageMaintenance = {
 
 window.log.info('[Maintenance ' + F_V + '] (2) PageMaintenance dimuat (via Output)');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Gunakan Output untuk semua data dan kalkulasi
+//             maintenance, hapus ketergantungan pada Engine.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+//             lokal (ICON.MOBIL, ICON.INFO, dll). Pemanggilan FooterManager
+//             menggunakan karakter ikon langsung.
+// 2.0a-rev2 : Hilangkan fallback ikon inline ('🔧') di renderProgressList,
+//             gunakan ICON.MAINTENANCE sebagai fallback yang aman.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
