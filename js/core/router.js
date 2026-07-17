@@ -3,14 +3,44 @@
  * FILE         : /js/core/router.js
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
+ * DATE         : 2 Juli 2026
+ *
+ * @author      : gk
+ *
+ * DESCRIPTION  :
+ *   Sistem navigasi SPA – Arsitektur Navigasi v5.1 (State‑Driven, Overlay in Stack).
+ *   Setiap transisi dihitung secara deterministik dari halaman saat ini dan mode
+ *   kalkulasi. Overlay (popup/drawer) menjadi segmen stack URL namun transparan
+ *   terhadap perhitungan langkah halaman. Navigasi fisik hanya mundur 1 langkah
+ *   berdasarkan target mundur yang dihitung langsung dari StateManager dan tabel
+ *   hardcode. Router.navigateTo() adalah satu‑satunya pintu untuk semua navigasi UI.
+ *   SSOT currentPage adalah StateManager; target mundur dihitung setiap kali.
+ *
+ *   ** rev1 – Perbaikan overlay back **
+ *   - Penutupan overlay dari UI menggunakan history.back() agar tidak terjadi
+ *     duplikasi entri history.
+ *   - Ditambahkan penanganan stack identik di popstate untuk mencegah emergency reset.
+ *   - Forward browser diblokir tanpa emergency reset.
+ *
+ * NOTES        :
+ *   - Tidak ada ketergantungan pada Engine. Konfigurasi halaman sudah mencakup
+ *     semua halaman yang ada termasuk 'catatan' dan 'catatantldr'.
+ *
+ * =================================================================================
  */
+
 'use strict';
 
+// ==================== VERSI FILE ====================
 const F_V = '2.0a-rev1';
 
 import { StateManager } from './state.js';
 import { PopupManager } from '../components/popup.js';
 import { DrawerManager } from '../components/drawer.js';
+
+// =============================================================================
+// 1. KONFIGURASI HALAMAN & MENU
+// =============================================================================
 
 const PAGE_CONFIG = {
     home:            { file: '../pages/home.js',        url: 'home' },
@@ -37,6 +67,10 @@ const PAGE_CONFIG = {
 
 const MENU_PAGES = ['history', 'settings', 'maintenance', 'showmappaste',
                     'article', 'about', 'privacy', 'catatan'];
+
+// =============================================================================
+// 2. TABEL NAVIGASI (SSOT)
+// =============================================================================
 
 const STACK_TEMPLATES = {
     standard: {
@@ -176,6 +210,10 @@ const NAVIGATION_GUARD = {
     showmapdetail: (target, mode) => target === 'report' || target === 'history' || target === 'showmappaste'
 };
 
+// =============================================================================
+// 3. UTILITAS STACK & URL
+// =============================================================================
+
 function _getPageStack(stack) {
     return stack.filter(s => !s.startsWith('popup') && s !== 'drawer1');
 }
@@ -201,12 +239,22 @@ function _buildUrl(stack, params = {}) {
     return u.toString();
 }
 
+// =============================================================================
+// 4. STATE INTERNAL ROUTER
+// =============================================================================
+
 let _isNavigating = false;
 let _lastKnownURL = '';
 let _currentPageModule = null;
 let _loadingStartTime = 0;
 let _currentParams = {};
+
+// rev1: flag untuk menandai penutupan overlay yang dipicu dari UI (tombol close, konfirmasi, dll.)
 let _isClosingOverlayUI = false;
+
+// =============================================================================
+// 5. LOCK & HELPER
+// =============================================================================
 
 function _acquireLock() {
     if (_isNavigating) {
@@ -223,6 +271,10 @@ function _releaseLock() {
     _lastKnownURL = location.href;
     window.log.info('[Router ' + F_V + '] (3) Lock dilepas');
 }
+
+// =============================================================================
+// 6. LAZY LOAD & RENDER
+// =============================================================================
 
 const pageCache = new Map();
 const MAX_CACHE_SIZE = 10;
@@ -274,6 +326,10 @@ async function _renderPage(page, params = {}, direction = 'forward') {
     }
 }
 
+// =============================================================================
+// 7. LOADING OVERLAY
+// =============================================================================
+
 function _showLoading(minDuration = 0) {
     _loadingStartTime = Date.now();
     StateManager.set('isLoading', true);
@@ -288,6 +344,10 @@ async function _hideLoading(minDuration = 200) {
     StateManager.set('isLoading', false);
     window.log.info('[Router ' + F_V + '] (13) Loading overlay disembunyikan');
 }
+
+// =============================================================================
+// 8. PEMBANGUN STACK TARGET
+// =============================================================================
 
 function _buildTargetStack(target, mode, originPage) {
     window.log.info('[Router ' + F_V + '] (14) Membangun stack untuk target:', target, 'mode:', mode, 'origin:', originPage);
@@ -317,6 +377,10 @@ function _buildTargetStack(target, mode, originPage) {
     return [];
 }
 
+// =============================================================================
+// 9. FUNGSI PENGAMBIL TARGET MUNDUR
+// =============================================================================
+
 function _getBackTarget() {
     const currentPage = StateManager.get('currentPage') || 'home';
     const mode = StateManager.get('calcMode') || null;
@@ -333,6 +397,10 @@ function _getBackTarget() {
         || 'home';
 }
 
+// =============================================================================
+// 10. LOG STACK SETELAH NAVIGASI
+// =============================================================================
+
 function _logStackInfo(action) {
     const { stack } = _parseUrl();
     window.log.info('[Router ' + F_V + '] (16) Stack setelah ' + action + ': ' + stack.join('~') +
@@ -344,6 +412,14 @@ function _logStackInfo(action) {
         ' | drawer=' + (StateManager.get('navigation.drawer') || 0));
 }
 
+// =============================================================================
+// 11. OVERLAY HANDLERS
+// =============================================================================
+
+/**
+ * Tutup overlay secara programatik (internal). Gunakan replaceState.
+ * Tidak untuk penutupan yang dipicu langsung oleh aksi pengguna di UI.
+ */
 function _closeOverlay(type) {
     window.log.info('[Router ' + F_V + '] (17) Menutup overlay:', type);
     const { stack, params } = _parseUrl();
@@ -368,6 +444,9 @@ function _closeOverlay(type) {
     }
 }
 
+/**
+ * Buka overlay (popup/drawer). Menambah entri history dengan pushState.
+ */
 function _openOverlay(target, helpKey) {
     window.log.info('[Router ' + F_V + '] (20) Membuka overlay:', target);
     const { stack, params } = _parseUrl();
@@ -384,6 +463,7 @@ function _openOverlay(target, helpKey) {
     if (target.startsWith('popup')) {
         const idx = parseInt(target.substring(5));
         StateManager.set('navigation.popup', idx);
+        // rev1: gunakan closeOverlayUI agar penutupan dari UI memakai history.back()
         PopupManager.open(idx, { helpKey }, { onClose: () => Router.closeOverlayUI('popup') });
         window.log.info('[Router ' + F_V + '] (22) Popup dibuka:', idx);
     } else if (target === 'drawer1') {
@@ -391,11 +471,16 @@ function _openOverlay(target, helpKey) {
         const currentPage = StateManager.get('currentPage');
         const config = DrawerManager.getConfig(currentPage);
         const onItemClick = config?.onItemClick || ((page) => navigateTo({ target: page, closeDrawer: true }));
+        // rev1: gunakan closeOverlayUI
         DrawerManager.open({ onClose: () => Router.closeOverlayUI('drawer'), onItemClick });
         window.log.info('[Router ' + F_V + '] (23) Drawer dibuka');
     }
     _logStackInfo('(102) buka ' + target);
 }
+
+// =============================================================================
+// 12. FUNGSI PEMBANTU
+// =============================================================================
 
 function _cleanParams(target, params) {
     window.log.info('[Router ' + F_V + '] (24) Membersihkan parameter untuk target:', target);
@@ -409,6 +494,10 @@ function _cleanParams(target, params) {
     return clean;
 }
 
+/**
+ * Tangani penutupan overlay melalui tombol back fisik.
+ * Mengembalikan true jika berhasil menutup overlay.
+ */
 function _handleOverlayClose(urlStack) {
     const activePopup = StateManager.get('navigation.popup');
     const activeDrawer = StateManager.get('navigation.drawer');
@@ -439,6 +528,7 @@ function _triggerAutoguard(type) {
         history.pushState(null, '', _buildUrl(newStack, _currentParams));
         _lastKnownURL = location.href;
         StateManager.set('navigation.popup', 16);
+        // rev1: gunakan closeOverlayUI
         PopupManager.open(16, {}, { onClose: () => Router.closeOverlayUI('popup') });
     } else if (type === 'trackingguard') {
         const mode = StateManager.get('calcMode') || null;
@@ -447,10 +537,15 @@ function _triggerAutoguard(type) {
         history.pushState(null, '', _buildUrl(newStack, _currentParams));
         _lastKnownURL = location.href;
         StateManager.set('navigation.popup', 14);
+        // rev1: gunakan closeOverlayUI
         PopupManager.open(14, {}, { onClose: () => Router.closeOverlayUI('popup') });
     }
     _logStackInfo('(105) autoguard ' + type);
 }
+
+// =============================================================================
+// 13. NAVIGASI HALAMAN (UI)
+// =============================================================================
 
 async function _navigateToPage(target, params) {
     window.log.info('[Router ' + F_V + '] (33) Memulai navigasi halaman ke:', target);
@@ -491,6 +586,10 @@ async function _navigateToPage(target, params) {
     _logStackInfo(isBackward ? '(106) mundur UI' : '(107) maju UI');
 }
 
+// =============================================================================
+// 14. NAVIGATE TO – SINGLE ENTRY POINT
+// =============================================================================
+
 async function navigateTo(params) {
     window.log.info('[Router ' + F_V + '] (40) navigateTo dipanggil dengan params:', JSON.stringify(params));
     if (!_acquireLock()) return;
@@ -526,6 +625,17 @@ async function navigateTo(params) {
     }
 }
 
+// =============================================================================
+// 15. PENUTUPAN OVERLAY DARI UI (rev1)
+// =============================================================================
+
+/**
+ * Tutup overlay yang sedang aktif karena aksi pengguna (tombol close/konfirmasi).
+ * Menggunakan history.back() untuk menghapus entri overlay dari history,
+ * sehingga tidak terjadi duplikasi dan tombol back fisik bekerja normal.
+ *
+ * @param {'popup'|'drawer'} type - Jenis overlay yang akan ditutup.
+ */
 function closeOverlayUI(type) {
     window.log.info('[Router ' + F_V + '] (60) closeOverlayUI:', type);
     if (_isClosingOverlayUI) {
@@ -534,6 +644,7 @@ function closeOverlayUI(type) {
     }
     _isClosingOverlayUI = true;
 
+    // Tutup komponen overlay secara paksa
     if (type === 'popup') {
         PopupManager.forceClose();
         StateManager.set('navigation.popup', 0);
@@ -542,14 +653,20 @@ function closeOverlayUI(type) {
         StateManager.set('navigation.drawer', 0);
     }
 
+    // Kembalikan history ke sebelum overlay dibuka (+1/-1)
     history.back();
 }
+
+// =============================================================================
+// 16. POPSTATE HANDLER (rev1)
+// =============================================================================
 
 async function _handlePopState() {
     window.log.info('[Router ' + F_V + '] (48) popstate terpicu');
     if (!_acquireLock()) return;
     _showLoading(0);
     try {
+        // --- TANGANI PENUTUPAN OVERLAY DARI UI (flag _isClosingOverlayUI) ---
         if (_isClosingOverlayUI) {
             window.log.info('[Router ' + F_V + '] (49) Popstate dari closeOverlayUI, membersihkan');
             _isClosingOverlayUI = false;
@@ -561,6 +678,7 @@ async function _handlePopState() {
         const { stack: urlStack } = _parseUrl();
         const oldStack = _parseUrl(_lastKnownURL).stack;
 
+        // --- FORWARD DIBLOKIR TANPA EMERGENCY RESET ---
         if (urlStack.length > oldStack.length) {
             window.log.warn('[Router ' + F_V + '] (50) Forward browser diblokir, kembali ke halaman sebelumnya');
             history.back();
@@ -569,6 +687,7 @@ async function _handlePopState() {
             return;
         }
 
+        // --- STACK IDENTIK (DUPLIKAT HISTORY) DITOLERANSI ---
         if (urlStack.length === oldStack.length &&
             urlStack.every((s, i) => s === oldStack[i])) {
             window.log.warn('[Router ' + F_V + '] (51) Duplikat history terdeteksi, diabaikan');
@@ -577,14 +696,17 @@ async function _handlePopState() {
             return;
         }
 
+        // --- PENUTUPAN OVERLAY OLEH BACK FISIK ---
         if (_handleOverlayClose(urlStack)) {
             _releaseLock();
             return;
         }
 
+        // --- MUNDUR HALAMAN ---
         const currentPage = StateManager.get('currentPage') || 'home';
         const target = _getBackTarget();
 
+        // Autoguard khusus
         if (currentPage === 'home' && target === 'KT') {
             _triggerAutoguard('homeguard');
             _releaseLock();
@@ -604,9 +726,13 @@ async function _handlePopState() {
         }
         const expectedPageStack = _getPageStack(expectedStack);
 
+        // Verifikasi kecocokan stack
         if (urlStack.length !== expectedPageStack.length ||
             !urlStack.every((p, i) => p === expectedPageStack[i])) {
             window.log.error('[Router ' + F_V + '] (50b) Stack tidak sesuai target mundur');
+            // Alih-alih emergency reset, kita paksa mundur ke halaman yang benar
+            // dengan history.back() tambahan, atau fallback ke home.
+            // Untuk keamanan, fallback ke home.
             emergencyReset('Stack mundur tidak valid');
             return;
         }
@@ -624,6 +750,10 @@ async function _handlePopState() {
         _releaseLock();
     }
 }
+
+// =============================================================================
+// 17. INISIALISASI & EMERGENCY RESET
+// =============================================================================
 
 async function init() {
     window.log.info('[Router ' + F_V + '] (57) init()');
@@ -668,9 +798,13 @@ function emergencyReset(reason = '') {
     window.location.replace(window.APP_FULL_BASE || '/');
 }
 
+// =============================================================================
+// 18. EKSPOR
+// =============================================================================
+
 export const Router = {
     navigateTo,
-    closeOverlayUI,
+    closeOverlayUI,         // rev1: fungsi penutupan overlay dari UI
     init,
     getCurrentPage: () => StateManager.get('currentPage') || 'home',
     getCurrentParams: () => _currentParams,
@@ -681,4 +815,15 @@ export const Router = {
 window.Router = Router;
 window.log.info('[Router ' + F_V + '] (63) Router dimuat');
 
+// ================================= CHANGELOG =================================
+// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+//             Tidak ada perubahan fungsional.
+// 2.0a-rev1 : Perbaikan overlay back – penutupan overlay dari UI menggunakan
+//             history.back() (fungsi closeOverlayUI). Tambah penanganan stack
+//             identik di popstate dan blokir forward tanpa emergency reset.
+//             Callback onClose overlay kini memanggil Router.closeOverlayUI().
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
+//
 // ================================ End Of File ================================
