@@ -32,9 +32,20 @@ jobs:
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses
 
+      # === PERSIAPAN FOLDER PUBLIC UNTUK CAPACITOR 8 ===
+      - name: Prepare web directory
+        run: |
+          mkdir public
+          cp -r assets/ engine/ js/ index.html manifest.json sw.js public/
+          echo "Web files copied to public/"
+
+      - name: Override webDir in capacitor.config.json
+        run: |
+          sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
+
       - name: Init Capacitor
         run: |
-          npx cap init KupasTarif kupastarif.gk.app.id --web-dir=.
+          npx cap init KupasTarif kupastarif.gk.app.id --web-dir=public
           npx cap add android
 
       - name: Sync Capacitor
@@ -44,9 +55,9 @@ jobs:
       - name: Copy icon for notification
         run: |
           mkdir -p android/app/src/main/res/drawable
-          cp assets/img/icon.png android/app/src/main/res/drawable/ic_notification.png
+          cp public/assets/img/icon.png android/app/src/main/res/drawable/ic_notification.png
 
-      # === INJECT IZIN KE ANDROIDMANIFEST ===
+      # === INJECT IZIN BACKGROUND KE ANDROIDMANIFEST ===
       - name: Inject Background Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -55,12 +66,14 @@ jobs:
           sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           sed -i '/<application>/a\    <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
 
+      # === BUILD APK DEBUG ===
       - name: Build APK (Debug)
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      # === UPLOAD ARTIFACT ===
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
