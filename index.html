@@ -5,7 +5,6 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 16 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -85,7 +84,7 @@
          ================================================================= -->
     <script>
         // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
-        window.isDevMode = false;            // false untuk production
+        window.isDevMode = true;            // false untuk production
         window.APP_VERSION = '2.0a-beta';
         window.SITE_TITLE = 'KupasTarif';
         window.SITE_DISPLAY = 'Kupas⚡Tarif';
@@ -350,6 +349,138 @@
             }
         }
     </script>
+    
+<!-- ============================================================
+     NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
+     ============================================================ -->
+<script>
+(function() {
+    'use strict';
+
+    // 1. DETEKSI LINGKUNGAN CAPACITOR
+    if (!window.capacitor) {
+        console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
+        return;
+    }
+
+    console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
+
+    // 2. FUNGSI INISIALISASI
+    async function initNative() {
+        try {
+            // Ambil plugin CapGo
+            const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
+            const { Geolocation } = Capacitor.Plugins;
+            const { LocalNotifications } = Capacitor.Plugins;
+            const { App } = Capacitor.Plugins;
+
+            if (!BackgroundGeolocation) {
+                console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
+                return;
+            }
+
+            // 3. MINTA IZIN
+            await Geolocation.requestPermissions();
+            
+            // Izin background (CapGo biasanya pakai requestPermissions juga)
+            if (typeof BackgroundGeolocation.requestPermissions === 'function') {
+                await BackgroundGeolocation.requestPermissions();
+            }
+
+            // 4. KONFIGURASI BACKGROUND GPS (High Accuracy)
+            await BackgroundGeolocation.configure({
+                desiredAccuracy: 0,              // 0 = High Accuracy (GPS hardware)
+                distanceFilter: 10,              // Update setiap 10 meter
+                stopOnTerminate: false,          // Tetap jalan setelah app ditutup
+                startOnBoot: true,               // Mulai saat HP boot (jika tracking aktif)
+                notificationTitle: '⚡ KupasTarif',
+                notificationText: 'Merekam perjalanan akurasi tinggi...',
+                notificationIcon: 'ic_notification', // Menggunakan icon.png
+                notificationIconColor: '#0d7c4a'
+            });
+
+            // 5. LISTENER POSISI (Kirim ke Modul Tracking Web App)
+            BackgroundGeolocation.addListener('location', (location) => {
+                if (window.trackingModule && window.trackingModule.calculate) {
+                    const pos = {
+                        lat: location.latitude || location.coords?.latitude,
+                        lng: location.longitude || location.coords?.longitude,
+                        accuracy: location.accuracy || location.coords?.accuracy || 10,
+                        timestamp: location.timestamp || Date.now()
+                    };
+                    window.trackingModule.calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                } else {
+                    window.__lastNativePos = location;
+                }
+            });
+
+            // 6. LISTENER ERROR
+            BackgroundGeolocation.addListener('error', (error) => {
+                console.error('[Bridge] GPS Error:', error);
+                LocalNotifications.schedule({
+                    notifications: [{
+                        id: 999,
+                        title: '⚠️ Gagal Lokasi',
+                        body: error.message || 'Periksa GPS dan izin aplikasi.',
+                        schedule: { at: new Date(Date.now() + 500) }
+                    }]
+                });
+            });
+
+            // 7. DETEKSI STATE APLIKASI (Foreground/Background)
+            App.addListener('appStateChange', async (state) => {
+                if (state.isActive) {
+                    console.log('[Bridge] App ke Foreground');
+                } else {
+                    console.log('[Bridge] App ke Background - GPS tetap berjalan');
+                    try { await BackgroundGeolocation.start(); } catch(e) {}
+                }
+            });
+
+            // 8. FUNGSI GLOBAL UNTUK START/STOP (DIPANGGIL OLEH tracking.js)
+            window.__nativeBG = {
+                start: async () => {
+                    if (!window.__nativeBG._started) {
+                        await BackgroundGeolocation.start();
+                        window.__nativeBG._started = true;
+                        await LocalNotifications.schedule({
+                            notifications: [{
+                                id: 1,
+                                title: '🟢 Tracking Dimulai',
+                                body: 'GPS aktif dengan akurasi tinggi.',
+                                schedule: { at: new Date(Date.now() + 500) }
+                            }]
+                        });
+                        console.log('[Bridge] Tracking background dimulai.');
+                    }
+                },
+                stop: async () => {
+                    if (window.__nativeBG._started) {
+                        await BackgroundGeolocation.stop();
+                        window.__nativeBG._started = false;
+                        await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+                        console.log('[Bridge] Tracking background dihentikan.');
+                    }
+                },
+                _started: false
+            };
+
+            console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
+
+        } catch (err) {
+            console.error('[Bridge] Gagal init plugin:', err);
+        }
+    }
+
+    // 9. EKSEKUSI SAAT LOAD
+    if (document.readyState === 'complete') {
+        initNative();
+    } else {
+        window.addEventListener('load', initNative);
+    }
+
+})();
+</script>
 
 </body>
 </html>
