@@ -1,0 +1,71 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Init Capacitor
+        run: |
+          npx cap init KupasTarif kupastarif.gk.app.id --web-dir=.
+          npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync
+
+      # === SALIN ICON.PNG UNTUK NOTIFIKASI ===
+      - name: Copy icon.png for notification
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          cp assets/img/icon.png android/app/src/main/res/drawable/ic_notification.png
+          echo "Ikon notifikasi berhasil disalin dari icon.png"
+
+      # === INJECT IZIN KE ANDROIDMANIFEST ===
+      - name: Inject Background Permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
+          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />' $MANIFEST
+          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
+          sed -i '/<application>/a\    <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
+
+      # === BUILD APK DEBUG ===
+      - name: Build APK (Debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      # === UPLOAD ARTIFACT ===
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kupastarif-app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
