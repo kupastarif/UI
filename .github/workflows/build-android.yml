@@ -32,32 +32,54 @@ jobs:
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses
 
-      # === PERSIAPAN FOLDER PUBLIC UNTUK CAPACITOR 8 ===
+      # ==============================================
+      # 1. Siapkan folder public untuk web assets
+      # ==============================================
       - name: Prepare web directory
         run: |
           mkdir public
           cp -r assets/ engine/ js/ index.html manifest.json sw.js public/
           echo "Web files copied to public/"
 
-      - name: Override webDir in capacitor.config.json
-        run: |
-          sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
-
+      # ==============================================
+      # 2. Init Capacitor (buat capacitor.config.json)
+      # ==============================================
       - name: Init Capacitor
         run: |
           npx cap init KupasTarif kupastarif.gk.app.id --web-dir=public
-          npx cap add android
 
+      # ==============================================
+      # 3. Ubah webDir di capacitor.config.json (jika perlu)
+      # ==============================================
+      - name: Override webDir in capacitor.config.json
+        run: |
+          # File sudah ada dari npx cap init
+          sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
+          cat capacitor.config.json
+
+      # ==============================================
+      # 4. Tambah platform Android
+      # ==============================================
+      - name: Add Android platform
+        run: npx cap add android
+
+      # ==============================================
+      # 5. Sync Capacitor
+      # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
 
-      # === SALIN ICON.PNG UNTUK NOTIFIKASI ===
+      # ==============================================
+      # 6. Salin icon.png untuk notifikasi
+      # ==============================================
       - name: Copy icon for notification
         run: |
           mkdir -p android/app/src/main/res/drawable
           cp public/assets/img/icon.png android/app/src/main/res/drawable/ic_notification.png
 
-      # === INJECT IZIN BACKGROUND KE ANDROIDMANIFEST ===
+      # ==============================================
+      # 7. Inject izin background ke AndroidManifest
+      # ==============================================
       - name: Inject Background Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -66,14 +88,18 @@ jobs:
           sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           sed -i '/<application>/a\    <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
 
-      # === BUILD APK DEBUG ===
+      # ==============================================
+      # 8. Build APK Debug
+      # ==============================================
       - name: Build APK (Debug)
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # === UPLOAD ARTIFACT ===
+      # ==============================================
+      # 9. Upload APK
+      # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
