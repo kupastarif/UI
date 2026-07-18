@@ -12,7 +12,7 @@
     "@capacitor/app": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0",
     "@capacitor/local-notifications": "^6.0.0",
-    "@capacitor-community/background-geolocation": "^6.0.0"
+    "@capgo/background-geolocation": "latest"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0"
