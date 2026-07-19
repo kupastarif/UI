@@ -69,35 +69,31 @@ jobs:
         run: npx cap sync
 
       # ==============================================
-      # 6. Copy launcher icons ke mipmap-*
+      # 6. Install @capacitor/assets (opsional, untuk generate icon otomatis)
       # ==============================================
-      - name: Copy Launcher Icons
+      - name: Install @capacitor/assets
+        run: npm install --save-dev @capacitor/assets
+
+      # ==============================================
+      # 7. Generate ikon menggunakan @capacitor/assets
+      # ==============================================
+      - name: Generate Android Icons
         run: |
-          mkdir -p android/app/src/main/res/mipmap-mdpi
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-          mkdir -p android/app/src/main/res/mipmap-xhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-
-          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-
-          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-
-          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-
-          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-
-          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
-          echo "Launcher icons copied."
+          # Pastikan file sumber ikon ada (minimal 1024x1024)
+          if [ -f "public/assets/img/icon.png" ]; then
+            echo "Using icon.png"
+          elif [ -f "public/assets/img/icon512.png" ]; then
+            cp public/assets/img/icon512.png public/assets/img/icon.png
+            echo "Using icon512.png as source"
+          else
+            echo "ERROR: No icon source found (icon.png or icon512.png)"
+            exit 1
+          fi
+          # Generate semua asset Android (tanpa --icon)
+          npx capacitor-assets generate --android
 
       # ==============================================
-      # 7. Copy notification icon ke drawable
+      # 8. Copy notification icon ke drawable
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -106,12 +102,16 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 8. Inject permissions dan service ke AndroidManifest
+      # 9. Inject permissions dan service ke AndroidManifest
       # ==============================================
       - name: Inject Background Permissions and Service
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
 
+          # Install xmlstarlet jika belum ada
+          sudo apt-get update && sudo apt-get install -y xmlstarlet
+
+          # Tambahkan izin jika belum ada
           if ! grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST; then
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
           fi
@@ -122,8 +122,14 @@ jobs:
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           fi
 
+          # Tambahkan service menggunakan xmlstarlet
           if ! grep -q "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" $MANIFEST; then
-            sed -i '/<application>/a\        <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
+            xmlstarlet ed --inplace -N android="http://schemas.android.com/apk/res/android" \
+              -s "/manifest/application" -t elem -n "service" -v "" \
+              -i "/manifest/application/service[last()]" -t attr -n "android:name" -v "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" \
+              -i "/manifest/application/service[last()]" -t attr -n "android:permission" -v "android.permission.BIND_JOB_SERVICE" \
+              -i "/manifest/application/service[last()]" -t attr -n "android:foregroundServiceType" -v "location" \
+              $MANIFEST
           fi
 
           echo "=== Final AndroidManifest.xml ==="
@@ -131,7 +137,7 @@ jobs:
           echo "================================"
 
       # ==============================================
-      # 9. Bersihkan cache dan Build APK
+      # 10. Bersihkan cache dan Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -141,7 +147,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 10. Upload APK
+      # 11. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
