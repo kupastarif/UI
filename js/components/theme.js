@@ -4,19 +4,12 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Mengelola tema aplikasi (light/dark) dan sistem toast notifikasi.
  *   Tema hijau gelap untuk v2.0, semua warna dikendalikan oleh CSS
  *   variables di main.css.
- *
- *   Mulai rev1, ikon yang digunakan didefinisikan secara lokal, tidak lagi
- *   bergantung pada icon registry terpusat di texts.js.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

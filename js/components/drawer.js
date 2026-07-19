@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,14 +11,6 @@
  *   custom melalui `register(page, factoryFn)`. Fungsi `getConfig(page)` 
  *   mengembalikan konfigurasi dari registri untuk digunakan oleh Router.
  *   API: open(callbacks, menuItems?) dan forceClose().
- *
- *   Mulai rev2, ikon petir (⚡) pada fallback siteDisplay diambil dari objek
- *   ICON, tidak lagi ditulis langsung. Seluruh ikon kini bersumber dari ICON.
- *
- * NOTES        :
- *   - Klik item menu langsung memanggil onItemClick(page) tanpa menutup drawer
- *     terlebih dahulu – penutupan drawer ditangani oleh Router melalui
- *     navigasi kombo (closeDrawer: true).
  *
  * =================================================================================
  */

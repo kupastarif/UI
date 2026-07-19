@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,12 +11,6 @@
  *   diambil dari texts.js. Custom popup (11+) didaftarkan melalui register().
  *   Setiap bagian divalidasi; jika tidak valid, fallback ke popup generik (index 1).
  *   API: register(), open(), forceClose().
- *
- *   Mulai rev1, ikon close didefinisikan secara lokal, tidak lagi bergantung
- *   pada icon registry terpusat di texts.js.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

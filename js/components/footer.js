@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,12 +11,6 @@
  *   yang diminta. Tidak memiliki ketergantungan pada Router, DrawerManager,
  *   atau komponen navigasi lainnya. Semua aksi tombol (onClick) disediakan
  *   oleh pemanggil (halaman) melalui objek frames.
- *
- *   Mulai rev2, karakter ▶ pada slider thumb didefinisikan dalam ICON lokal,
- *   tidak lagi ditulis langsung. Seluruh simbol UI kini merujuk ke ICON.
- *
- * NOTES        :
- *   - FooterManager tidak memiliki ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

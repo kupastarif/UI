@@ -4,20 +4,12 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Factory untuk membuat header sesuai tipe halaman. Setiap header yang
  *   dibuat mendaftarkan listener 'theme:change' untuk ikon tema.
  *   Tombol menu menggunakan Router.navigateTo() untuk membuka drawer.
- *
- *   Mulai rev2, ikon checkmark (✓) untuk step selesai didefinisikan di
- *   objek ICON, tidak lagi ditulis langsung. Seluruh ikon sekarang bersumber
- *   dari definisi lokal.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */
