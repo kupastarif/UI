@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,9 +11,6 @@
  *   update, auto-stop saat berpindah halaman, serta otoritas waktu UTC
  *   dan deteksi zona waktu Indonesia (WIB, WITA, WIT) berdasarkan
  *   longitude. Menyediakan data posisi mentah tanpa filter atau kalkulasi.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

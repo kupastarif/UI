@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -16,9 +15,6 @@
  *   - Jarak dihitung per sesi (pickup/dropoff) menggunakan Haversine.
  *   - Pause membekukan nilai sesi terakhir, tidak menampilkan total.
  *   - Lompatan (jump) dideteksi jika kecepatan > 120 km/jam antar titik.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

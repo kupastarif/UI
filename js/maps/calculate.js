@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -17,10 +16,6 @@
  *   - Menyediakan data fase aktif (pickup/dropoff) untuk indikator UI.
  *   - Untuk mode operasional: menangani kalkulasi share cost & set limit
  *     (live dan final), menyertakan hasilnya di output (bukan di tracking data).
- *
- * NOTES        :
- *   - Semua pemanggilan orkestrasi dilakukan melalui Cache.
- *   - Tidak ada akses langsung ke Engine di file ini.
  *
  * =================================================================================
  */
@@ -348,6 +343,10 @@ getSummary() {
     getSnapshotEngineData() {
         return this._snapshotEngineData;
     }
+    
+getLastPosition() {
+    return this.tracker?.lastPosition || null;
+}
 
     // =========================================================================
     // PRIVATE HELPERS (pembulatan)

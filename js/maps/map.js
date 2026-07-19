@@ -1,10 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/map.js
- * FILE VERSION : 2.0a-rev2
+ * FILE VERSION : 2.0a-rev4
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -14,19 +13,13 @@
  *   dan aturan ikon baru: Driver selalu tampil ikon kendaraan.
  *   Mendukung mode interaktif (Tracking) dan statis (Show Map).
  *
- *   Mulai rev2, tidak ada lagi ikon yang ditulis langsung (inline).
- *   Seluruh ikon didefinisikan di awal file dalam objek ICON.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
- *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0a-rev4';
 
 // =============================================================================
 // 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
@@ -41,7 +34,7 @@ const ICON = {
     MAP_FINISH: '🏁',
     WARNING_BOLD: '⚠️',
     SHOW_MAP: '🗺️',
-    MAP_DEFAULT: '📍'    // Baru: fallback untuk marker yang tidak dikenal
+    MAP_DEFAULT: '📍'
 };
 
 const DEFAULT_CENTER = [-6.200000, 106.816666];
@@ -146,7 +139,7 @@ function getDefaultCenter(area) {
 }
 
 // =============================================================================
-// OVERLAY API
+// OVERLAY API (murni CSS, tanpa inline style)
 // =============================================================================
 
 function _initOverlays(containerId) {
@@ -327,7 +320,7 @@ function addCenterButton() {
 }
 
 // =============================================================================
-// TOMBOL WARNING
+// TOMBOL WARNING (tanpa inline style – style dari CSS)
 // =============================================================================
 
 function addWarningButton(onClick) {
@@ -384,7 +377,7 @@ function _createMarkerIcon(type, role, vehicleMode) {
         pickup: ICON.MAP_PICKUP,
         finish: ICON.MAP_FINISH
     };
-    iconChar = mapIcons[type] || ICON.MAP_DEFAULT;   // Gunakan ICON.MAP_DEFAULT sebagai fallback
+    iconChar = mapIcons[type] || ICON.MAP_DEFAULT;
 
     return window.L.divIcon({
         html: `<div style="font-size: 30px; line-height: 1; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));">${iconChar}</div>`,
@@ -452,7 +445,7 @@ function getMarker(type) {
 }
 
 // =============================================================================
-// POLYLINE
+// POLYLINE (dengan dukungan warna kustom)
 // =============================================================================
 
 function _getWeightByAccuracy(accuracy) {
@@ -468,11 +461,15 @@ function addPolyline(positions, type, options = {}) {
 
     _clearPolylineSegments(type);
 
-    const color = type === 'pickup' ? PICKUP_COLOR : DROPOFF_COLOR;
+    // Gunakan warna dari options, fallback ke default berdasarkan type
+    const defaultColor = type === 'pickup' ? PICKUP_COLOR :
+                         type === 'dropoff' ? DROPOFF_COLOR : '#9CA3AF';
+    const color = options.color || defaultColor;
+
     const polyline = L.polyline(latLngs, {
         color,
         weight: options.weight || POLYLINE_WEIGHT_DEFAULT,
-        opacity: 0.8,
+        opacity: options.opacity || 0.8,
         smoothFactor: 1
     }).addTo(map);
     polyline.bringToBack();
@@ -767,13 +764,11 @@ export const MapManager = {
 window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon peta
-//             didefinisikan secara lokal (ICON.MOBIL, ICON.MAP_START, dll).
-// 2.0a-rev2 : Hapus ikon inline terakhir (📍 fallback marker). Tambahkan
-//             ICON.MAP_DEFAULT. Semua ikon kini merujuk ke objek ICON.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
+// 2.0a-rev0 : Inisiasi awal.
+// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
+// 2.0a-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
+// 2.0a-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
+// 2.0a-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
+//             addPolyline sekarang mendukung warna kustom.
 //
 // ================================ End Of File ================================

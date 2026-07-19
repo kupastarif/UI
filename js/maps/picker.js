@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -17,13 +16,6 @@
  *   Menyediakan recent saved locations (maks 3, FIFO) dan penyimpanan polyline
  *   rute untuk digunakan oleh halaman tracking.
  *   Hasil dikirim ke order.js melalui callback onComplete.
- *
- *   Mulai rev1, ikon yang digunakan didefinisikan secara lokal, tidak lagi
- *   bergantung pada icon registry terpusat di texts.js.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine. Hanya membaca input dari StateManager.
- *   - Menggunakan API eksternal (Nominatim, OSRM) dan komponen internal (GPS, MapManager).
  *
  * =================================================================================
  */
