@@ -1,7 +1,7 @@
 {
   "appId": "kupastarif.gk.app.id",
   "appName": "KupasTarif",
-  "webDir": ".",
+  "webDir": "public",
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https"
@@ -17,5 +17,19 @@
       "android.permission.WAKE_LOCK",
       "android.permission.POST_NOTIFICATIONS"
     ]
+  },
+  "plugins": {
+    "@capgo/background-geolocation": {
+      "desiredAccuracy": 0,
+      "distanceFilter": 10,
+      "stopOnTerminate": false,
+      "startOnBoot": true,
+      "notificationTitle": "⚡ KupasTarif",
+      "notificationText": "Merekam perjalanan akurasi tinggi...",
+      "notificationIcon": "ic_notification",
+      "notificationIconColor": "#0d7c4a",
+      "activityType": "automotiveNavigation",
+      "minimumActivityRecognitionConfidence": 70
+    }
   }
 }
