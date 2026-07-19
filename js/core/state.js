@@ -175,6 +175,8 @@ const AppState = {
     },
 
     _appInitialized: false,
+    
+    updateAvailable: null,   // { version, url, notes }
 
     // Anti‑duplikasi result
     lastSavedFingerprint: null,
