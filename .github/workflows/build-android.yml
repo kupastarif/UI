@@ -103,7 +103,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 7. Adaptive Icon XML (Android 8+)
+      # 7. Adaptive Icon XML (Android 8+) – DIPERBAIKI
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -117,15 +117,21 @@ jobs:
           </adaptive-icon>
           EOF
 
-          # Tambahkan warna background di colors.xml
+          # Tambahkan warna background di colors.xml (tanpa duplikasi)
           mkdir -p android/app/src/main/res/values
-          if ! grep -q "ic_launcher_background" android/app/src/main/res/values/colors.xml 2>/dev/null; then
-            cat > android/app/src/main/res/values/colors.xml << 'EOF2'
+          COLORS_FILE="android/app/src/main/res/values/colors.xml"
+          if [ ! -f "$COLORS_FILE" ]; then
+            cat > "$COLORS_FILE" << 'EOF2'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <color name="ic_launcher_background">#0a1f1a</color>
           </resources>
           EOF2
+          else
+            # Cek apakah warna sudah ada, jika belum tambahkan
+            if ! grep -q "ic_launcher_background" "$COLORS_FILE"; then
+              sed -i '/<\/resources>/i\    <color name="ic_launcher_background">#0a1f1a</color>' "$COLORS_FILE"
+            fi
           fi
 
           echo "Adaptive icon created."
