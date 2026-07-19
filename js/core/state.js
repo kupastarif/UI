@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,12 +11,6 @@
  *   Semua state disimpan dalam satu objek terpusat (AppState).
  *   Menyediakan state untuk input, hasil, tracking, preferensi,
  *   dan flag navigasi internal (popup, drawer).
- *
- * NOTES        :
- *   - Seluruh kunci input mengacu ke Engine v1.0.0‑beta (E10..E104).
- *   - Input E40 ditambahkan untuk persentase kenaikan tarif wajar.
- *   - Default input diambil dari Output (helpers/output.js) untuk mematuhi
- *     aturan akses Engine.
  *
  * =================================================================================
  */

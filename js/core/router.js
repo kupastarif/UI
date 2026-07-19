@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 2 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -15,16 +14,6 @@
  *   berdasarkan target mundur yang dihitung langsung dari StateManager dan tabel
  *   hardcode. Router.navigateTo() adalah satu‑satunya pintu untuk semua navigasi UI.
  *   SSOT currentPage adalah StateManager; target mundur dihitung setiap kali.
- *
- *   ** rev1 – Perbaikan overlay back **
- *   - Penutupan overlay dari UI menggunakan history.back() agar tidak terjadi
- *     duplikasi entri history.
- *   - Ditambahkan penanganan stack identik di popstate untuk mencegah emergency reset.
- *   - Forward browser diblokir tanpa emergency reset.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine. Konfigurasi halaman sudah mencakup
- *     semua halaman yang ada termasuk 'catatan' dan 'catatantldr'.
  *
  * =================================================================================
  */

@@ -4,17 +4,12 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Wrapper untuk localStorage dengan fitur enkripsi driver info,
  *   manajemen history, preferences, theme, maintenance cycles,
  *   kontak darurat, dan pengecekan kuota.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine. Semua fungsi bersifat mandiri.
- *   - DEFAULT_PREFERENCES disinkronkan dengan properti terbaru (cacheMaksimal).
  *
  * =================================================================================
  */

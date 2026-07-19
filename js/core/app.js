@@ -4,18 +4,12 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Inisialisasi aplikasi dan lifecycle management. Mengatur loading screen
  *   awal, memuat preferensi, inisialisasi state, dan memulai router.
  *   Mengecek keberadaan Engine v1.0.0‑beta dan versinya sebagai dependency kritis.
- *
- * NOTES        :
- *   - Cache dikelola oleh modul Cache (07cache.js). Mode default sudah diatur
- *     oleh init.js, dan preferensi cacheMaksimal diterapkan oleh preferences.js.
- *   - Semua pemanggilan orkestrasi wajib melalui Cache, bukan Engine langsung.
  *
  * =================================================================================
  */

@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,12 +11,6 @@
  *   v1.0.0‑beta (01data.js – 07cache.js), menginisialisasi Cache, menyediakan
  *   window.log, window.cacheBust, dan APP_CONFIG. Import map & cache bust
  *   hanya aktif saat isDevMode = true.
- *
- * NOTES        :
- *   - Seluruh orkestrasi harus melalui Cache, bukan Engine langsung.
- *   - Cache mode awal: 'off' jika dev, 'minimal' jika production (dapat
- *     diubah oleh pengguna di halaman Settings).
- *   - APP_CONFIG.cacheMode dihapus – cache dikelola oleh Cache.setMode().
  *
  * =================================================================================
  */

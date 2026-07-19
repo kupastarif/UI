@@ -1,10 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/core/preferences.js
- * FILE VERSION : 2.0a-rev0
+ * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -13,17 +12,13 @@
  *   default diambil melalui Output (helpers/output.js) – tidak ada akses
  *   langsung ke Engine.
  *
- * NOTES        :
- *   - Preferensi cacheMaksimal digunakan untuk mengatur mode Cache.
- *   - Hanya diaktifkan jika bukan dev mode (isDevMode = false).
- *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev0';
+const F_V = '2.0a-rev1';
 
 import { StorageManager } from './storage.js';
 import { StateManager } from './state.js';
@@ -76,7 +71,7 @@ function buildDefaultPreferences() {
         alwaysOperational: false,
         largeText: false,
         hideSafetyReminder: false,
-        cacheMaksimal: false,               // v2.0a-rev0: toggle cache maksimal
+        cacheMaksimal: false,
         defaultVehicle: getEngineDefaults(),
         driverInfo: { name: '', plate: '', phone: '' },
         customCopy: { enabled: false, template: '' }
@@ -137,6 +132,13 @@ function loadPreferences() {
         const stored = StorageManager ? StorageManager.getPreferences() : {};
         const defaults = buildDefaultPreferences();
 
+        // --- PERBAIKAN v2.0a-rev1 ---
+        // Driver info harus diambil dari sumber terenkripsi (kt_driver)
+        // agar data yang tampil selalu data terbaru yang disimpan
+        // melalui StorageManager.saveDriverInfo().
+        // Jika StorageManager tidak tersedia, gunakan default.
+        const driverInfo = StorageManager ? StorageManager.getDriverInfo() : defaults.driverInfo;
+
         const preferences = {
             quickOrder: stored.quickOrder === true,
             alwaysGPS: stored.alwaysGPS === true,
@@ -146,7 +148,7 @@ function loadPreferences() {
             hideSafetyReminder: stored.hideSafetyReminder === true,
             cacheMaksimal: stored.cacheMaksimal === true,
             defaultVehicle: validateDefaultVehicle(stored.defaultVehicle || defaults.defaultVehicle),
-            driverInfo: stored.driverInfo || defaults.driverInfo,
+            driverInfo: driverInfo,
             customCopy: stored.customCopy || defaults.customCopy
         };
 
@@ -190,6 +192,10 @@ function loadPreferences() {
 function savePreferences(prefs) {
     window.log.info('[Preferences ' + F_V + '] (8) Memulai savePreferences()');
     try {
+        // --- PERBAIKAN v2.0a-rev1 ---
+        // driverInfo TIDAK lagi disertakan di sini.
+        // Data sensitif (nama, plat, telepon) hanya disimpan
+        // melalui StorageManager.saveDriverInfo() dengan enkripsi.
         const validated = {
             quickOrder: prefs.quickOrder === true,
             alwaysGPS: prefs.alwaysGPS === true,
@@ -199,11 +205,11 @@ function savePreferences(prefs) {
             hideSafetyReminder: prefs.hideSafetyReminder === true,
             cacheMaksimal: prefs.cacheMaksimal === true,
             defaultVehicle: validateDefaultVehicle(prefs.defaultVehicle || {}),
-            driverInfo: prefs.driverInfo || { name: '', plate: '', phone: '' },
             customCopy: {
                 enabled: prefs.customCopy ? prefs.customCopy.enabled === true : false,
                 template: prefs.customCopy ? prefs.customCopy.template || '' : ''
             }
+            // --- Akhir perbaikan ---
         };
 
         // Simpan ke StorageManager
@@ -216,7 +222,15 @@ function savePreferences(prefs) {
 
         // Update StateManager
         if (StateManager) {
-            StateManager.set('preferences', validated);
+            // StateManager tetap perlu menyimpan driverInfo untuk akses runtime.
+            // Namun data yang disimpan ke storage hanyalah yang tidak sensitif.
+            // Kita ambil driverInfo dari prefs yang diterima, lalu gabungkan
+            // ke dalam objek state tanpa menyimpannya ke localStorage.
+            const runtimePreferences = {
+                ...validated,
+                driverInfo: prefs.driverInfo || { name: '', plate: '', phone: '' }
+            };
+            StateManager.set('preferences', runtimePreferences);
         }
 
         // Apply large text setting ke DOM
@@ -380,6 +394,10 @@ window.log.info('[Preferences ' + F_V + '] (21) PreferencesManager dimuat');
 // ================================= CHANGELOG =================================
 // 2.0a-rev0 : Inisiasi awal. Akses Engine melalui Output, tambah properti
 //             cacheMaksimal, validasi via Output.validateCell.
+// 2.0a-rev1 : Hapus penyimpanan driverInfo di kt_prefs (plaintext).
+//             loadPreferences() sekarang membaca driver info dari
+//             StorageManager.getDriverInfo() (terenkripsi).
+//             StateManager tetap mendapat driverInfo untuk kebutuhan runtime.
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
