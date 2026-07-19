@@ -69,7 +69,30 @@ jobs:
         run: npx cap sync
 
       # ==============================================
-      # 6. Copy Launcher Icons (Manual)
+      # 6. [UPDATE] Set minSdkVersion & targetSdkVersion
+      # ==============================================
+      - name: Set Android SDK versions
+        run: |
+          sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+          echo "Android SDK versions set: min=29, target=34"
+
+      # ==============================================
+      # 7. [UPDATE] Buat colors.xml untuk adaptive icon
+      # ==============================================
+      - name: Create colors.xml for adaptive icon
+        run: |
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#0a1f1a</color>
+          </resources>
+          EOF
+          echo "colors.xml created."
+
+      # ==============================================
+      # 8. Copy Launcher Icons (Manual)
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -103,7 +126,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 7. Adaptive Icon XML (Android 8+) – DIPERBAIKI
+      # 9. Adaptive Icon XML (Android 8+)
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -118,7 +141,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 8. Copy Notification Icon
+      # 10. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -127,7 +150,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 9. Inject Permissions and Service
+      # 11. Inject Permissions and Service
       # ==============================================
       - name: Inject Background Permissions and Service
         run: |
@@ -162,7 +185,7 @@ jobs:
           echo "================================"
 
       # ==============================================
-      # 10. Clean and Build APK
+      # 12. Clean and Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -172,7 +195,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 11. Upload APK
+      # 13. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
