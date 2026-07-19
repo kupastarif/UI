@@ -69,31 +69,69 @@ jobs:
         run: npx cap sync
 
       # ==============================================
-      # 6. Install @capacitor/assets (opsional, untuk generate icon otomatis)
+      # 6. Copy Launcher Icons (Manual)
       # ==============================================
-      - name: Install @capacitor/assets
-        run: npm install --save-dev @capacitor/assets
-
-      # ==============================================
-      # 7. Generate ikon menggunakan @capacitor/assets
-      # ==============================================
-      - name: Generate Android Icons
+      - name: Copy Launcher Icons
         run: |
-          # Pastikan file sumber ikon ada (minimal 1024x1024)
-          if [ -f "public/assets/img/icon.png" ]; then
-            echo "Using icon.png"
-          elif [ -f "public/assets/img/icon512.png" ]; then
-            cp public/assets/img/icon512.png public/assets/img/icon.png
-            echo "Using icon512.png as source"
-          else
-            echo "ERROR: No icon source found (icon.png or icon512.png)"
-            exit 1
-          fi
-          # Generate semua asset Android (tanpa --icon)
-          npx capacitor-assets generate --android
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+
+          # ic_launcher.png (non-adaptive fallback)
+          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+          # ic_launcher_round.png (untuk perangkat yang mendukung)
+          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+          # ic_launcher_foreground.png (untuk adaptive icon)
+          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+
+          echo "Launcher icons copied."
 
       # ==============================================
-      # 8. Copy notification icon ke drawable
+      # 7. Adaptive Icon XML (Android 8+)
+      # ==============================================
+      - name: Create Adaptive Icon XML
+        run: |
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+          # Tambahkan warna background di colors.xml
+          mkdir -p android/app/src/main/res/values
+          if ! grep -q "ic_launcher_background" android/app/src/main/res/values/colors.xml 2>/dev/null; then
+            cat > android/app/src/main/res/values/colors.xml << 'EOF2'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#0a1f1a</color>
+          </resources>
+          EOF2
+          fi
+
+          echo "Adaptive icon created."
+
+      # ==============================================
+      # 8. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -102,13 +140,13 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 9. Inject permissions dan service ke AndroidManifest
+      # 9. Inject Permissions and Service
       # ==============================================
       - name: Inject Background Permissions and Service
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
 
-          # Install xmlstarlet jika belum ada
+          # Install xmlstarlet
           sudo apt-get update && sudo apt-get install -y xmlstarlet
 
           # Tambahkan izin jika belum ada
@@ -137,7 +175,7 @@ jobs:
           echo "================================"
 
       # ==============================================
-      # 10. Bersihkan cache dan Build APK
+      # 10. Clean and Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
