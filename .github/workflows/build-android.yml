@@ -108,7 +108,6 @@ jobs:
       - name: Create Adaptive Icon XML
         run: |
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26
-
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -116,24 +115,6 @@ jobs:
               <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
           </adaptive-icon>
           EOF
-
-          # Tambahkan warna background di colors.xml (tanpa duplikasi)
-          mkdir -p android/app/src/main/res/values
-          COLORS_FILE="android/app/src/main/res/values/colors.xml"
-          if [ ! -f "$COLORS_FILE" ]; then
-            cat > "$COLORS_FILE" << 'EOF2'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="ic_launcher_background">#0a1f1a</color>
-          </resources>
-          EOF2
-          else
-            # Cek apakah warna sudah ada, jika belum tambahkan
-            if ! grep -q "ic_launcher_background" "$COLORS_FILE"; then
-              sed -i '/<\/resources>/i\    <color name="ic_launcher_background">#0a1f1a</color>' "$COLORS_FILE"
-            fi
-          fi
-
           echo "Adaptive icon created."
 
       # ==============================================
