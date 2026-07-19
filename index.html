@@ -357,64 +357,61 @@
 (function() {
     'use strict';
 
-    // 1. DETEKSI LINGKUNGAN CAPACITOR
-    if (!window.capacitor) {
+    // Deteksi Capacitor
+    if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
+        var Capacitor = window.Capacitor;
+    }
+    if (!Capacitor || !Capacitor.isNative) {
         console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
         return;
     }
 
     console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
 
-    // 2. FUNGSI INISIALISASI
     async function initNative() {
         try {
-            // Ambil plugin CapGo
             const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
-            const { Geolocation } = Capacitor.Plugins;
-            const { LocalNotifications } = Capacitor.Plugins;
-            const { App } = Capacitor.Plugins;
+            const { Geolocation, LocalNotifications, App } = Capacitor.Plugins;
 
             if (!BackgroundGeolocation) {
                 console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
                 return;
             }
 
-            // 3. MINTA IZIN
+            // Izin
             await Geolocation.requestPermissions();
-            
-            // Izin background (CapGo biasanya pakai requestPermissions juga)
             if (typeof BackgroundGeolocation.requestPermissions === 'function') {
                 await BackgroundGeolocation.requestPermissions();
             }
 
-            // 4. KONFIGURASI BACKGROUND GPS (High Accuracy)
+            // Konfigurasi High Accuracy
             await BackgroundGeolocation.configure({
-                desiredAccuracy: 0,              // 0 = High Accuracy (GPS hardware)
-                distanceFilter: 10,              // Update setiap 10 meter
-                stopOnTerminate: false,          // Tetap jalan setelah app ditutup
-                startOnBoot: true,               // Mulai saat HP boot (jika tracking aktif)
+                desiredAccuracy: 0,
+                distanceFilter: 10,
+                stopOnTerminate: false,
+                startOnBoot: true,
                 notificationTitle: '⚡ KupasTarif',
                 notificationText: 'Merekam perjalanan akurasi tinggi...',
-                notificationIcon: 'ic_notification', // Menggunakan icon.png
+                notificationIcon: 'ic_notification',
                 notificationIconColor: '#0d7c4a'
             });
 
-            // 5. LISTENER POSISI (Kirim ke Modul Tracking Web App)
+            // Listener posisi → kirim ke modul tracking
             BackgroundGeolocation.addListener('location', (location) => {
-                if (window.trackingModule && window.trackingModule.calculate) {
-                    const pos = {
-                        lat: location.latitude || location.coords?.latitude,
-                        lng: location.longitude || location.coords?.longitude,
-                        accuracy: location.accuracy || location.coords?.accuracy || 10,
-                        timestamp: location.timestamp || Date.now()
-                    };
-                    window.trackingModule.calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                const pos = {
+                    lat: location.latitude || location.coords?.latitude,
+                    lng: location.longitude || location.coords?.longitude,
+                    accuracy: location.accuracy || location.coords?.accuracy || 10,
+                    timestamp: location.timestamp || Date.now()
+                };
+                if (window.__trackingCalculate) {
+                    window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
                 } else {
-                    window.__lastNativePos = location;
+                    window.__lastNativePos = pos;
                 }
             });
 
-            // 6. LISTENER ERROR
+            // Error
             BackgroundGeolocation.addListener('error', (error) => {
                 console.error('[Bridge] GPS Error:', error);
                 LocalNotifications.schedule({
@@ -427,17 +424,14 @@
                 });
             });
 
-            // 7. DETEKSI STATE APLIKASI (Foreground/Background)
+            // State app
             App.addListener('appStateChange', async (state) => {
-                if (state.isActive) {
-                    console.log('[Bridge] App ke Foreground');
-                } else {
-                    console.log('[Bridge] App ke Background - GPS tetap berjalan');
+                if (!state.isActive && window.__nativeBG && window.__nativeBG._started) {
                     try { await BackgroundGeolocation.start(); } catch(e) {}
                 }
             });
-
-            // 8. FUNGSI GLOBAL UNTUK START/STOP (DIPANGGIL OLEH tracking.js)
+            
+            // Global start/stop (optional)
             window.__nativeBG = {
                 start: async () => {
                     if (!window.__nativeBG._started) {
@@ -451,7 +445,6 @@
                                 schedule: { at: new Date(Date.now() + 500) }
                             }]
                         });
-                        console.log('[Bridge] Tracking background dimulai.');
                     }
                 },
                 stop: async () => {
@@ -459,7 +452,6 @@
                         await BackgroundGeolocation.stop();
                         window.__nativeBG._started = false;
                         await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
-                        console.log('[Bridge] Tracking background dihentikan.');
                     }
                 },
                 _started: false
@@ -472,13 +464,11 @@
         }
     }
 
-    // 9. EKSEKUSI SAAT LOAD
     if (document.readyState === 'complete') {
         initNative();
     } else {
         window.addEventListener('load', initNative);
     }
-
 })();
 </script>
 
