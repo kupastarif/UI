@@ -14,10 +14,6 @@
  *   pure function dengan signature `(temp) => value` dan properti `deps`.
  *   Tidak ada wrapper internal – orkestrasi diserahkan ke 06api.js.
  *
- * CATATAN     :
- *   - Seluruh akses ke konstanta diambil dari DATA (global).
- *   - Fungsi badge hanya bermakna setelah estimasi/realitas lengkap.
- *   - Komentar pada setiap fungsi merujuk langsung ke sel Excel untuk sinkronisasi.
  * =============================================================================
  */
 

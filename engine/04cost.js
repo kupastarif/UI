@@ -16,17 +16,6 @@
  *   Seluruh wrapper internal (getCostParams, calcPickupEstimate, dll.) dihapus
  *   – orkestrasi diserahkan ke 06api.js.
  *
- *   Fungsi convenience calcOperationalCost tetap dipertahankan untuk menghitung
- *   biaya operasional murni tanpa melalui `temp`.
- *   Tersedia hook `setLookupCache` untuk injeksi tabel prekomputasi oleh cache
- *   (07cache.js) sehingga mode maksimal dapat berjalan lebih cepat.
- *
- * CATATAN     :
- *   - Seluruh akses ke konstanta diambil dari DATA (global).
- *   - Helper getAFC dan getPerawatanSpeedFactor dapat menggunakan cache
- *     internal jika telah diisi melalui setLookupCache.
- *   - Komentar pada setiap fungsi sel merujuk langsung ke sel Excel untuk
- *     memudahkan sinkronisasi.
  * =============================================================================
  */
 

@@ -15,30 +15,6 @@
  *   Modul ini TIDAK melakukan kalkulasi — hanya menyediakan data mentah
  *   yang akan digunakan oleh modul fare, cost, extra, dan UI.
  * 
- * STRUKTUR    :
- *   - Konstanta satuan (E116, E117, …) sebagai number.
- *   - Tabel lookup dibangun langsung dengan nilai literal (tidak lagi
- *     bergantung pada konstanta satuan per item).
- *     dcell = nilai (Rp), ecell = interval (hari atau km).
- *   - Mapping untuk akses cepat via mode & layanan.
- *   - AFC lookup table dalam bentuk Array of Objects { maxSpeed, value }.
- *   - Helper: getConst, getEnergyType, getLookupItems, getTaxItems,
- *     getAttributeItems, getMaintenanceItems, getDepreciation.
- * 
- * CATATAN     :
- *   - Nama properti menggunakan kunci sesuai sel Excel (E116, E117, …)
- *     agar mudah dilacak kembali ke sumber.
- *   - Semua nilai numerik sama persis dengan Excel v9.7j.
- *   - Setiap file memiliki versi file sendiri (F_V) dan tidak terikat
- *     dengan versi engine atau versi file lainnya.
- *   - Beberapa grup data (taksi, angkot, transjakarta) belum digunakan
- *     dalam kalkulasi engine saat ini, tetapi tetap diekspor untuk
- *     kemungkinan pengembangan UI di masa depan.
- *   - rev3: seluruh tabel lookup (PAJAK_*, ATRIBUT_*, PERAWATAN_*)
- *     sekarang menyimpan nilai dcell/ecell secara langsung. Semua
- *     konstanta satuan yang semula hanya digunakan oleh lookup telah
- *     dihapus. Fungsi getConst tetap dapat mengambil konstanta lain
- *     yang masih ada.
  * =============================================================================
  */
 

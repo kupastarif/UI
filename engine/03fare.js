@@ -15,12 +15,6 @@
  *   yang mendeklarasikan sel‑sel lain yang diperlukan.
  *   Semua wrapper internal dihapus — orkestrasi dilakukan oleh 06api.js.
  *
- * CATATAN     :
- *   - Seluruh akses ke konstanta diambil dari DATA (global).
- *   - `temp.E71` (uiStateE71) disediakan oleh wrapper untuk mode offline "app".
- *   - Fallback `temp.E71` ke `temp.E677` jika bukan number tetap dipertahankan.
- *   - Komentar pada setiap fungsi sel merujuk langsung ke sel Excel untuk
- *     memudahkan sinkronisasi.
  * =============================================================================
  */
 

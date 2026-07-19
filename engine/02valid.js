@@ -15,28 +15,6 @@
  *   konteks (jika diperlukan), lalu mengembalikan nilai yang sudah
  *   divalidasi atau nilai fallback sesuai aturan di Excel v9.7k.
  *
- *   Mulai versi 1.0.1 :
- *   - Nilai default untuk placeholder UI adalah null untuk semua input
- *     numerik, kecuali input yang memiliki dependensi (E40) akan dihitung
- *     dari dependensinya.
- *   - Properti range numerik kini memiliki `fallback` (nilai jika input
- *     tidak valid), bukan `default`, untuk membedakan dari placeholder UI.
- *   - Fungsi `getDefaultValues()` mengembalikan nilai untuk keperluan
- *     tampilan pertama UI, bukan nilai fallback validasi.
- *
- *   Valid TIDAK melakukan formatting. UI HARUS memanfaatkan fungsi opsi,
- *   range, dan default untuk melakukan formatting sebelum mengirim ke engine.
- *
- * STRUKTUR :
- *   1. Fungsi validasi per cell (E10..E104)
- *   2. Pembungkus bertahap (validateHome, validateOrder, …)
- *   3. Fungsi bantuan UI (getDropdownOptions, getValidationRange,
- *      getServiceOptions, getDefaultValues)
- *
- * CATATAN     :
- *   - Setiap fungsi cell dapat dipanggil langsung (misal Valid.E46(value, ctx)).
- *   - Context bersifat opsional; jika tidak diberikan, default akan
- *     digunakan sehingga fungsi tetap aman dipanggil tunggal.
  * =============================================================================
  */
 

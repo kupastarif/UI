@@ -16,26 +16,6 @@
  *   Semua fungsi bersifat pure — tidak menyimpan state internal.
  *   Engine TIDAK menyediakan cache. Cache adalah wrapper eksternal.
  *
- *   ** rev1 – Inheritance antar tahap **
- *   - estimateDropoff mewarisi seluruh properti dari pickupEst.
- *   - realityDropoff mewarisi seluruh properti dari est dan pickupReal.
- *     Dengan demikian data dari tahap sebelumnya selalu tersedia tanpa
- *     perlu mendaftarkan ulang sel target.
- *
- * STRUKTUR :
- *   1. Versi & namespace modul.
- *   2. Gabungan seluruh fungsi sel (`CELLS`) dari Fare, Cost, Extra.
- *   3. Fungsi `topologicalSort` dan `compute` untuk evaluasi otomatis.
- *   4. Daftar target untuk setiap langkah orkestrasi.
- *   5. Fungsi orkestrasi (estimatePickup, estimateDropoff, realityPickup,
- *      realityDropoff, reality, complete).
- *   6. Fungsi bantuan (getMaxPickupDistance, getMaxPickupTime,
- *      getOperationalCost).
- *
- * CATATAN :
- *   - `getMaxPickupDistance` kini mengembalikan DATA.E266 (jarak jemput
- *     ideal maksimal 2 km), bukan E260.
- *   - Seluruh wrapper internal Fare/Cost/Extra tidak lagi digunakan.
  * =============================================================================
  */
 

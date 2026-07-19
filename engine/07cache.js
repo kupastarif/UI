@@ -15,18 +15,6 @@
  *   `Engine.Cost.setLookupCache()` – TANPA monkey‑patching.
  *   Cache memeriksa kompatibilitas versi Engine saat inisialisasi.
  *
- * STRUKTUR   :
- *   1. Konfigurasi mode & penyimpanan (Map).
- *   2. Pre‑komputasi tabel lookup (hanya untuk mode maksimal).
- *   3. Fungsi wrapper untuk setiap fungsi orkestrasi Engine.
- *   4. Fungsi invalidasi berbasis tag.
- *   5. Statistik cache.
- *
- * CONTOH PENGGUNAAN :
- *   Cache.setMode('maksimal');
- *   const pickup = Cache.estimatePickup(valid, uiStateE71);
- *   Cache.invalidate('order');
- *   const options = Cache.Engine.Valid.getDropdownOptions('E20');
  * =============================================================================
  */
 
