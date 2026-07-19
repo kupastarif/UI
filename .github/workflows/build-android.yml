@@ -49,11 +49,10 @@ jobs:
           npx cap init KupasTarif kupastarif.gk.app.id --web-dir=public
 
       # ==============================================
-      # 3. Ubah webDir di capacitor.config.json (jika perlu)
+      # 3. Ubah webDir di capacitor.config.json
       # ==============================================
       - name: Override webDir in capacitor.config.json
         run: |
-          # File sudah ada dari npx cap init
           sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
           cat capacitor.config.json
 
@@ -70,26 +69,79 @@ jobs:
         run: npx cap sync
 
       # ==============================================
-      # 6. Salin icon.png untuk notifikasi
+      # 6. Copy Ikon Launcher (ke mipmap-*)
       # ==============================================
-      - name: Copy icon for notification
+      - name: Copy Launcher Icons
+        run: |
+          # Buat folder mipmap jika belum ada
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/mipmap-xhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+
+          # mdpi (48x48) - gunakan icon48.png
+          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+
+          # hdpi (72x72) - gunakan icon72.png
+          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+
+          # xhdpi (96x96) - gunakan icon96.png
+          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+
+          # xxhdpi (144x144) - gunakan icon144.png
+          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+
+          # xxxhdpi (192x192) - gunakan icon192.png
+          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+          echo "Launcher icons copied successfully."
+
+      # ==============================================
+      # 7. Copy Ikon Notifikasi (ke drawable)
+      # ==============================================
+      - name: Copy notification icon
         run: |
           mkdir -p android/app/src/main/res/drawable
-          cp public/assets/img/icon.png android/app/src/main/res/drawable/ic_notification.png
+          # Gunakan icon72.png untuk notifikasi (ukuran 72x72)
+          cp public/assets/img/icon72.png android/app/src/main/res/drawable/ic_notification.png
+          echo "Notification icon copied successfully."
 
       # ==============================================
-      # 7. Inject izin background ke AndroidManifest
+      # 8. Inject Izin & Service ke AndroidManifest.xml
       # ==============================================
-      - name: Inject Background Permissions
+      - name: Inject Background Permissions and Service
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
-          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />' $MANIFEST
-          sed -i '/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
-          sed -i '/<application>/a\    <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
+
+          # ---- Tambahkan izin jika belum ada ----
+          if ! grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
+          fi
+          if ! grep -q "FOREGROUND_SERVICE_LOCATION" $MANIFEST; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />' $MANIFEST
+          fi
+          if ! grep -q "POST_NOTIFICATIONS" $MANIFEST; then
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
+          fi
+
+          # ---- Tambahkan service jika belum ada ----
+          if ! grep -q "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" $MANIFEST; then
+            sed -i '/<application>/a\        <service android:name="com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" android:permission="android.permission.BIND_JOB_SERVICE" android:foregroundServiceType="location" />' $MANIFEST
+          fi
+
+          # ---- Tampilkan hasil (opsional untuk debugging) ----
+          echo "=== Final AndroidManifest.xml ==="
+          cat $MANIFEST
+          echo "================================"
 
       # ==============================================
-      # 8. Build APK Debug
+      # 9. Build APK Debug
       # ==============================================
       - name: Build APK (Debug)
         run: |
@@ -98,7 +150,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 9. Upload APK
+      # 10. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
