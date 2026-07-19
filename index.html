@@ -2,9 +2,9 @@
 /**
  * =================================================================================
  * FILE         : /index.html
- * FILE VERSION : 2.0a-rev2
- * APP VERSION  : 2.0a-beta
- * DATE         : 16 Juli 2026
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
+ * DATE         : 17 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -85,7 +85,7 @@
     <script>
         // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
         window.isDevMode = false;            // false untuk production
-        window.APP_VERSION = '2.0a-beta';
+        window.APP_VERSION = '2.0.0';        // <-- UBAH KE 2.0.0
         window.SITE_TITLE = 'KupasTarif';
         window.SITE_DISPLAY = 'Kupas⚡Tarif';
         window.SITE_ICON = '⚡';
@@ -208,7 +208,7 @@
             <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
 
             <!-- Version -->
-            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0a-beta</div>
+            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0.0</div>  <!-- <-- UBAH KE 2.0.0 -->
 
             <!-- Reload Button (hidden by default) -->
             <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
@@ -339,13 +339,18 @@
                 }
             } else {
                 // --- Production Mode: daftarkan service worker normal ---
-                window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                        console.log('Service Worker registered with scope:', reg.scope);
-                    }).catch(function(err) {
-                        console.error('Service Worker registration failed:', err);
+                // [UPDATE] Nonaktifkan Service Worker di Android
+                if (!window.Capacitor || !window.Capacitor.isNative) {
+                    window.addEventListener('load', function() {
+                        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                            console.log('Service Worker registered with scope:', reg.scope);
+                        }).catch(function(err) {
+                            console.error('Service Worker registration failed:', err);
+                        });
                     });
-                });
+                } else {
+                    console.log('[SW] Service Worker dinonaktifkan di Android');
+                }
             }
         }
     </script>
@@ -522,11 +527,9 @@
 </html>
 <!-- 
 // ================================= CHANGELOG =================================
-// 2.0a-rev1 : isDevMode = false, tambah PWA meta (manifest, favicon, apple-touch),
-//             tambahkan registrasi Service Worker.
-// 2.0a-rev2 : Penambahan SEO: meta tags (description, keywords, robots, canonical),
-//             Open Graph, Twitter Card, JSON-LD, script URL dinamis,
-//             h1 tersembunyi (.sr-only), fallback noscript.
+// 2.0.0-rev0 : Rilis stabil 2.0.0. Ubah APP_VERSION menjadi '2.0.0',
+//             ubah tampilan versi di loading screen menjadi v2.0.0.
+//             Service Worker dinonaktifkan di Android (Capacitor).
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
