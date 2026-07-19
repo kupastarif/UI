@@ -357,7 +357,7 @@
 (function() {
     'use strict';
 
-    // Deteksi Capacitor
+    // ---------- DETEKSI CAPACITOR ----------
     if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
         var Capacitor = window.Capacitor;
     }
@@ -370,6 +370,7 @@
 
     async function initNative() {
         try {
+            // ---------- AMBIL PLUGIN ----------
             const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
             const { Geolocation, LocalNotifications, App } = Capacitor.Plugins;
 
@@ -378,25 +379,39 @@
                 return;
             }
 
-            // Izin
+            // ---------- MINTA IZIN ----------
+            // Izin lokasi (wajib)
             await Geolocation.requestPermissions();
+
+            // Izin notifikasi (wajib untuk Android 13+)
+            const notifPerm = await LocalNotifications.requestPermissions();
+            if (notifPerm.display !== 'granted') {
+                console.warn('[Bridge] Izin notifikasi ditolak. Notifikasi tidak akan muncul.');
+            }
+
+            // Izin khusus plugin (opsional)
             if (typeof BackgroundGeolocation.requestPermissions === 'function') {
                 await BackgroundGeolocation.requestPermissions();
             }
 
-            // Konfigurasi High Accuracy
+            // ---------- KONFIGURASI ----------
             await BackgroundGeolocation.configure({
-                desiredAccuracy: 0,
-                distanceFilter: 10,
+                desiredAccuracy: 0,                // 0 = high accuracy
+                distanceFilter: 10,                // meter
                 stopOnTerminate: false,
                 startOnBoot: true,
                 notificationTitle: '⚡ KupasTarif',
                 notificationText: 'Merekam perjalanan akurasi tinggi...',
                 notificationIcon: 'ic_notification',
-                notificationIconColor: '#0d7c4a'
+                notificationIconColor: '#0d7c4a',
+                // Opsi tambahan untuk performa
+                activityType: 'automotiveNavigation',
+                minimumActivityRecognitionConfidence: 70
             });
 
-            // Listener posisi → kirim ke modul tracking
+            console.log('[Bridge] BackgroundGeolocation dikonfigurasi.');
+
+            // ---------- LISTENER POSISI ----------
             BackgroundGeolocation.addListener('location', (location) => {
                 const pos = {
                     lat: location.latitude || location.coords?.latitude,
@@ -404,6 +419,7 @@
                     accuracy: location.accuracy || location.coords?.accuracy || 10,
                     timestamp: location.timestamp || Date.now()
                 };
+                // Kirim ke modul tracking jika sudah siap
                 if (window.__trackingCalculate) {
                     window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
                 } else {
@@ -411,9 +427,10 @@
                 }
             });
 
-            // Error
+            // ---------- LISTENER ERROR ----------
             BackgroundGeolocation.addListener('error', (error) => {
                 console.error('[Bridge] GPS Error:', error);
+                // Tampilkan notifikasi error
                 LocalNotifications.schedule({
                     notifications: [{
                         id: 999,
@@ -424,19 +441,30 @@
                 });
             });
 
-            // State app
+            // ---------- LISTENER STATE APP ----------
             App.addListener('appStateChange', async (state) => {
+                // Hanya start jika tracking sudah pernah diaktifkan (_started = true)
                 if (!state.isActive && window.__nativeBG && window.__nativeBG._started) {
-                    try { await BackgroundGeolocation.start(); } catch(e) {}
+                    try {
+                        await BackgroundGeolocation.start();
+                        console.log('[Bridge] Background GPS resumed (app background).');
+                    } catch (e) {
+                        console.warn('[Bridge] Gagal resume background GPS:', e);
+                    }
                 }
             });
-            
-            // Global start/stop (optional)
+
+            // ---------- GLOBAL API ----------
             window.__nativeBG = {
                 start: async () => {
-                    if (!window.__nativeBG._started) {
+                    if (window.__nativeBG._started) {
+                        console.log('[Bridge] GPS already started.');
+                        return;
+                    }
+                    try {
                         await BackgroundGeolocation.start();
                         window.__nativeBG._started = true;
+                        // Kirim notifikasi sukses
                         await LocalNotifications.schedule({
                             notifications: [{
                                 id: 1,
@@ -445,15 +473,32 @@
                                 schedule: { at: new Date(Date.now() + 500) }
                             }]
                         });
+                        console.log('[Bridge] GPS background started.');
+                    } catch (err) {
+                        console.error('[Bridge] Gagal start GPS:', err);
+                        // Tampilkan error di UI (toast)
+                        if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
+                            window.ThemeManager.showToast('Gagal memulai GPS background', 'error');
+                        }
                     }
                 },
+
                 stop: async () => {
-                    if (window.__nativeBG._started) {
+                    if (!window.__nativeBG._started) {
+                        console.log('[Bridge] GPS already stopped.');
+                        return;
+                    }
+                    try {
                         await BackgroundGeolocation.stop();
                         window.__nativeBG._started = false;
+                        // Hapus notifikasi
                         await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+                        console.log('[Bridge] GPS background stopped.');
+                    } catch (err) {
+                        console.error('[Bridge] Gagal stop GPS:', err);
                     }
                 },
+
                 _started: false
             };
 
@@ -464,6 +509,7 @@
         }
     }
 
+    // ---------- EKSEKUSI ----------
     if (document.readyState === 'complete') {
         initNative();
     } else {
