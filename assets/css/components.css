@@ -4,7 +4,6 @@
  * FILE VERSION: 6.6a-initial
  * APP VERSION: 6.6a
  * DATE: 2026-06-12
- *
  * @author: gk
  *
  * DESKRIPSI:
@@ -52,6 +51,29 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
 }
+
+/* Tambahan animasi blink untuk halaman Tracking */
+@keyframes blink-500ms {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+@keyframes blink-1000ms {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+@keyframes blink-2000ms {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+@keyframes blink-4000ms {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.blink-500ms  { animation: blink-500ms 0.5s infinite; }
+.blink-1000ms { animation: blink-1000ms 1s infinite; }
+.blink-2000ms { animation: blink-2000ms 2s infinite; }
+.blink-4000ms { animation: blink-4000ms 4s infinite; }
 
 .blink-faster { animation: blink-faster 0.3s infinite; }
 .blink-fast { animation: blink-fast 0.5s infinite; }
@@ -1305,7 +1327,7 @@ label.switch { display: none; }
     font-size: var(--text-xs);
     font-weight: var(--font-medium);
     color: var(--text-primary);
-    z-index: 10;
+    z-index: 1000;
     white-space: nowrap;
 }
 
@@ -1319,9 +1341,24 @@ label.switch { display: none; }
     box-shadow: var(--shadow);
     font-size: 0.625rem;
     font-weight: var(--font-semibold);
-    z-index: 10;
+    z-index: 1000;
     background: var(--bg-card);
     border: 1px solid var(--border);
+}
+
+.tracking-gps-status {
+    position: absolute;
+    bottom: var(--space-sm);
+    left: var(--space-sm);
+    z-index: 1000;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.625rem;
+    font-weight: var(--font-semibold);
+    white-space: nowrap;
 }
 
 .tracking-accuracy-display.accuracy-high { color: var(--success); }
@@ -1688,15 +1725,15 @@ label.switch { display: none; }
     position: absolute;
     bottom: 60px;          /* di atas tombol center (12px) */
     right: 12px;
-    z-index: 10;
+    z-index: 1000;
     width: 36px;
     height: 36px;
     font-size: 24px;
     line-height: 1;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: none;
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
     cursor: pointer;
     display: flex;
     align-items: center;
