@@ -1,15 +1,18 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0a-rev3
- * APP VERSION  : 2.0a-beta
- * DATE         : 1 Juli 2026
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
+ * DATE         : 17 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
+ *   [UPDATE] Menambahkan wake lock (layar tetap menyala) dengan dynamic import
+ *   agar aman di browser dan Android. Dukungan background GPS di Android
+ *   via @capgo/background-geolocation.
  *
  * =================================================================================
  */
@@ -17,7 +20,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev3';
+const F_V = '2.0.0-rev1';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -68,6 +71,10 @@ const ICON = {
 // =============================================================================
 // 1. STATE INTERNAL
 // =============================================================================
+
+// Wake lock state
+let wakeLockActive = false;        // true jika plugin wake lock aktif (Android)
+let wakeLockWeb = null;           // referensi ke navigator.wakeLock (Web)
 
 let isDestroyed = false;
 let calculate = null;
@@ -130,7 +137,9 @@ function debounce(fn, delay) {
     let timer;
     return function(...args) {
         clearTimeout(timer);
-        timer = setTimeout(() => fn.apply(this, args), delay);
+        timer = setTimeout(function() {
+            fn.apply(this, args);
+        }, delay);
     };
 }
 
@@ -141,8 +150,8 @@ function debounce(fn, delay) {
 function goToStage(newStage) {
     if (isDestroyed) return;
 
-    const allowed = getAllowedStages();
-    if (!allowed.includes(newStage)) {
+    var allowed = getAllowedStages();
+    if (allowed.indexOf(newStage) === -1) {
         window.log.error('[Tracking ' + F_V + '] (1) Transisi stage tidak diizinkan: ' + currentStage + ' -> ' + newStage);
         return;
     }
@@ -173,7 +182,7 @@ function goToStage(newStage) {
 }
 
 function getAllowedStages() {
-    const isOperational = calcMode === 'operational';
+    var isOperational = calcMode === 'operational';
     if (isOperational) {
         return ['idle', 'operational', 'paused'];
     }
@@ -230,7 +239,6 @@ function handleGPSPosition(pos) {
     currentAccuracy = pos.accuracy || 0;
     calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
     
-    // Tambahkan marker start (🚩) hanya sekali di awal fase pickup
     if (currentStage === 'pickup' && !MapManager.getMarker('start')) {
         MapManager.addMarker(pos.lat, pos.lng, 'start', { replace: false });
     }
@@ -244,10 +252,12 @@ function handleGPSPosition(pos) {
 function handleGPSError(error) {
     window.log.error('[Tracking ' + F_V + '] (4) GPS error:', error.code, error.message);
     MapManager.setGPSStatusOverlay(false);
-    ThemeManager?.showToast(
-        error.message || 'GPS tidak tersedia. Tracking tetap berjalan manual.',
-        'warning'
-    );
+    if (ThemeManager) {
+        ThemeManager.showToast(
+            error.message || 'GPS tidak tersedia. Tracking tetap berjalan manual.',
+            'warning'
+        );
+    }
 }
 
 // =============================================================================
@@ -256,7 +266,7 @@ function handleGPSError(error) {
 
 function requestGPSPermission() {
     GPS.getCurrentPosition(
-        (pos) => {
+        function(pos) {
             currentPosition = { lat: pos.lat, lng: pos.lng };
             currentAccuracy = pos.accuracy || 0;
             if (mapReady && MapManager) {
@@ -267,29 +277,31 @@ function requestGPSPermission() {
             MapManager.setGPSStatusOverlay(true);
             window.log.info('[Tracking ' + F_V + '] (5) GPS permission granted');
         },
-        (error) => {
+        function(error) {
             MapManager.setGPSStatusOverlay(false);
             window.log.warn('[Tracking ' + F_V + '] (6) GPS permission denied');
-            ThemeManager?.showToast('Izin lokasi ditolak. Tracking tetap berjalan manual.', 'info');
+            if (ThemeManager) {
+                ThemeManager.showToast('Izin lokasi ditolak. Tracking tetap berjalan manual.', 'info');
+            }
         }
     );
 }
 
 async function initMap() {
     if (!MapManager) {
-        const el = document.getElementById('tracking-map');
+        var el = document.getElementById('tracking-map');
         if (el) el.innerHTML = '<div class="map-placeholder"><p>Peta tidak tersedia</p></div>';
         return;
     }
     try {
-        const center = currentPosition
+        var center = currentPosition
             ? [currentPosition.lat, currentPosition.lng]
             : MapManager.getDefaultCenter(vehicleData.E20);
 
         await MapManager.initForTracking('tracking-map', {
-            center,
+            center: center,
             zoom: 15,
-            role,
+            role: role,
             vehicleMode: vehicleData.E10,
             isOperational: calcMode === 'operational'
         });
@@ -300,7 +312,7 @@ async function initMap() {
         MapManager.setAccuracyOverlay('--m');
         MapManager.setGPSStatusOverlay(false);
 
-        MapManager.addWarningButton(() => {
+        MapManager.addWarningButton(function() {
             Router.navigateTo({ target: 'popup18' });
         });
 
@@ -308,12 +320,12 @@ async function initMap() {
             MapManager.updateUserMarker(currentPosition.lat, currentPosition.lng, role, vehicleData.E10);
         }
         if (calculate) updateMap();
-        setTimeout(() => { if (MapManager) MapManager.invalidateSize(); }, 300);
+        setTimeout(function() { if (MapManager) MapManager.invalidateSize(); }, 300);
 
         if (isOfflineMode) drawPlannedRoute();
     } catch (error) {
         window.log.error('[Tracking ' + F_V + '] (8) Gagal inisialisasi peta:', error);
-        const el = document.getElementById('tracking-map');
+        var el = document.getElementById('tracking-map');
         if (el) el.innerHTML = '<div class="map-placeholder"><p>Peta gagal dimuat</p></div>';
     }
 }
@@ -323,7 +335,7 @@ async function initMap() {
 // =============================================================================
 
 function updateStatusText() {
-    const texts = {
+    var texts = {
         idle: 'Siap memulai!',
         pickup: 'PICKUP',
         dropoff: 'DROPOFF',
@@ -334,11 +346,11 @@ function updateStatusText() {
 }
 
 function updateDistanceTimeDisplay() {
-    const indicator = calculate?.getLiveIndicatorData();
-    const phase = indicator?.phase;
-    const isActivePhase = phase && phase.phase !== 'idle';
+    var indicator = calculate ? calculate.getLiveIndicatorData() : null;
+    var phase = indicator ? indicator.phase : null;
+    var isActivePhase = phase && phase.phase !== 'idle';
 
-    const distEl = document.getElementById('tracking-distance');
+    var distEl = document.getElementById('tracking-distance');
     if (distEl) {
         if (isActivePhase) {
             distEl.textContent = formatKm(phase.distance, true, 2);
@@ -347,16 +359,16 @@ function updateDistanceTimeDisplay() {
         }
     }
 
-    const timeEl = document.getElementById('tracking-time');
+    var timeEl = document.getElementById('tracking-time');
     if (timeEl) {
         if (isActivePhase) {
-            const sec = phase.elapsedSeconds;
-            const h = Math.floor(sec / 3600);
-            const m = Math.floor((sec % 3600) / 60);
-            const s = Math.floor(sec % 60);
+            var sec = phase.elapsedSeconds;
+            var h = Math.floor(sec / 3600);
+            var m = Math.floor((sec % 3600) / 60);
+            var s = Math.floor(sec % 60);
             timeEl.textContent = h > 0
-                ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-                : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                ? String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+                : String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         } else {
             timeEl.textContent = '--:--';
         }
@@ -371,7 +383,7 @@ function updateDistanceTimeDisplay() {
 
 function startClockTimer() {
     stopClockTimer();
-    clockTimer = setInterval(() => {
+    clockTimer = setInterval(function() {
         if (!isDestroyed) updateDistanceTimeDisplay();
     }, 1000);
 }
@@ -383,7 +395,7 @@ function stopClockTimer() {
 function updateMap() {
     if (!mapReady || !MapManager || !calculate) return;
 
-    const poly = calculate.getPolylineData();
+    var poly = calculate.getPolylineData();
     if (poly.pickup.length > 0) MapManager.updatePolylineWithAccuracy(poly.pickup, 'pickup');
     if (poly.dropoff.length > 0) MapManager.updatePolylineWithAccuracy(poly.dropoff, 'dropoff');
 
@@ -391,21 +403,21 @@ function updateMap() {
         MapManager.updateUserMarker(currentPosition.lat, currentPosition.lng, role, vehicleData.E10);
     }
 
-    const allPos = poly.pickup.concat(poly.dropoff);
+    var allPos = poly.pickup.concat(poly.dropoff);
     if (currentPosition) allPos.push([currentPosition.lat, currentPosition.lng]);
     if (allPos.length > 0) MapManager.fitBounds(allPos);
 }
 
 function scheduleLiveIncomeUpdate() {
     if (!calculate || currentStage === 'idle' || currentStage === 'paused') return;
-    const summary = calculate.getSummary();
+    var summary = calculate.getSummary();
     if (!summary) return;
-    const distDiff = Math.abs(summary.totalDistance - lastUpdateDistance);
-    const timeDiff = Math.abs(summary.totalTime - lastUpdateTime);
+    var distDiff = Math.abs(summary.totalDistance - lastUpdateDistance);
+    var timeDiff = Math.abs(summary.totalTime - lastUpdateTime);
     if ((distDiff >= DISTANCE_THRESHOLD || timeDiff >= TIME_THRESHOLD) && !updateScheduled) {
         updateScheduled = true;
         if (updateTimer) clearTimeout(updateTimer);
-        updateTimer = setTimeout(() => {
+        updateTimer = setTimeout(function() {
             updateLiveIncome();
             updateScheduled = false;
             updateTimer = null;
@@ -417,18 +429,17 @@ function scheduleLiveIncomeUpdate() {
 // 7. LIVE INCOME & SHARE/LIMIT (OPERASIONAL)
 // =============================================================================
 
-function updateLiveIncome(options = {}) {
+function updateLiveIncome(options) {
     if (!calculate) return;
 
-    const opts = {
-        shareCount: options.shareCount !== undefined ? options.shareCount : shareCount,
-        setLimit: options.setLimit !== undefined ? options.setLimit : setLimit
-    };
+    var opts = options || {};
+    var share = opts.shareCount !== undefined ? opts.shareCount : shareCount;
+    var limit = opts.setLimit !== undefined ? opts.setLimit : setLimit;
 
-    const li = calculate.getLiveIncome(vehicleData, estimateResult, opts);
+    var li = calculate.getLiveIncome(vehicleData, estimateResult, { shareCount: share, setLimit: limit });
     if (li) {
         liveIncome = li;
-        const summary = calculate.getSummary();
+        var summary = calculate.getSummary();
         if (summary) {
             lastUpdateDistance = summary.totalDistance;
             lastUpdateTime = summary.totalTime;
@@ -438,10 +449,9 @@ function updateLiveIncome(options = {}) {
     renderTripSummaryCard();
     renderShareLimitResult();
 
-    // Perbarui suara berdasarkan kategori terbaru
-    const driverInfo = getDriverColorAndBlink(liveIncome.driver, vehicleData.E10);
+    var driverInfo = getDriverColorAndBlink(liveIncome.driver, vehicleData.E10);
     currentSoundInterval = driverInfo.soundInterval;
-    if (soundEnabled && currentStage === 'pickup' || currentStage === 'dropoff' && calcMode !== 'operational') {
+    if (soundEnabled && (currentStage === 'pickup' || currentStage === 'dropoff') && calcMode !== 'operational') {
         startSoundIfNeeded(currentSoundInterval);
     } else {
         stopSound();
@@ -449,17 +459,17 @@ function updateLiveIncome(options = {}) {
 }
 
 function renderShareLimitResult() {
-    const container = document.getElementById('share-limit-result');
+    var container = document.getElementById('share-limit-result');
     if (!container) return;
 
-    let html = '';
+    var html = '';
     if (shareCount > 1 && liveIncome.shareCost > 0) {
-        html += `<div class="live-income-row"><span>Share per orang</span><span class="live-income-value">${formatRupiah(liveIncome.shareCost)}</span></div>`;
+        html += '<div class="live-income-row"><span>Share per orang</span><span class="live-income-value">' + formatRupiah(liveIncome.shareCost) + '</span></div>';
     }
     if (setLimit >= 1000) {
-        const limitVal = liveIncome.limitResult || 0;
-        const cls = limitVal >= 0 ? 'text-success' : 'text-danger';
-        html += `<div class="live-income-row"><span>Sisa Limit</span><span class="live-income-value ${cls}">${formatRupiah(limitVal)}</span></div>`;
+        var limitVal = liveIncome.limitResult || 0;
+        var cls = limitVal >= 0 ? 'text-success' : 'text-danger';
+        html += '<div class="live-income-row"><span>Sisa Limit</span><span class="live-income-value ' + cls + '">' + formatRupiah(limitVal) + '</span></div>';
     }
     container.innerHTML = html;
 }
@@ -469,99 +479,97 @@ function renderShareLimitResult() {
 // =============================================================================
 
 function renderLiveIncome() {
-    const container = document.getElementById('live-income-container');
+    var container = document.getElementById('live-income-container');
     if (!container) return;
 
     if (calcMode === 'operational') {
-        container.innerHTML = `
-            <div class="live-income-section">
-                <div class="live-income-row"><span>${ICON.FUEL} BBM</span><span class="live-income-value">${formatRupiah(liveIncome.bbm)}</span></div>
-                <div class="live-income-row"><span>${ICON.MAINTENANCE} Maintenance</span><span class="live-income-value">${formatRupiah(liveIncome.maintenance)}</span></div>
-            </div>
-            <div class="live-income-section" style="margin-top: var(--space-md);">
-                <div class="live-income-row"><span>${ICON.MONEY} Total Biaya</span><span class="live-income-value text-xl">${formatRupiah(liveIncome.total)}</span></div>
-            </div>`;
+        container.innerHTML = 
+            '<div class="live-income-section">' +
+                '<div class="live-income-row"><span>' + ICON.FUEL + ' BBM</span><span class="live-income-value">' + formatRupiah(liveIncome.bbm) + '</span></div>' +
+                '<div class="live-income-row"><span>' + ICON.MAINTENANCE + ' Maintenance</span><span class="live-income-value">' + formatRupiah(liveIncome.maintenance) + '</span></div>' +
+            '</div>' +
+            '<div class="live-income-section" style="margin-top: var(--space-md);">' +
+                '<div class="live-income-row"><span>' + ICON.MONEY + ' Total Biaya</span><span class="live-income-value text-xl">' + formatRupiah(liveIncome.total) + '</span></div>' +
+            '</div>';
         return;
     }
 
-    const isIdle = currentStage === 'idle';
-    const driverInfo = isIdle
+    var isIdle = currentStage === 'idle';
+    var driverInfo = isIdle
         ? { color: '', blink: '', soundInterval: null }
         : getDriverColorAndBlink(liveIncome.driver, vehicleData.E10);
-    const billClass = liveIncome.passengerBill > 0 ? 'text-danger' : '';
+    var billClass = liveIncome.passengerBill > 0 ? 'text-danger' : '';
 
-    // Ikon ekspansi menggunakan ICON
-    const driverIcon = driverExpanded ? ICON.COLLAPSE : ICON.EXPAND;
-    const appIcon = appExpanded ? ICON.COLLAPSE : ICON.EXPAND;
-    const driverChildrenClass = driverExpanded ? 'expanded' : '';
-    const appChildrenClass = appExpanded ? 'expanded' : '';
+    var driverIcon = driverExpanded ? ICON.COLLAPSE : ICON.EXPAND;
+    var appIcon = appExpanded ? ICON.COLLAPSE : ICON.EXPAND;
+    var driverChildrenClass = driverExpanded ? 'expanded' : '';
+    var appChildrenClass = appExpanded ? 'expanded' : '';
 
-    const loadGoogleMap = (liveIncome._engineResult && typeof liveIncome._engineResult.E807 !== 'undefined')
+    var loadGoogleMap = (liveIncome._engineResult && typeof liveIncome._engineResult.E807 !== 'undefined')
         ? liveIncome._engineResult.E807
         : 0;
 
-    const appSection = isOfflineMode ? '' : `
-        <div class="live-income-section">
-            <div class="live-income-row live-income-toggle" id="toggle-app">
-                <span class="live-income-toggle-icon ${appChildrenClass}">${appIcon}</span>
-                <span>${ICON.APP} APLIKASI</span>
-                <span class="live-income-value" style="margin-left: auto;">${formatRupiah(liveIncome.app)}</span>
-            </div>
-            <div class="live-income-children ${appChildrenClass}" id="children-app">
-                <div class="live-income-row live-income-sub">
-                    <span>${ICON.MAP} Load Google Map</span>
-                    <span class="live-income-value">${formatRupiah(loadGoogleMap)}</span>
-                </div>
-            </div>
-        </div>`;
+    var appSection = isOfflineMode ? '' : 
+        '<div class="live-income-section">' +
+            '<div class="live-income-row live-income-toggle" id="toggle-app">' +
+                '<span class="live-income-toggle-icon ' + appChildrenClass + '">' + appIcon + '</span>' +
+                '<span>' + ICON.APP + ' APLIKASI</span>' +
+                '<span class="live-income-value" style="margin-left: auto;">' + formatRupiah(liveIncome.app) + '</span>' +
+            '</div>' +
+            '<div class="live-income-children ' + appChildrenClass + '" id="children-app">' +
+                '<div class="live-income-row live-income-sub">' +
+                    '<span>' + ICON.MAP + ' Load Google Map</span>' +
+                    '<span class="live-income-value">' + formatRupiah(loadGoogleMap) + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
 
-    // Tombol speaker
-    const showSpeaker = calcMode !== 'operational' && currentStage !== 'idle';
-    const speakerHtml = showSpeaker
-        ? `<span class="sound-toggle-btn" id="sound-toggle-btn" style="cursor:pointer; margin-right:4px;">${soundEnabled ? ICON.SOUND_ON : ICON.SOUND_OFF}</span>`
+    var showSpeaker = calcMode !== 'operational' && currentStage !== 'idle';
+    var speakerHtml = showSpeaker
+        ? '<span class="sound-toggle-btn" id="sound-toggle-btn" style="cursor:pointer; margin-right:4px;">' + (soundEnabled ? ICON.SOUND_ON : ICON.SOUND_OFF) + '</span>'
         : '';
 
-    container.innerHTML = `
-        <div class="live-income-section">
-            <div class="live-income-row live-income-toggle" id="toggle-driver-app">
-                <span class="live-income-toggle-icon ${driverChildrenClass}">${driverIcon}</span>
-                <span>${ICON.DRIVER} DRIVER</span>
-                <span class="live-income-value driver-value-large ${driverInfo.color} ${driverInfo.blink}" style="margin-left: auto;">
-                    ${speakerHtml}${formatRupiah(liveIncome.driver)}
-                </span>
-            </div>
-            <div class="live-income-children ${driverChildrenClass}" id="children-driver">
-                <div class="live-income-row live-income-sub">
-                    <span>${ICON.FUEL} BBM</span>
-                    <span class="live-income-value">${formatRupiah(liveIncome.bbm)}</span>
-                </div>
-                <div class="live-income-row live-income-sub">
-                    <span>${ICON.MAINTENANCE} Kendaraan</span>
-                    <span class="live-income-value">${formatRupiah(liveIncome.maintenance)}</span>
-                </div>
-            </div>
-        </div>
-        ${appSection}
-        <div class="live-income-section" style="margin-top: var(--space-md);">
-            <div class="live-income-row">
-                <span>${ICON.PENUMPANG} PENUMPANG</span>
-            </div>
-            <div class="live-income-row live-income-sub">
-                <span>Pembayaran</span>
-                <span class="live-income-value">${formatRupiah(liveIncome.passengerPayment)}</span>
-            </div>
-            <div class="live-income-row live-income-sub">
-                <span>Tagihan</span>
-                <span class="live-income-value ${billClass}">${formatRupiah(liveIncome.passengerBill)}</span>
-            </div>
-        </div>`;
+    container.innerHTML = 
+        '<div class="live-income-section">' +
+            '<div class="live-income-row live-income-toggle" id="toggle-driver-app">' +
+                '<span class="live-income-toggle-icon ' + driverChildrenClass + '">' + driverIcon + '</span>' +
+                '<span>' + ICON.DRIVER + ' DRIVER</span>' +
+                '<span class="live-income-value driver-value-large ' + driverInfo.color + ' ' + driverInfo.blink + '" style="margin-left: auto;">' +
+                    speakerHtml + formatRupiah(liveIncome.driver) +
+                '</span>' +
+            '</div>' +
+            '<div class="live-income-children ' + driverChildrenClass + '" id="children-driver">' +
+                '<div class="live-income-row live-income-sub">' +
+                    '<span>' + ICON.FUEL + ' BBM</span>' +
+                    '<span class="live-income-value">' + formatRupiah(liveIncome.bbm) + '</span>' +
+                '</div>' +
+                '<div class="live-income-row live-income-sub">' +
+                    '<span>' + ICON.MAINTENANCE + ' Kendaraan</span>' +
+                    '<span class="live-income-value">' + formatRupiah(liveIncome.maintenance) + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        appSection +
+        '<div class="live-income-section" style="margin-top: var(--space-md);">' +
+            '<div class="live-income-row">' +
+                '<span>' + ICON.PENUMPANG + ' PENUMPANG</span>' +
+            '</div>' +
+            '<div class="live-income-row live-income-sub">' +
+                '<span>Pembayaran</span>' +
+                '<span class="live-income-value">' + formatRupiah(liveIncome.passengerPayment) + '</span>' +
+            '</div>' +
+            '<div class="live-income-row live-income-sub">' +
+                '<span>Tagihan</span>' +
+                '<span class="live-income-value ' + billClass + '">' + formatRupiah(liveIncome.passengerBill) + '</span>' +
+            '</div>' +
+        '</div>';
 
     bindToggleEvents();
     bindSpeakerEvent();
 }
 
 function bindSpeakerEvent() {
-    const btn = document.getElementById('sound-toggle-btn');
+    var btn = document.getElementById('sound-toggle-btn');
     if (!btn) return;
     btn.removeEventListener('click', handleSpeakerClick);
     btn.addEventListener('click', handleSpeakerClick);
@@ -570,7 +578,7 @@ function bindSpeakerEvent() {
 function handleSpeakerClick(e) {
     e.stopPropagation();
     soundEnabled = !soundEnabled;
-    const btn = document.getElementById('sound-toggle-btn');
+    var btn = document.getElementById('sound-toggle-btn');
     if (btn) {
         btn.textContent = soundEnabled ? ICON.SOUND_ON : ICON.SOUND_OFF;
     }
@@ -582,8 +590,8 @@ function handleSpeakerClick(e) {
 }
 
 function bindToggleEvents() {
-    const toggleDriver = document.getElementById('toggle-driver-app');
-    const toggleApp = document.getElementById('toggle-app');
+    var toggleDriver = document.getElementById('toggle-driver-app');
+    var toggleApp = document.getElementById('toggle-app');
 
     if (toggleDriver) {
         toggleDriver.removeEventListener('click', handleDriverToggle);
@@ -610,86 +618,86 @@ function handleAppToggle() {
 // =============================================================================
 
 function renderTripSummaryCard() {
-    const card = document.getElementById('trip-summary-card');
+    var card = document.getElementById('trip-summary-card');
     if (!card) return;
 
-    const summary = calculate ? calculate.getSummary() : null;
-    const isPenumpang = role === 'Penumpang';
-    const isOperational = calcMode === 'operational';
-    const isIdle = !summary || summary.status === 'idle' || currentStage === 'idle';
+    var summary = calculate ? calculate.getSummary() : null;
+    var isPenumpang = role === 'Penumpang';
+    var isOperational = calcMode === 'operational';
+    var isIdle = !summary || summary.status === 'idle' || currentStage === 'idle';
 
-    const defaultPickupDist = (isPenumpang && isIdle) ? maxJemput.distance : 0;
-    const defaultPickupTime = (isPenumpang && isIdle) ? maxJemput.time : 0;
+    var defaultPickupDist = (isPenumpang && isIdle) ? maxJemput.distance : 0;
+    var defaultPickupTime = (isPenumpang && isIdle) ? maxJemput.time : 0;
 
-    const pickupDist = isIdle ? defaultPickupDist : (summary?.pickupDistance || 0);
-    const pickupTime = isIdle ? defaultPickupTime : (summary?.pickupTime || 0);
-    const dropoffDist = isIdle ? 0 : (summary?.dropoffDistance || 0);
-    const dropoffTime = isIdle ? 0 : (summary?.dropoffTime || 0);
-    const pauseCount = summary?.pauseCount || 0;
-    const pauseTimeMin = Math.ceil((summary?.pauseTime || 0) / 60);
-    const jumpCount = summary?.jumpCount || 0;
-    const jumpTotal = summary?.jumpTotal || 0;
+    var pickupDist = isIdle ? defaultPickupDist : (summary ? summary.pickupDistance || 0 : 0);
+    var pickupTime = isIdle ? defaultPickupTime : (summary ? summary.pickupTime || 0 : 0);
+    var dropoffDist = isIdle ? 0 : (summary ? summary.dropoffDistance || 0 : 0);
+    var dropoffTime = isIdle ? 0 : (summary ? summary.dropoffTime || 0 : 0);
+    var pauseCount = summary ? summary.pauseCount || 0 : 0;
+    var pauseTimeMin = summary ? Math.ceil((summary.pauseTime || 0) / 60) : 0;
+    var jumpCount = summary ? summary.jumpCount || 0 : 0;
+    var jumpTotal = summary ? summary.jumpTotal || 0 : 0;
 
     if (isOperational) {
-        card.innerHTML = `
-            <div class="trip-summary-row">
-                <span>${ICON.PAUSE} Pause</span>
-                <span>${pauseCount} kali, ${formatMenit(pauseTimeMin)}</span>
-            </div>
-            <div class="trip-summary-row">
-                <span>${ICON.LOCATION} Lompatan Jarak</span>
-                <span>${jumpCount} kali, ${formatKm(jumpTotal)}</span>
-            </div>`;
+        card.innerHTML = 
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.PAUSE + ' Pause</span>' +
+                '<span>' + pauseCount + ' kali, ' + formatMenit(pauseTimeMin) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.LOCATION + ' Lompatan Jarak</span>' +
+                '<span>' + jumpCount + ' kali, ' + formatKm(jumpTotal) + '</span>' +
+            '</div>';
     } else if (role === 'Driver') {
-        card.innerHTML = `
-            <div class="trip-summary-row">
-                <span>${ICON.MAP_START} Penjemputan</span>
-                <span>${formatKm(pickupDist)}, ${formatMenit(pickupTime)}</span>
-            </div>
-            <div class="trip-summary-row">
-                <span>${ICON.MAP_FINISH} Pengantaran</span>
-                <span>${formatKm(dropoffDist)}, ${formatMenit(dropoffTime)}</span>
-            </div>
-            <div class="trip-summary-divider"></div>
-            <div class="trip-summary-row">
-                <span>${ICON.PAUSE} Pause</span>
-                <span>${pauseCount} kali, ${formatMenit(pauseTimeMin)}</span>
-            </div>
-            <div class="trip-summary-row">
-                <span>${ICON.LOCATION} Lompatan Jarak</span>
-                <span>${jumpCount} kali, ${formatKm(jumpTotal)}</span>
-            </div>`;
+        card.innerHTML = 
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.MAP_START + ' Penjemputan</span>' +
+                '<span>' + formatKm(pickupDist) + ', ' + formatMenit(pickupTime) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.MAP_FINISH + ' Pengantaran</span>' +
+                '<span>' + formatKm(dropoffDist) + ', ' + formatMenit(dropoffTime) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-divider"></div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.PAUSE + ' Pause</span>' +
+                '<span>' + pauseCount + ' kali, ' + formatMenit(pauseTimeMin) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.LOCATION + ' Lompatan Jarak</span>' +
+                '<span>' + jumpCount + ' kali, ' + formatKm(jumpTotal) + '</span>' +
+            '</div>';
     } else {
-        card.innerHTML = `
-            <div class="trip-summary-row">
-                <span>${ICON.MAP_START} Penjemputan</span>
-                <span>${formatKm(pickupDist)}, ${formatMenit(pickupTime)}</span>
-            </div>
-            <div class="trip-summary-row">
-                <span>${ICON.MAP_FINISH} Pengantaran</span>
-                <span>${formatKm(dropoffDist)}, ${formatMenit(dropoffTime)}</span>
-            </div>
-            <div class="trip-summary-divider"></div>
-            <div class="trip-summary-row">
-                <span>${ICON.PAUSE} Pause</span>
-                <span>${pauseCount} kali, ${formatMenit(pauseTimeMin)}</span>
-            </div>
-            <div class="trip-summary-row">
-                <span>${ICON.LOCATION} Lompatan Jarak</span>
-                <span>${jumpCount} kali, ${formatKm(jumpTotal)}</span>
-            </div>`;
+        card.innerHTML = 
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.MAP_START + ' Penjemputan</span>' +
+                '<span>' + formatKm(pickupDist) + ', ' + formatMenit(pickupTime) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.MAP_FINISH + ' Pengantaran</span>' +
+                '<span>' + formatKm(dropoffDist) + ', ' + formatMenit(dropoffTime) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-divider"></div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.PAUSE + ' Pause</span>' +
+                '<span>' + pauseCount + ' kali, ' + formatMenit(pauseTimeMin) + '</span>' +
+            '</div>' +
+            '<div class="trip-summary-row">' +
+                '<span>' + ICON.LOCATION + ' Lompatan Jarak</span>' +
+                '<span>' + jumpCount + ' kali, ' + formatKm(jumpTotal) + '</span>' +
+            '</div>';
     }
 
-    const existingBtn = document.getElementById('offline-biaya-btn');
+    var existingBtn = document.getElementById('offline-biaya-btn');
     if (existingBtn) existingBtn.remove();
 
     if (isOfflineMode && !isOperational) {
-        const btn = document.createElement('button');
+        var btn = document.createElement('button');
         btn.id = 'offline-biaya-btn';
         btn.className = 'btn btn-outline btn-sm mt-sm';
         btn.style.width = '100%';
         btn.textContent = '+ BIAYA PERJALANAN';
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', function() {
             Router.navigateTo({ target: 'popup19' });
         });
         card.appendChild(btn);
@@ -705,16 +713,16 @@ function getBeepCtx() {
         beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (beepAudioCtx.state === 'suspended') {
-        beepAudioCtx.resume().catch(() => {});
+        beepAudioCtx.resume().catch(function() {});
     }
     return beepAudioCtx;
 }
 
 function playNotificationBeep() {
     try {
-        const ctx = getBeepCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        var ctx = getBeepCtx();
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.frequency.value = 2800;
@@ -723,7 +731,7 @@ function playNotificationBeep() {
         osc.start();
         osc.stop(ctx.currentTime + 0.25);
     } catch (e) {
-        // Abaikan error audio (mis. browser blokir)
+        // Abaikan error audio
     }
 }
 
@@ -749,24 +757,24 @@ function startSoundIfNeeded(intervalMs) {
 // =============================================================================
 
 function createCancelPopupContent() {
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.innerHTML = '<p>Data tracking akan dihentikan. Lanjutkan?</p>';
 
-    const btnContainer = document.createElement('div');
+    var btnContainer = document.createElement('div');
     btnContainer.className = 'popup-footer';
     btnContainer.style.cssText = 'display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);';
 
-    const btnTidak = document.createElement('button');
+    var btnTidak = document.createElement('button');
     btnTidak.className = 'btn btn-outline';
     btnTidak.textContent = 'TIDAK';
-    btnTidak.addEventListener('click', () => {
+    btnTidak.addEventListener('click', function() {
         Router.navigateTo({ popup: 0 });
     });
 
-    const btnYa = document.createElement('button');
+    var btnYa = document.createElement('button');
     btnYa.className = 'btn btn-danger';
     btnYa.textContent = 'YA';
-    btnYa.addEventListener('click', async () => {
+    btnYa.addEventListener('click', async function() {
         window.log.info('[Tracking ' + F_V + '] (9) Batal tracking dikonfirmasi');
         emergencyStop();
         await Router.navigateTo({ popup: 0 });
@@ -789,69 +797,69 @@ function createCancelPopupContent() {
 
 function createSelesaiPopupContent() {
     if (!calculate) {
-        const container = document.createElement('div');
+        var container = document.createElement('div');
         container.innerHTML = '<p>Data tracking tidak tersedia.</p>';
         container._popupOptions = { title: 'SELESAI TRACKING', showActions: false, showCloseButton: true, closeOnOverlay: false };
         return container;
     }
 
-    const snapshot = calculate.takeSnapshot();
+    var snapshot = calculate.takeSnapshot();
     snapshotEngineData = snapshot.engineData;
     snapshotCompactData = snapshot.compactData;
     window.log.info('[Tracking ' + F_V + '] (10) Snapshot tracking diambil');
 
-    const summary = calculate.getSummary();
-    const isOnline = calcMode !== 'operational' && !isOfflineMode;
-    const isPenumpang = role === 'Penumpang';
+    var summary = calculate.getSummary();
+    var isOnline = calcMode !== 'operational' && !isOfflineMode;
+    var isPenumpang = role === 'Penumpang';
 
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.className = 'popup-selesai-container';
 
-    let resumeHtml = '<div class="card card-compact mb-md">';
+    var resumeHtml = '<div class="card card-compact mb-md">';
     if (role === 'Driver') {
-        resumeHtml += `<div class="detail-row"><span class="detail-label">${ICON.MAP_START} Penjemputan</span><span class="detail-value">${formatKm(summary.pickupDistance)}, ${formatMenit(summary.pickupTime)}</span></div>`;
+        resumeHtml += '<div class="detail-row"><span class="detail-label">' + ICON.MAP_START + ' Penjemputan</span><span class="detail-value">' + formatKm(summary.pickupDistance) + ', ' + formatMenit(summary.pickupTime) + '</span></div>';
     }
-    resumeHtml += `<div class="detail-row"><span class="detail-label">${ICON.MAP_FINISH} Pengantaran</span><span class="detail-value">${formatKm(summary.dropoffDistance)}, ${formatMenit(summary.dropoffTime)}</span></div>`;
-    resumeHtml += `<div class="detail-row"><span class="detail-label">${ICON.PAUSE} Pause</span><span class="detail-value">${summary.pauseCount} kali, total ${formatMenit(Math.ceil(summary.pauseTime / 60))}</span></div>`;
+    resumeHtml += '<div class="detail-row"><span class="detail-label">' + ICON.MAP_FINISH + ' Pengantaran</span><span class="detail-value">' + formatKm(summary.dropoffDistance) + ', ' + formatMenit(summary.dropoffTime) + '</span></div>';
+    resumeHtml += '<div class="detail-row"><span class="detail-label">' + ICON.PAUSE + ' Pause</span><span class="detail-value">' + summary.pauseCount + ' kali, total ' + formatMenit(Math.ceil(summary.pauseTime / 60)) + '</span></div>';
     resumeHtml += '</div>';
 
-    let formHtml = '';
+    var formHtml = '';
     if (isOnline) {
-        formHtml += `<div class="input-wrapper"><span class="input-label">BIAYA APLIKASI</span><div class="input-field-container"><input type="number" class="input-field" id="popup-E92" placeholder="namanya aja rahasia.." inputmode="numeric"><span class="input-unit">Rp</span></div></div>`;
+        formHtml += '<div class="input-wrapper"><span class="input-label">BIAYA APLIKASI</span><div class="input-field-container"><input type="number" class="input-field" id="popup-E92" placeholder="namanya aja rahasia.." inputmode="numeric"><span class="input-unit">Rp</span></div></div>';
         if (isPenumpang) {
-            formHtml += `<div class="popup-divider"></div><div class="input-section-label">PENJEMPUTAN</div><div class="input-note">* otomatis terisi max jemput, bisa diubah</div>
-            <div class="input-dual">
-                <div class="input-field-container"><input type="number" class="input-field" id="popup-E78" value="${maxJemput.distance || 2}" placeholder="jarak" inputmode="decimal" step="0.1"><span class="input-unit">km</span></div>
-                <div class="input-field-container"><input type="number" class="input-field" id="popup-E80" value="${maxJemput.time || 15}" placeholder="waktu" inputmode="numeric"><span class="input-unit">mnt</span></div>
-            </div>`;
+            formHtml += '<div class="popup-divider"></div><div class="input-section-label">PENJEMPUTAN</div><div class="input-note">* otomatis terisi max jemput, bisa diubah</div>' +
+                '<div class="input-dual">' +
+                    '<div class="input-field-container"><input type="number" class="input-field" id="popup-E78" value="' + (maxJemput.distance || 2) + '" placeholder="jarak" inputmode="decimal" step="0.1"><span class="input-unit">km</span></div>' +
+                    '<div class="input-field-container"><input type="number" class="input-field" id="popup-E80" value="' + (maxJemput.time || 15) + '" placeholder="waktu" inputmode="numeric"><span class="input-unit">mnt</span></div>' +
+                '</div>';
         }
     } else if (isOfflineMode) {
-        const hasAdditional = offlineAdditionalData.E100 > 0 || offlineAdditionalData.E102 > 0 || offlineAdditionalData.E104 > 0;
+        var hasAdditional = offlineAdditionalData.E100 > 0 || offlineAdditionalData.E102 > 0 || offlineAdditionalData.E104 > 0;
         if (hasAdditional) {
             formHtml += '<div class="popup-divider"></div><div class="input-section-label">BIAYA TAMBAHAN</div>';
-            if (offlineAdditionalData.E100 > 0) formHtml += `<div class="detail-row"><span>Parkir</span><span>${formatRupiah(offlineAdditionalData.E100)}</span></div>`;
-            if (offlineAdditionalData.E102 > 0) formHtml += `<div class="detail-row"><span>Tol</span><span>${formatRupiah(offlineAdditionalData.E102)}</span></div>`;
-            if (offlineAdditionalData.E104 > 0) formHtml += `<div class="detail-row"><span>Lainnya</span><span>${formatRupiah(offlineAdditionalData.E104)}</span></div>`;
+            if (offlineAdditionalData.E100 > 0) formHtml += '<div class="detail-row"><span>Parkir</span><span>' + formatRupiah(offlineAdditionalData.E100) + '</span></div>';
+            if (offlineAdditionalData.E102 > 0) formHtml += '<div class="detail-row"><span>Tol</span><span>' + formatRupiah(offlineAdditionalData.E102) + '</span></div>';
+            if (offlineAdditionalData.E104 > 0) formHtml += '<div class="detail-row"><span>Lainnya</span><span>' + formatRupiah(offlineAdditionalData.E104) + '</span></div>';
         }
     }
 
     container.innerHTML = resumeHtml + formHtml;
 
-    const btnContainer = document.createElement('div');
+    var btnContainer = document.createElement('div');
     btnContainer.className = 'popup-footer';
     btnContainer.style.cssText = 'display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);';
 
-    const btnManual = document.createElement('button');
+    var btnManual = document.createElement('button');
     btnManual.className = 'btn btn-outline';
     btnManual.textContent = 'UBAH MANUAL';
-    btnManual.addEventListener('click', () => {
+    btnManual.addEventListener('click', function() {
         goToRealityManual(isPenumpang, isOnline);
     });
 
-    const btnHitung = document.createElement('button');
+    var btnHitung = document.createElement('button');
     btnHitung.className = 'btn btn-primary';
     btnHitung.textContent = 'HITUNG';
-    btnHitung.addEventListener('click', () => {
+    btnHitung.addEventListener('click', function() {
         finalizeTracking(isOnline, isPenumpang);
     });
 
@@ -859,14 +867,12 @@ function createSelesaiPopupContent() {
     btnContainer.appendChild(btnHitung);
     container.appendChild(btnContainer);
 
-    // Opsi popup: reset slide saat ditutup (tanpa aksi)
     container._popupOptions = {
         title: 'SELESAI TRACKING',
         showActions: false,
         showCloseButton: true,
         closeOnOverlay: false,
-        onClose: () => {
-            // Reset slide ke kiri
+        onClose: function() {
             if (typeof updateFooter === 'function') {
                 updateFooter();
             }
@@ -880,39 +886,35 @@ function createSelesaiPopupContent() {
 }
 
 function createOfflineBiayaTambahanContent() {
-    const isMotor = vehicleData.E10 === 'Motor';
+    var isMotor = vehicleData.E10 === 'Motor';
 
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.className = 'popup-biaya-tambahan';
 
-    let tollHTML = '';
+    var tollHTML = '';
     if (!isMotor) {
-        tollHTML = `<div class="input-wrapper">
-            <span class="input-label">TOLL</span>
-            <div class="input-field-container">
-                <input type="number" class="input-field" id="popup-offline-E102" value="${offlineAdditionalData.E102 || ''}"
-                    placeholder="" inputmode="numeric" autocomplete="off">
-                <span class="input-unit">Rp</span>
-            </div></div>`;
+        tollHTML = '<div class="input-wrapper">' +
+            '<span class="input-label">TOLL</span>' +
+            '<div class="input-field-container">' +
+                '<input type="number" class="input-field" id="popup-offline-E102" value="' + (offlineAdditionalData.E102 || '') + '" placeholder="" inputmode="numeric" autocomplete="off">' +
+                '<span class="input-unit">Rp</span>' +
+            '</div></div>';
     }
 
-    container.innerHTML = `
-        <div class="input-wrapper">
-            <span class="input-label">PARKIR</span>
-            <div class="input-field-container">
-                <input type="number" class="input-field" id="popup-offline-E100" value="${offlineAdditionalData.E100 || ''}"
-                    placeholder="" inputmode="numeric" autocomplete="off">
-                <span class="input-unit">Rp</span>
-            </div></div>
-        ${tollHTML}
-        <div class="input-wrapper">
-            <span class="input-label">LAINNYA</span>
-            <div class="input-field-container">
-                <input type="number" class="input-field" id="popup-offline-E104" value="${offlineAdditionalData.E104 || ''}"
-                    placeholder="" inputmode="numeric" autocomplete="off">
-                <span class="input-unit">Rp</span>
-            </div></div>
-    `;
+    container.innerHTML = 
+        '<div class="input-wrapper">' +
+            '<span class="input-label">PARKIR</span>' +
+            '<div class="input-field-container">' +
+                '<input type="number" class="input-field" id="popup-offline-E100" value="' + (offlineAdditionalData.E100 || '') + '" placeholder="" inputmode="numeric" autocomplete="off">' +
+                '<span class="input-unit">Rp</span>' +
+            '</div></div>' +
+        tollHTML +
+        '<div class="input-wrapper">' +
+            '<span class="input-label">LAINNYA</span>' +
+            '<div class="input-field-container">' +
+                '<input type="number" class="input-field" id="popup-offline-E104" value="' + (offlineAdditionalData.E104 || '') + '" placeholder="" inputmode="numeric" autocomplete="off">' +
+                '<span class="input-unit">Rp</span>' +
+            '</div></div>';
 
     container._popupOptions = {
         title: 'BIAYA TAMBAHAN',
@@ -921,25 +923,25 @@ function createOfflineBiayaTambahanContent() {
         showActions: true,
         buttons: [
             {
-                text: `${ICON.CANCEL} BATAL`,
+                text: ICON.CANCEL + ' BATAL',
                 type: 'outline',
-                onClick: () => {
+                onClick: function() {
                     Router.navigateTo({ popup: 0 });
                 }
             },
             {
-                text: `${ICON.SAVE} SIMPAN`,
+                text: ICON.SAVE + ' SIMPAN',
                 type: 'primary',
-                onClick: () => {
-                    const e100 = parseNumber(document.getElementById('popup-offline-E100')?.value || '');
-                    const e104 = parseNumber(document.getElementById('popup-offline-E104')?.value || '');
+                onClick: function() {
+                    var e100 = parseNumber(document.getElementById('popup-offline-E100') ? document.getElementById('popup-offline-E100').value : '');
+                    var e104 = parseNumber(document.getElementById('popup-offline-E104') ? document.getElementById('popup-offline-E104').value : '');
                     offlineAdditionalData.E100 = e100 || null;
                     offlineAdditionalData.E104 = e104 || null;
                     StateManager.updateInput('E100', offlineAdditionalData.E100);
                     StateManager.updateInput('E104', offlineAdditionalData.E104);
 
                     if (!isMotor) {
-                        const e102 = parseNumber(document.getElementById('popup-offline-E102')?.value || '');
+                        var e102 = parseNumber(document.getElementById('popup-offline-E102') ? document.getElementById('popup-offline-E102').value : '');
                         offlineAdditionalData.E102 = e102 || null;
                         StateManager.updateInput('E102', offlineAdditionalData.E102);
                     } else {
@@ -947,7 +949,7 @@ function createOfflineBiayaTambahanContent() {
                         StateManager.updateInput('E102', null);
                     }
 
-                    StateManager.set('tracking.offlineAdditionalData', { ...offlineAdditionalData });
+                    StateManager.set('tracking.offlineAdditionalData', offlineAdditionalData);
                     renderTripSummaryCard();
                     Router.navigateTo({ popup: 0 });
                 }
@@ -959,31 +961,18 @@ function createOfflineBiayaTambahanContent() {
 }
 
 function createWarningPopupContent() {
-    /**
-     * Membersihkan nomor untuk tautan tel:
-     * - Hanya mengizinkan digit dan tanda '+' di awal.
-     * - Contoh: "+62 812-3456-7890" → "+6281234567890"
-     */
-    const cleanTel = (num) => {
+    function cleanTel(num) {
         if (!num) return '';
-        // Cari tanda '+' di awal (opsional), lalu ambil semua digit setelahnya
-        const match = num.match(/^(\+?)\D*(\d[\d\s\-\(\)]*)$/);
+        var match = num.match(/^(\+?)\D*(\d[\d\s\-\(\)]*)$/);
         if (!match) {
-            // Fallback: buang semua karakter non-digit
             return num.replace(/\D/g, '');
         }
         return match[1] + match[2].replace(/\D/g, '');
-    };
+    }
 
-    /**
-     * Membersihkan nomor untuk tautan WhatsApp (format internasional tanpa '+').
-     * - Buang semua non-digit.
-     * - Jika dimulai dengan '0', ganti dengan '62' (kode Indonesia).
-     * - Jika dimulai dengan '+', buang tanda plus.
-     */
-    const cleanWA = (num) => {
+    function cleanWA(num) {
         if (!num) return '';
-        let cleaned = num.replace(/\D/g, '');
+        var cleaned = num.replace(/\D/g, '');
         if (cleaned.startsWith('0')) {
             cleaned = '62' + cleaned.substring(1);
         }
@@ -991,67 +980,59 @@ function createWarningPopupContent() {
             cleaned = cleaned.substring(1);
         }
         return cleaned;
-    };
+    }
 
-    const emergencyContacts = StorageManager.getEmergencyContacts();
-    const kerabat = emergencyContacts.kerabat || '';
-    const darurat = emergencyContacts.darurat || '112';
-    const ambulance = emergencyContacts.ambulance || '118';
-    const polisi = emergencyContacts.polisi || '110';
+    var emergencyContacts = StorageManager.getEmergencyContacts();
+    var kerabat = emergencyContacts.kerabat || '';
+    var darurat = emergencyContacts.darurat || '112';
+    var ambulance = emergencyContacts.ambulance || '118';
+    var polisi = emergencyContacts.polisi || '110';
 
-    // Bersihkan setiap nomor
-    const kerabatClean = cleanWA(kerabat);
-    const daruratClean = cleanTel(darurat);
-    const ambulanceClean = cleanTel(ambulance);
-    const polisiClean = cleanTel(polisi);
+    var kerabatClean = cleanWA(kerabat);
+    var daruratClean = cleanTel(darurat);
+    var ambulanceClean = cleanTel(ambulance);
+    var polisiClean = cleanTel(polisi);
 
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.className = 'popup-warning-content';
 
-    // HTML struktur popup
-    container.innerHTML = `
-        <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
-            Ini adalah cara yg sama dan dilakukan oleh aplikasi untuk melindungi driver/penumpang:
-        </p>
-        <ol style="padding-left: 1.5em; margin-bottom: 16px; line-height: 1.6; font-size: var(--text-xs); color: var(--text-secondary);">
-            <li>Simpan identitas dan kontak darurat di tempat aman tapi mudah ditemukan.</li>
-            <li>Beli asuransi.</li>
-            <li>Simpan kontak darurat.</li>
-            <li>Share live lokasi (WA) anda kepada kerabat terpercaya.</li>
-        </ol>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <!-- Baris WA Kerabat -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: var(--text-xs);">WA KERABAT</span>
-                ${kerabatClean ? 
-                    `<a href="https://wa.me/${kerabatClean}" target="_blank" rel="noopener noreferrer" 
-                        class="btn btn-sm btn-success" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">HUBUNGI</a>` :
-                    `<button class="btn btn-sm btn-outline" style="width: 90px; font-size: var(--text-xs);" disabled>SIMPAN</button>`
-                }
-            </div>
-            <!-- Baris Kontak Darurat -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: var(--text-xs);">KONTAK DARURAT</span>
-                <a href="tel:${daruratClean}" class="btn btn-sm btn-danger" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${darurat}</a>
-            </div>
-            <!-- Baris Ambulance -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: var(--text-xs);">AMBULANCE</span>
-                <a href="tel:${ambulanceClean}" class="btn btn-sm btn-info" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${ambulance}</a>
-            </div>
-            <!-- Baris Polisi -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: var(--text-xs);">POLISI</span>
-                <a href="tel:${polisiClean}" class="btn btn-sm" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs); background-color: #8B7355; color: white; border-color: #8B7355;">${polisi}</a>
-            </div>
-        </div>
-    `;
+    container.innerHTML = 
+        '<p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">' +
+            'Ini adalah cara yg sama dan dilakukan oleh aplikasi untuk melindungi driver/penumpang:' +
+        '</p>' +
+        '<ol style="padding-left: 1.5em; margin-bottom: 16px; line-height: 1.6; font-size: var(--text-xs); color: var(--text-secondary);">' +
+            '<li>Simpan identitas dan kontak darurat di tempat aman tapi mudah ditemukan.</li>' +
+            '<li>Beli asuransi.</li>' +
+            '<li>Simpan kontak darurat.</li>' +
+            '<li>Share live lokasi (WA) anda kepada kerabat terpercaya.</li>' +
+        '</ol>' +
+        '<div style="display: flex; flex-direction: column; gap: 8px;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+                '<span style="font-size: var(--text-xs);">WA KERABAT</span>' +
+                (kerabatClean ? 
+                    '<a href="https://wa.me/' + kerabatClean + '" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">HUBUNGI</a>' :
+                    '<button class="btn btn-sm btn-outline" style="width: 90px; font-size: var(--text-xs);" disabled>SIMPAN</button>'
+                ) +
+            '</div>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+                '<span style="font-size: var(--text-xs);">KONTAK DARURAT</span>' +
+                '<a href="tel:' + daruratClean + '" class="btn btn-sm btn-danger" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">' + darurat + '</a>' +
+            '</div>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+                '<span style="font-size: var(--text-xs);">AMBULANCE</span>' +
+                '<a href="tel:' + ambulanceClean + '" class="btn btn-sm btn-info" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">' + ambulance + '</a>' +
+            '</div>' +
+            '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+                '<span style="font-size: var(--text-xs);">POLISI</span>' +
+                '<a href="tel:' + polisiClean + '" class="btn btn-sm" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs); background-color: #8B7355; color: white; border-color: #8B7355;">' + polisi + '</a>' +
+            '</div>' +
+        '</div>';
 
     if (!kerabat) {
-        const simpanBtn = container.querySelector('.btn-outline[disabled]');
+        var simpanBtn = container.querySelector('.btn-outline[disabled]');
         if (simpanBtn) {
-            simpanBtn.addEventListener('click', () => {
-                ThemeManager?.showToast('Simpan kontak di Pengaturan', 'info');
+            simpanBtn.addEventListener('click', function() {
+                if (ThemeManager) ThemeManager.showToast('Simpan kontak di Pengaturan', 'info');
             });
         }
     }
@@ -1073,6 +1054,30 @@ function createWarningPopupContent() {
 // 12. FINALISASI & PEMBATALAN
 // =============================================================================
 
+async function releaseWakeLock() {
+    // Lepas wake lock plugin (Android)
+    if (wakeLockActive) {
+        try {
+            var module = await import('@capacitor-community/wake-lock');
+            await module.WakeLock.release();
+            wakeLockActive = false;
+            window.log.info('[Tracking] Wake Lock plugin dilepas');
+        } catch (err) {
+            window.log.warn('[Tracking] Gagal melepas wake lock plugin:', err);
+        }
+    }
+    // Lepas wake lock Web
+    if (wakeLockWeb) {
+        try {
+            await wakeLockWeb.release();
+            wakeLockWeb = null;
+            window.log.info('[Tracking] Wake Lock Web dilepas');
+        } catch (err) {
+            window.log.warn('[Tracking] Gagal melepas wake lock Web:', err);
+        }
+    }
+}
+
 function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
     GPS.stop();
@@ -1082,9 +1087,10 @@ function emergencyStop() {
         beepAudioCtx.close();
         beepAudioCtx = null;
     }
-if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
-    window.__nativeBG.stop();
-}
+    if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
+        window.__nativeBG.stop();
+    }
+    releaseWakeLock();
 }
 
 async function finalizeTracking(isOnline, isPenumpang) {
@@ -1092,13 +1098,13 @@ async function finalizeTracking(isOnline, isPenumpang) {
 
     if (!snapshotEngineData || !calculate) return;
 
-    const additionalData = {};
+    var additionalData = {};
     if (isOnline) {
-        const e92 = parsePopupInput('popup-E92', 'E92');
+        var e92 = parsePopupInput('popup-E92', 'E92');
         if (e92 !== null) additionalData.E92 = e92;
         if (isPenumpang) {
-            const e78 = parsePopupInput('popup-E78', 'E78');
-            const e80 = parsePopupInput('popup-E80', 'E80');
+            var e78 = parsePopupInput('popup-E78', 'E78');
+            var e80 = parsePopupInput('popup-E80', 'E80');
             if (e78 !== null) additionalData.E78 = e78;
             if (e80 !== null) additionalData.E80 = e80;
         }
@@ -1113,20 +1119,16 @@ async function finalizeTracking(isOnline, isPenumpang) {
         additionalData.setLimit = setLimit;
     }
 
-    let realityResult;
+    var realityResult;
     try {
         realityResult = calculate.finalize(vehicleData, additionalData);
     } catch (e) {
-        ThemeManager?.showToast('Gagal menghitung hasil', 'error');
+        if (ThemeManager) ThemeManager.showToast('Gagal menghitung hasil', 'error');
         return;
     }
 
     if (StateManager) {
-        const finalInput = {
-            ...vehicleData,
-            ...snapshotEngineData,
-            ...additionalData
-        };
+        var finalInput = Object.assign({}, vehicleData, snapshotEngineData, additionalData);
         StateManager.set('input', finalInput);
         StateManager.set('realityResult', realityResult);
         StateManager.set('trackingData', snapshotCompactData);
@@ -1152,26 +1154,26 @@ async function goToRealityManual(isPenumpang, isOnline) {
 
     if (!snapshotEngineData || !calculate) return;
 
-    const data = { ...snapshotEngineData };
+    var data = Object.assign({}, snapshotEngineData);
     if (isPenumpang && isOnline) {
-        const e78 = parsePopupInput('popup-E78', 'E78');
-        const e80 = parsePopupInput('popup-E80', 'E80');
+        var e78 = parsePopupInput('popup-E78', 'E78');
+        var e80 = parsePopupInput('popup-E80', 'E80');
         if (e78 !== null) data.E78 = e78;
         if (e80 !== null) data.E80 = e80;
     }
 
     if (StateManager) {
         StateManager.batchUpdateInput({
-            E78: data.E78 ?? data.pickupDistance,
-            E80: data.E80 ?? data.pickupTime,
-            E82: data.E82 ?? data.dropoffDistance,
-            E84: data.E84 ?? data.dropoffTime
+            E78: data.E78 !== undefined ? data.E78 : data.pickupDistance,
+            E80: data.E80 !== undefined ? data.E80 : data.pickupTime,
+            E82: data.E82 !== undefined ? data.E82 : data.dropoffDistance,
+            E84: data.E84 !== undefined ? data.E84 : data.dropoffTime
         });
         
         if (isOfflineMode) {
-            StateManager.updateInput('E100', offlineAdditionalData.E100 ?? null);
-            StateManager.updateInput('E102', offlineAdditionalData.E102 ?? null);
-            StateManager.updateInput('E104', offlineAdditionalData.E104 ?? null);
+            StateManager.updateInput('E100', offlineAdditionalData.E100 !== undefined ? offlineAdditionalData.E100 : null);
+            StateManager.updateInput('E102', offlineAdditionalData.E102 !== undefined ? offlineAdditionalData.E102 : null);
+            StateManager.updateInput('E104', offlineAdditionalData.E104 !== undefined ? offlineAdditionalData.E104 : null);
         }
         
         StateManager.set('trackingData', null);
@@ -1187,19 +1189,20 @@ async function goToRealityManual(isPenumpang, isOnline) {
         window.Cache.invalidate('tracking');
     }
 
-    const target = calcMode === 'operational' ? 'home' : 'reality';
+    var target = calcMode === 'operational' ? 'home' : 'reality';
     await Router.navigateTo({ popup: 0 });
-    Router.navigateTo({ target });
+    Router.navigateTo({ target: target });
 }
 
 function parsePopupInput(id, cell) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (!el) return null;
-    const val = el.value.trim();
+    var val = el.value.trim();
     if (!val) return null;
-    const num = parseNumber(val);
+    var num = parseNumber(val);
     if (isNaN(num)) return null;
-    return validateCell(cell, num) ?? num;
+    var validated = validateCell(cell, num);
+    return validated !== undefined ? validated : num;
 }
 
 // =============================================================================
@@ -1207,24 +1210,24 @@ function parsePopupInput(id, cell) {
 // =============================================================================
 
 function updateFooterForIdle() {
-    const footerContainer = document.getElementById('app-footer');
+    var footerContainer = document.getElementById('app-footer');
     if (!footerContainer || !FooterManager) return;
 
-    const targetBack = calcMode === 'operational' ? 'home' : 'reality';
+    var targetBack = calcMode === 'operational' ? 'home' : 'reality';
 
-    const callbacks = {
-        onClose: () => Router.navigateTo({ target: targetBack }),
-        onStart: () => Router.navigateTo({ target: 'trackingactive' })
+    var callbacks = {
+        onClose: function() { Router.navigateTo({ target: targetBack }); },
+        onStart: function() { Router.navigateTo({ target: 'trackingactive' }); }
     };
 
-    const footer = FooterManager.create('layoutC', {
+    var footer = FooterManager.create('layoutC', {
         frame1: { type: 'icon', content: FooterManager.createIconButton(ICON.CLOSE, callbacks.onClose, 'Tutup') },
         frame2: { type: 'icon', content: FooterManager.createIconButton(ICON.PAUSE, null, 'Pause') },
         frame3: { type: 'flex', content: FooterManager.createSlideContent('MULAI', '', callbacks.onStart) }
     });
 
     if (footer) {
-        const pauseBtn = footer.querySelectorAll('.footer-icon')[1];
+        var pauseBtn = footer.querySelectorAll('.footer-icon')[1];
         if (pauseBtn) pauseBtn.disabled = true;
     }
 
@@ -1233,14 +1236,14 @@ function updateFooterForIdle() {
 }
 
 function updateFooterForActive() {
-    const footerContainer = document.getElementById('app-footer');
+    var footerContainer = document.getElementById('app-footer');
     if (!footerContainer || !FooterManager) return;
 
-    const stage = currentStage;
+    var stage = currentStage;
 
-    const callbacks = {
-        onStop: () => Router.navigateTo({ target: 'popup14' }),
-        onPause: () => {
+    var callbacks = {
+        onStop: function() { Router.navigateTo({ target: 'popup14' }); },
+        onPause: function() {
             if (calculate) {
                 calculate.pause();
                 GPS.stop();
@@ -1248,40 +1251,38 @@ function updateFooterForActive() {
                 goToStage('paused');
             }
         },
-        onResume: () => {
-            const resumeStage = previousStage || 'pickup';
+        onResume: function() {
+            var resumeStage = previousStage || 'pickup';
             if (calculate) {
                 calculate.resume();
-                GPS.start(handleGPSPosition, handleGPSError);
+                if (!window.Capacitor || !window.Capacitor.isNative) {
+                    GPS.start(handleGPSPosition, handleGPSError);
+                }
                 startClockTimer();
             }
             goToStage(resumeStage);
         },
-        
-onAngkut: () => {
-    if (calculate) {
-        calculate.switchToDropoff();
-        const pos = currentPosition || (calculate.getLastPosition && calculate.getLastPosition());
-        if (pos) {
-            MapManager?.addMarker(pos.lat, pos.lng, 'pickup', { replace: false });
-        } else {
-            // Fallback: ambil posisi terakhir dari GPS secara paksa
-            GPS.getCurrentPosition((p) => {
-                if (p && MapManager) {
-                    MapManager.addMarker(p.lat, p.lng, 'pickup', { replace: false });
+        onAngkut: function() {
+            if (calculate) {
+                calculate.switchToDropoff();
+                var pos = currentPosition || (calculate.getLastPosition ? calculate.getLastPosition() : null);
+                if (pos) {
+                    if (MapManager) MapManager.addMarker(pos.lat, pos.lng, 'pickup', { replace: false });
+                } else {
+                    GPS.getCurrentPosition(function(p) {
+                        if (p && MapManager) {
+                            MapManager.addMarker(p.lat, p.lng, 'pickup', { replace: false });
+                        }
+                    });
                 }
-            });
-        }
-    }
-    goToStage('dropoff');
-},
-
-        onSelesai: () => {
-            if (currentPosition) {
-                MapManager?.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
             }
-            // Simpan fungsi reset untuk dipanggil saat popup ditutup
-            window.__trackingResetSlide = () => {
+            goToStage('dropoff');
+        },
+        onSelesai: function() {
+            if (currentPosition && MapManager) {
+                MapManager.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
+            }
+            window.__trackingResetSlide = function() {
                 if (typeof updateFooter === 'function') {
                     updateFooter();
                 }
@@ -1290,7 +1291,7 @@ onAngkut: () => {
         }
     };
 
-    let f1, f2, f3;
+    var f1, f2, f3;
 
     switch (stage) {
         case 'paused':
@@ -1315,7 +1316,7 @@ onAngkut: () => {
             f3 = { type: 'flex', content: FooterManager.createSlideContent('SELESAI', '', callbacks.onSelesai) };
     }
 
-    const footer = FooterManager.create('layoutC', { frame1: f1, frame2: f2, frame3: f3 });
+    var footer = FooterManager.create('layoutC', { frame1: f1, frame2: f2, frame3: f3 });
     footerContainer.innerHTML = '';
     if (footer) footerContainer.appendChild(footer);
 }
@@ -1325,11 +1326,11 @@ function updateFooter() {
 }
 
 function updateHeader() {
-    const headerContainer = document.getElementById('app-header');
+    var headerContainer = document.getElementById('app-header');
     if (!headerContainer || !HeaderManager) return;
     if (currentHeader) { HeaderManager.destroy(currentHeader); }
-    const landingText = window.APP_CONFIG?.landingLink || 'linktr.ee/KUPASTARIF';
-    const header = HeaderManager.create('landing', { landingText });
+    var landingText = window.APP_CONFIG ? window.APP_CONFIG.landingLink || 'linktr.ee/KUPASTARIF' : 'linktr.ee/KUPASTARIF';
+    var header = HeaderManager.create('landing', { landingText: landingText });
     headerContainer.innerHTML = '';
     if (header) { headerContainer.appendChild(header); currentHeader = header; }
     else { currentHeader = null; }
@@ -1340,52 +1341,53 @@ function updateHeader() {
 // =============================================================================
 
 function buildHTML() {
-    return `
-    <div class="page-container tracking-page">
-        <div class="tracking-map-section">
-            <div class="tracking-map-wrapper">
-                <div id="tracking-map" class="tracking-map" style="height: 100%;"></div>
-            </div>
-            <div class="tracking-stats">
-                <div class="tracking-stat-item"><span id="tracking-distance">-- km</span><span class="stat-label">JARAK</span></div>
-                <div class="tracking-stat-item"><span id="tracking-time">--:--</span><span class="stat-label">WAKTU</span></div>
-            </div>
-        </div>
-        <div class="tracking-live-income card">
-            <div id="live-income-container" class="live-income-content"></div>
-        </div>
-        <div id="operational-extra-card" class="card" style="display: none;">
-            <div class="card-header"><span class="card-title">${ICON.GEAR} SHARE & LIMIT</span></div>
-            <div class="card-content">
-                <div class="input-wrapper">
-                    <span class="input-label">Share Cost</span>
-                    <div class="input-field-container" style="padding: 0;">
-                        <div style="width: 100%; max-width: 200px; margin: 0 auto; padding: var(--space-sm);">
-                            <input type="range" id="share-slider" min="1" max="6" value="1" step="1" style="width: 100%;">
-                            <div class="text-muted text-xs text-center" id="share-value">1 orang</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="input-wrapper">
-                    <span class="input-label">Set Limit</span>
-                    <div class="input-field-container">
-                        <input type="number" class="input-field" id="limit-input" min="0" placeholder="0" value="0" inputmode="numeric">
-                        <span class="input-unit">Rp</span>
-                    </div>
-                </div>
-                <div id="share-limit-result" class="mt-sm"></div>
-            </div>
-        </div>
-        <div class="card trip-summary-card" id="trip-summary-card"></div>
-    </div>`;
+    return (
+        '<div class="page-container tracking-page">' +
+            '<div class="tracking-map-section">' +
+                '<div class="tracking-map-wrapper">' +
+                    '<div id="tracking-map" class="tracking-map" style="height: 100%;"></div>' +
+                '</div>' +
+                '<div class="tracking-stats">' +
+                    '<div class="tracking-stat-item"><span id="tracking-distance">-- km</span><span class="stat-label">JARAK</span></div>' +
+                    '<div class="tracking-stat-item"><span id="tracking-time">--:--</span><span class="stat-label">WAKTU</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="tracking-live-income card">' +
+                '<div id="live-income-container" class="live-income-content"></div>' +
+            '</div>' +
+            '<div id="operational-extra-card" class="card" style="display: none;">' +
+                '<div class="card-header"><span class="card-title">' + ICON.GEAR + ' SHARE & LIMIT</span></div>' +
+                '<div class="card-content">' +
+                    '<div class="input-wrapper">' +
+                        '<span class="input-label">Share Cost</span>' +
+                        '<div class="input-field-container" style="padding: 0;">' +
+                            '<div style="width: 100%; max-width: 200px; margin: 0 auto; padding: var(--space-sm);">' +
+                                '<input type="range" id="share-slider" min="1" max="6" value="1" step="1" style="width: 100%;">' +
+                                '<div class="text-muted text-xs text-center" id="share-value">1 orang</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="input-wrapper">' +
+                        '<span class="input-label">Set Limit</span>' +
+                        '<div class="input-field-container">' +
+                            '<input type="number" class="input-field" id="limit-input" min="0" placeholder="0" value="0" inputmode="numeric">' +
+                            '<span class="input-unit">Rp</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="share-limit-result" class="mt-sm"></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="card trip-summary-card" id="trip-summary-card"></div>' +
+        '</div>'
+    );
 }
 
 // =============================================================================
 // 15. RENDER IDLE
 // =============================================================================
 
-async function renderIdle(params, context = {}) {
-    const content = document.getElementById('app-content');
+async function renderIdle(params, context) {
+    var content = document.getElementById('app-content');
     if (!content) return;
 
     isDestroyed = false;
@@ -1410,17 +1412,17 @@ async function renderIdle(params, context = {}) {
     updateScheduled = false;
     if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
 
-    const input = StateManager.get('input') || {};
-    vehicleData = { ...input };
+    var input = StateManager.get('input') || {};
+    vehicleData = Object.assign({}, input);
     role = vehicleData.E12 || 'Driver';
     calcMode = StateManager.get('calcMode') || 'standard';
     estimateResult = StateManager.get('estimateResult');
 
     isOfflineMode = calcMode === 'standard' && vehicleData.E36 === 'offline';
 
-    const savedOfflineData = StateManager.get('tracking.offlineAdditionalData');
+    var savedOfflineData = StateManager.get('tracking.offlineAdditionalData');
     if (savedOfflineData) {
-        offlineAdditionalData = { ...savedOfflineData };
+        offlineAdditionalData = Object.assign({}, savedOfflineData);
     }
 
     if (calculate) {
@@ -1450,21 +1452,21 @@ async function renderIdle(params, context = {}) {
     renderLiveIncome();
     renderTripSummaryCard();
 
-    const extraCard = document.getElementById('operational-extra-card');
+    var extraCard = document.getElementById('operational-extra-card');
     if (extraCard) {
         extraCard.style.display = calcMode === 'operational' ? '' : 'none';
     }
 
     if (!mapReady) {
-        calculate = new Calculate({ role, trackingMode: calcMode, vehicleData, estimateResult });
-        window.__trackingCalculate = calculate;   // <-- TAMBAHKAN
+        calculate = new Calculate({ role: role, trackingMode: calcMode, vehicleData: vehicleData, estimateResult: estimateResult });
+        window.__trackingCalculate = calculate;
         calculate.setCallbacks({
-            onStatusChange: () => {},
-            onJump: (data) => {
-                ThemeManager?.showToast('Loncatan jarak terdeteksi', 'warning', 5000);
+            onStatusChange: function() {},
+            onJump: function(data) {
+                if (ThemeManager) ThemeManager.showToast('Loncatan jarak terdeteksi', 'warning', 5000);
             }
         });
-        setTimeout(() => {
+        setTimeout(function() {
             requestGPSPermission();
             initMap();
         }, 100);
@@ -1477,7 +1479,7 @@ async function renderIdle(params, context = {}) {
         initShareLimitUI();
     }
 
-    _trackingModule = { emergencyStop };
+    _trackingModule = { emergencyStop: emergencyStop };
     window.trackingModule = _trackingModule;
 
     window.log.info('[Tracking ' + F_V + '] (16) renderIdle() selesai');
@@ -1487,8 +1489,8 @@ async function renderIdle(params, context = {}) {
 // 16. RENDER ACTIVE
 // =============================================================================
 
-async function renderActive(params, context = {}) {
-    const content = document.getElementById('app-content');
+async function renderActive(params, context) {
+    var content = document.getElementById('app-content');
     if (!content) return;
 
     isDestroyed = false;
@@ -1507,17 +1509,17 @@ async function renderActive(params, context = {}) {
     updateScheduled = false;
     if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
 
-    const input = StateManager.get('input') || {};
-    vehicleData = { ...input };
+    var input = StateManager.get('input') || {};
+    vehicleData = Object.assign({}, input);
     role = vehicleData.E12 || 'Driver';
     calcMode = StateManager.get('calcMode') || 'standard';
     estimateResult = StateManager.get('estimateResult');
 
     isOfflineMode = calcMode === 'standard' && vehicleData.E36 === 'offline';
 
-    const savedOfflineData = StateManager.get('tracking.offlineAdditionalData');
+    var savedOfflineData = StateManager.get('tracking.offlineAdditionalData');
     if (savedOfflineData) {
-        offlineAdditionalData = { ...savedOfflineData };
+        offlineAdditionalData = Object.assign({}, savedOfflineData);
     }
 
     if (calculate) {
@@ -1528,7 +1530,7 @@ async function renderActive(params, context = {}) {
         maxJemput.time = 15;
     }
 
-    let targetStage;
+    var targetStage;
     if (calcMode === 'operational') targetStage = 'operational';
     else if (role === 'Penumpang') targetStage = 'dropoff';
     else targetStage = 'pickup';
@@ -1546,24 +1548,66 @@ async function renderActive(params, context = {}) {
     stopClockTimer();
     stopSound();
 
-    calculate = new Calculate({ role, trackingMode: calcMode, vehicleData, estimateResult });
-    window.__trackingCalculate = calculate;   // <-- TAMBAHKAN
+    calculate = new Calculate({ role: role, trackingMode: calcMode, vehicleData: vehicleData, estimateResult: estimateResult });
+    window.__trackingCalculate = calculate;
     calculate.setCallbacks({
-        onStatusChange: () => {
+        onStatusChange: function() {
             updateFooterForActive();
             updateDistanceTimeDisplay();
             updateStatusText();
         },
-        onJump: (data) => {
-            ThemeManager?.showToast('Loncatan jarak terdeteksi', 'warning', 5000);
+        onJump: function(data) {
+            if (ThemeManager) ThemeManager.showToast('Loncatan jarak terdeteksi', 'warning', 5000);
         }
     });
 
     calculate.start();
-if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
-    window.__nativeBG.start();
-}
-    GPS.start(handleGPSPosition, handleGPSError);
+
+    // Pilih sumber lokasi sesuai platform
+    if (window.Capacitor && window.Capacitor.isNative) {
+        // Android: gunakan background geolocation dengan notifikasi
+        if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
+            await window.__nativeBG.start();
+            GPS.stop(); // hentikan GPS foreground agar tidak duplikasi
+            window.log.info('[Tracking] Background GPS & notifikasi diaktifkan');
+        } else {
+            GPS.start(handleGPSPosition, handleGPSError);
+        }
+    } else {
+        // Web: navigator.geolocation
+        GPS.start(handleGPSPosition, handleGPSError);
+    }
+
+    // Aktifkan wake lock
+    if (window.Capacitor && window.Capacitor.isNative) {
+        // Android: gunakan plugin Capacitor (dynamic import)
+        try {
+            var module = await import('@capacitor-community/wake-lock');
+            await module.WakeLock.request('screen');
+            wakeLockActive = true;
+            window.log.info('[Tracking] Wake Lock plugin diaktifkan');
+        } catch (err) {
+            window.log.warn('[Tracking] Wake Lock plugin gagal:', err);
+            // Fallback ke Web API
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockWeb = await navigator.wakeLock.request('screen');
+                    window.log.info('[Tracking] Wake Lock Web (fallback) diaktifkan');
+                }
+            } catch (e) {}
+        }
+    } else {
+        // Web: navigator.wakeLock
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLockWeb = await navigator.wakeLock.request('screen');
+                window.log.info('[Tracking] Wake Lock Web diaktifkan');
+            } catch (err) {
+                window.log.warn('[Tracking] Wake Lock Web gagal:', err);
+            }
+        }
+    }
+
     startClockTimer();
 
     content.innerHTML = buildHTML();
@@ -1572,12 +1616,12 @@ if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
     renderLiveIncome();
     renderTripSummaryCard();
 
-    const extraCard = document.getElementById('operational-extra-card');
+    var extraCard = document.getElementById('operational-extra-card');
     if (extraCard) {
         extraCard.style.display = calcMode === 'operational' ? '' : 'none';
     }
 
-    setTimeout(() => {
+    setTimeout(function() {
         requestGPSPermission();
         initMap();
     }, 100);
@@ -1590,7 +1634,7 @@ if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
         initShareLimitUI();
     }
 
-    _trackingModule = { emergencyStop };
+    _trackingModule = { emergencyStop: emergencyStop };
     window.trackingModule = _trackingModule;
 
     window.log.info('[Tracking ' + F_V + '] (18) renderActive() selesai');
@@ -1606,7 +1650,7 @@ function drawPlannedRoute() {
         return;
     }
 
-    const polylineData = LocationPicker.getSavedPolyline();
+    var polylineData = LocationPicker.getSavedPolyline();
     if (!polylineData || !Array.isArray(polylineData.coordinates) || polylineData.coordinates.length < 2) {
         window.log.info('[Tracking ' + F_V + '] (20) drawPlannedRoute: tidak ada polyline valid');
         return;
@@ -1626,8 +1670,8 @@ function drawPlannedRoute() {
 // =============================================================================
 
 function initShareLimitUI() {
-    const slider = document.getElementById('share-slider');
-    const limitInput = document.getElementById('limit-input');
+    var slider = document.getElementById('share-slider');
+    var limitInput = document.getElementById('limit-input');
     if (!slider || !limitInput) return;
 
     slider.max = vehicleData.E10 === 'Mobil' ? 6 : 2;
@@ -1636,14 +1680,14 @@ function initShareLimitUI() {
 
     document.getElementById('share-value').textContent = shareCount + ' orang';
 
-    const debouncedUpdate = debounce(() => {
+    var debouncedUpdate = debounce(function() {
         shareCount = parseInt(slider.value) || 1;
         setLimit = parseInt(limitInput.value) || 0;
         document.getElementById('share-value').textContent = shareCount + ' orang';
-        updateLiveIncome({ shareCount, setLimit });
+        updateLiveIncome({ shareCount: shareCount, setLimit: setLimit });
     }, 500);
 
-    slider.addEventListener('input', () => {
+    slider.addEventListener('input', function() {
         document.getElementById('share-value').textContent = slider.value + ' orang';
         debouncedUpdate();
     });
@@ -1666,8 +1710,7 @@ function destroy() {
     updateScheduled = false;
     stopClockTimer();
     GPS.stop();
-    calculate?.stop();
-    calculate = null;
+    if (calculate) { calculate.stop(); calculate = null; }
     stopSound();
     if (beepAudioCtx) {
         beepAudioCtx.close();
@@ -1679,9 +1722,12 @@ function destroy() {
         window.Cache.invalidate('tracking');
     }
     
-if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
-    window.__nativeBG.stop();
-}
+    if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
+        window.__nativeBG.stop();
+    }
+
+    releaseWakeLock();
+
     currentPosition = null;
     isOfflineMode = false;
     offlineAdditionalData = {};
@@ -1698,7 +1744,7 @@ window.forceStopTracking = function() {
     window.log.info('[Tracking ' + F_V + '] (23) forceStopTracking() dipanggil');
     if (typeof GPS !== 'undefined') GPS.stop();
 
-    const tm = window.trackingModule || _trackingModule;
+    var tm = window.trackingModule || _trackingModule;
     if (tm && typeof tm.emergencyStop === 'function') {
         tm.emergencyStop();
     }
@@ -1715,33 +1761,35 @@ window.forceStopTracking = function() {
 // 21. REGISTRASI POPUP CUSTOM
 // =============================================================================
 
-PopupManager.register(14, () => createCancelPopupContent());
-PopupManager.register(15, () => createSelesaiPopupContent());
-PopupManager.register(18, () => createWarningPopupContent());
-PopupManager.register(19, () => createOfflineBiayaTambahanContent());
+PopupManager.register(14, createCancelPopupContent);
+PopupManager.register(15, createSelesaiPopupContent);
+PopupManager.register(18, createWarningPopupContent);
+PopupManager.register(19, createOfflineBiayaTambahanContent);
 
 // =============================================================================
 // 22. EKSPOR
 // =============================================================================
 
-export const PageTrackingidle = {
+export var PageTrackingidle = {
     render: renderIdle,
-    destroy
+    destroy: destroy
 };
 
-export const PageTrackingactive = {
+export var PageTrackingactive = {
     render: renderActive,
-    destroy
+    destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev3: speaker & perbaikan slide)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: wake lock dynamic import, background GPS)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal.
-// 2.0a-rev1 : Hapus getIcon, ikon lokal.
-// 2.0a-rev2 : Ikon inline dihapus, tambah LOCATION, MAP, GEAR.
-// 2.0a-rev3 : Tambah speaker notifikasi suara (2800 Hz, 250 ms), perbaikan
-//             slide selesai (reset saat popup ditutup), manajemen suara
-//             berdasarkan kategori driver, ikon speaker lokal.
+// 2.0.0-rev1 : Wake lock menggunakan dynamic import agar aman di browser.
+//             Perbaikan penanganan nullish coalescing (diganti dengan || / ternary).
+//             Semua fungsi menggunakan function declaration (bukan arrow) untuk
+//             kompatibilitas.
+// 2.0.0-rev0 : Rilis stabil 2.0.0. Tambah wake lock dan background GPS.
+//
+// =============================== FUTURE UPDATE ===============================
+// - Tidak ada
 //
 // ================================ End Of File ================================
