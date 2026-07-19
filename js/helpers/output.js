@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -15,14 +14,6 @@
  *   3. Copy & Template – format teks untuk clipboard (estimasi, hasil, custom template).
  *   4. Rute & KML – encode/decode data rute, generate/parse KML.
  *   5. Perhitungan Maintenance – progress perawatan, pajak, atribut, depresiasi.
- *
- *   Mulai rev1, ikon yang digunakan didefinisikan secara lokal, tidak lagi
- *   bergantung pada icon registry terpusat di texts.js.
- *
- * NOTES        :
- *   - Hanya Output dan Cache yang boleh mengakses Engine; UI wajib melalui Output
- *     untuk data statis, dan melalui Cache untuk orkestrasi.
- *   - Semua fungsi bersifat pure, kecuali yang membaca DATA (read‑only).
  *
  * =================================================================================
  */
@@ -293,30 +284,22 @@ export function getDriverOrderBadge(est) {
 export function getDriverColorAndBlink(E981, vehicleMode = 'Mobil') {
     const E663 = getTargetDriver(vehicleMode);
 
-    let category;
     if (E981 < 0) {
-        category = 'minus';
-    } else if (E981 < E663 * 0.5) {
-        category = 'kritis';
-    } else if (E981 < E663 * 0.75) {
-        category = 'rendah';
-    } else if (E981 < E663) {
-        category = 'cukup';
-    } else if (E981 < E663 * 2) {
-        category = 'normal';
-    } else {
-        category = 'bagus';
+        return { color: 'driver-minus', blink: 'blink-500ms', soundInterval: 500, category: 'minus' };
     }
-
-    const UI_MAP = {
-        'minus':  { color: 'driver-minus',  blink: 'blink-faster' },
-        'kritis': { color: 'driver-kritis', blink: 'blink-faster' },
-        'rendah': { color: 'driver-rendah', blink: 'blink-fast' },
-        'cukup':  { color: 'driver-cukup',  blink: 'blink-medium' },
-        'normal': { color: 'driver-normal', blink: 'blink-slow' },
-        'bagus':  { color: 'driver-bagus',  blink: '' }
-    };
-    return UI_MAP[category] || { color: 'driver-normal', blink: '' };
+    if (E981 < E663 * 0.5) {
+        return { color: 'driver-kritis', blink: 'blink-1000ms', soundInterval: 1000, category: 'kritis' };
+    }
+    if (E981 < E663 * 0.75) {
+        return { color: 'driver-rendah', blink: 'blink-2000ms', soundInterval: 6000, category: 'rendah' };
+    }
+    if (E981 < E663) {
+        return { color: 'driver-cukup', blink: 'blink-4000ms', soundInterval: null, category: 'cukup' };
+    }
+    if (E981 < E663 * 2) {
+        return { color: 'driver-normal', blink: '', soundInterval: null, category: 'normal' };
+    }
+    return { color: 'driver-bagus', blink: '', soundInterval: null, category: 'bagus' };
 }
 
 // =============================================================================
@@ -376,14 +359,16 @@ export function formatCopyHasil(result, mode, role) {
         let text = '';
         text += `Penjemputan: ${formatKm(r.E78 || 0, false)} km, ${formatMenit(r.E80 || 0, false)} mnt\n`;
         text += `Pengantaran: ${formatKm(r.E82 || 0, false)} km, ${formatMenit(r.E84 || 0, false)} mnt\n\n`;
-        if (r.E746 > 0) text += `Tagihan: ${formatRupiah(r.E746)}\n`;
+        //if (r.E746 > 0) text += `Tagihan: ${formatRupiah(r.E746)}\n`;
         if (mode === 'offline' && (r.E744 > 0)) text += `Biaya Tambahan: ${formatRupiah(r.E744)}\n`;
         text += '\n';
         text += `BBM: ${formatRupiah(r.E911 || 0)}\n`;
         text += `Kendaraan: ${formatRupiah((r.E963 || 0) - (r.E807 || 0))}\n\n`;
         text += `Dibayarkan Penumpang: ${formatRupiah(r.E697 || 0)}\n`;
         text += `Pendapatan Driver: ${formatRupiah(r.E981 || 0)}\n`;
-        text += `Pendapatan Aplikasi: ${formatRupiah(r.E982 || 0)}`;
+        if (mode === 'online') text += `Pendapatan Aplikasi: ${formatRupiah(r.E982 || 0)}\n`;
+        text += '\n';
+        if (r.E746 > 0) text += `Selisih Order Ditagihkan: ${formatRupiah(r.E746)}\n`;
         return text;
     } else if (mode === 'operational') {
         let text = 'JARAK & WAKTU: ' + formatKm(r.E752 || 0, false) + ' km, ' + formatMenit(r.E753 || 0, false) + ' mnt\n';
@@ -663,10 +648,11 @@ export function parseKML(kmlText) {
  * @param {Array<{dcell:number, ecell:number, label:string}>} items
  * @param {number} totalDistance - total jarak (km)
  * @param {number} totalTime - total waktu (menit)
- * @param {Object} [cycleData={}] - data siklus servis { [label]: { cycleCount, lastReset } }
+ * @param {Object} [cycleData={}] - data siklus servis
+ * @param {string|null} [forceIntervalType=null] - paksa tipe interval: 'km' atau 'day'
  * @returns {Array} item dengan properti progress
  */
-export function calculateMaintenanceProgress(items, totalDistance, totalTime, cycleData = {}) {
+export function calculateMaintenanceProgress(items, totalDistance, totalTime, cycleData = {}, forceIntervalType = null) {
     if (!Array.isArray(items)) return [];
     const totalDays = totalTime / 1440;
     return items.map(item => {
@@ -676,13 +662,21 @@ export function calculateMaintenanceProgress(items, totalDistance, totalTime, cy
         const cycle = cycleData[itemName] || { cycleCount: 0 };
         const cycleCount = cycle.cycleCount || 0;
 
-        let effective, intervalIsKm;
-        if (ecell >= 2) {
-            intervalIsKm = ecell < 100;
-        } else {
+        let intervalIsKm;
+        if (forceIntervalType === 'km') {
             intervalIsKm = true;
+        } else if (forceIntervalType === 'day') {
+            intervalIsKm = false;
+        } else {
+            // logika fallback (diperbaiki)
+            if (ecell >= 2) {
+                intervalIsKm = ecell < 100;
+            } else {
+                intervalIsKm = true;
+            }
         }
 
+        let effective;
         if (intervalIsKm) {
             effective = Math.max(0, totalDistance - (cycleCount * ecell));
         } else {

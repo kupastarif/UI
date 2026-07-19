@@ -4,17 +4,12 @@
  * FILE VERSION : 2.0a-rev0
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   SSOT untuk semua fungsi format umum, label, dan helper dasar.
  *   Semua fungsi di sini bersifat MURNI, tidak bergantung pada Engine
  *   atau komponen UI lainnya.
- *
- * NOTES        :
- *   - Fungsi validasi, service options, dan target driver telah dipindahkan
- *     ke output.js (akses Engine statis).
  *
  * =================================================================================
  */

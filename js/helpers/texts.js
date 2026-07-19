@@ -4,24 +4,12 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   SSOT (Single Source of Truth) untuk teks UI statis.
  *   Menyediakan random quotes, sarcasm, konten bantuan (OpenHelp),
  *   konfigurasi popup default (POPUP_TEXTS), dan catatan laporan.
- *
- *   Bagian yang telah dihapus dan dikelola mandiri oleh masing‑masing file:
- *   - Toast messages (TOAST_MESSAGES)
- *   - Error messages (ERROR_MESSAGES)
- *   - Validation messages (VALIDATION_MESSAGES)
- *   - Icon registry (_iconRegistry) & fungsi getIcon/getThemeIcon/dll.
- *   - Random icons untuk header (RANDOM_ICONS & getRandomIcon)
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau komponen lainnya.
- *   - Semua konten bersifat statis dan dapat diubah tanpa mempengaruhi logika.
  *
  * =================================================================================
  */
@@ -380,7 +368,7 @@ const POPUP_TEXTS = {
 const REPORT_NOTES = [
     { type: 'umum', text: 'HIDUP adalah syarat utama untuk melakukan semua aktifitas ini' },
     { type: 'umum', text: 'Tidak termasuk biaya hidup seperti: makan, ongkos ngider, beli kendaraan, biaya server, bayar kontrakan dan gaji pegawai' },
-    { type: 'umum', text: 'Tidak termasuk biaya non perjalanan order seperti: ban bocor, cicilan pinjaman, asuransi, marketing, tilang dan suap oknum' },
+    { type: 'umum', text: 'Tidak termasuk biaya non perjalanan order seperti: ban bocor, nunggu order dikasih, cicilan pinjaman, asuransi, marketing, tilang dan suap oknum' },
     { type: 'umum', text: 'Tidak termasuk bonus seperti: diskon, insentif, gaji ke 13 atau trip plesiran karena target KPI tercapai' },
     { type: 'umum', text: 'Penjemputan tidak masuk ke dalam tarif atau pendapatan' },
     { type: 'umum', text: 'UMR Jakarta (5 hari 8 jam kerja) adalah Rp. 578/menit' },
