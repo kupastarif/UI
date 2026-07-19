@@ -4,20 +4,11 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 14 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Privasi – Menampilkan kebijakan privasi aplikasi.
  *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *   Mulai rev2, konten detail (sebelumnya dari docs/privacy.html) digabung
- *   langsung ke dalam file ini. Tidak ada lagi dependensi fetch eksternal.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

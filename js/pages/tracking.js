@@ -1,10 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0a-rev2
+ * FILE VERSION : 2.0a-rev3
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,22 +11,13 @@
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
  *
- *   Mulai rev2, seluruh ikon didefinisikan dalam ICON dan tidak ada
- *   lagi ikon yang ditulis langsung (inline). Setiap file menjadi
- *   sumber kebenaran tunggal untuk ikon yang digunakan.
- *
- * NOTES        :
- *   - Seluruh orkestrasi dilakukan melalui Calculate (yang menggunakan Cache).
- *   - Validasi sel menggunakan Output (validateCell).
- *   - Invalidasi cache menggunakan Cache.invalidate.
- *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0a-rev3';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -48,7 +38,7 @@ import {
 import { getDriverColorAndBlink, validateCell } from '../helpers/output.js';
 
 // =============================================================================
-// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// 0. IKON LOKAL
 // =============================================================================
 
 const ICON = {
@@ -66,13 +56,17 @@ const ICON = {
     PAUSE: '⏸',
     PLAY: '▶️',
     STOP: '🟥',
-    LOCATION: '📍',   // Baru: lompatan jarak
-    MAP: '🗺',         // Baru: load Google Map
-    GEAR: '⚙️'         // Baru: pengaturan share/limit
+    LOCATION: '📍',
+    MAP: '🗺',
+    GEAR: '⚙️',
+    SOUND_ON: '🔊',
+    SOUND_OFF: '🔈',
+    EXPAND: '▷',
+    COLLAPSE: '▽'
 };
 
 // =============================================================================
-// 1. STATE INTERNAL (dibagi antara idle dan active)
+// 1. STATE INTERNAL
 // =============================================================================
 
 let isDestroyed = false;
@@ -122,6 +116,12 @@ let isOfflineMode = false;
 
 let offlineAdditionalData = {};
 
+// State suara
+let soundEnabled = true;
+let beepAudioCtx = null;
+let soundTimer = null;
+let currentSoundInterval = null;    // ms interval suara saat ini (null jika tidak ada)
+
 // =============================================================================
 // 2. HELPER: DEBOUNCE
 // =============================================================================
@@ -156,6 +156,13 @@ function goToStage(newStage) {
     currentStage = newStage;
     StateManager.set('tracking.currentStage', newStage);
 
+    // Manajemen suara berdasarkan stage baru
+    if (newStage === 'idle' || newStage === 'paused') {
+        stopSound();
+    } else if (soundEnabled && calcMode !== 'operational' && (newStage === 'pickup' || newStage === 'dropoff')) {
+        startSoundIfNeeded(currentSoundInterval);
+    }
+
     updateFooter();
     updateDistanceTimeDisplay();
     updateStatusText();
@@ -185,6 +192,7 @@ function resetToIdle() {
     }
     GPS.stop();
     stopClockTimer();
+    stopSound();
 
     if (mapReady && MapManager) {
         MapManager.clearPolylines();
@@ -221,6 +229,12 @@ function handleGPSPosition(pos) {
     currentPosition = { lat: pos.lat, lng: pos.lng };
     currentAccuracy = pos.accuracy || 0;
     calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+    
+    // Tambahkan marker start (🚩) hanya sekali di awal fase pickup
+    if (currentStage === 'pickup' && !MapManager.getMarker('start')) {
+        MapManager.addMarker(pos.lat, pos.lng, 'start', { replace: false });
+    }
+    
     if (mapReady) updateMap();
     updateDistanceTimeDisplay();
     scheduleLiveIncomeUpdate();
@@ -423,6 +437,15 @@ function updateLiveIncome(options = {}) {
     renderLiveIncome();
     renderTripSummaryCard();
     renderShareLimitResult();
+
+    // Perbarui suara berdasarkan kategori terbaru
+    const driverInfo = getDriverColorAndBlink(liveIncome.driver, vehicleData.E10);
+    currentSoundInterval = driverInfo.soundInterval;
+    if (soundEnabled && currentStage === 'pickup' || currentStage === 'dropoff' && calcMode !== 'operational') {
+        startSoundIfNeeded(currentSoundInterval);
+    } else {
+        stopSound();
+    }
 }
 
 function renderShareLimitResult() {
@@ -442,7 +465,7 @@ function renderShareLimitResult() {
 }
 
 // =============================================================================
-// 8. RENDER LIVE INCOME (KOLAPSIBEL INDEPENDEN)
+// 8. RENDER LIVE INCOME (KOLAPSIBEL INDEPENDEN) + SPEAKER
 // =============================================================================
 
 function renderLiveIncome() {
@@ -462,13 +485,14 @@ function renderLiveIncome() {
     }
 
     const isIdle = currentStage === 'idle';
-    const driverColor = isIdle
-        ? { color: '', blink: '' }
+    const driverInfo = isIdle
+        ? { color: '', blink: '', soundInterval: null }
         : getDriverColorAndBlink(liveIncome.driver, vehicleData.E10);
     const billClass = liveIncome.passengerBill > 0 ? 'text-danger' : '';
 
-    const driverIcon = driverExpanded ? '▽' : '▷';
-    const appIcon = appExpanded ? '▽' : '▷';
+    // Ikon ekspansi menggunakan ICON
+    const driverIcon = driverExpanded ? ICON.COLLAPSE : ICON.EXPAND;
+    const appIcon = appExpanded ? ICON.COLLAPSE : ICON.EXPAND;
     const driverChildrenClass = driverExpanded ? 'expanded' : '';
     const appChildrenClass = appExpanded ? 'expanded' : '';
 
@@ -491,12 +515,20 @@ function renderLiveIncome() {
             </div>
         </div>`;
 
+    // Tombol speaker
+    const showSpeaker = calcMode !== 'operational' && currentStage !== 'idle';
+    const speakerHtml = showSpeaker
+        ? `<span class="sound-toggle-btn" id="sound-toggle-btn" style="cursor:pointer; margin-right:4px;">${soundEnabled ? ICON.SOUND_ON : ICON.SOUND_OFF}</span>`
+        : '';
+
     container.innerHTML = `
         <div class="live-income-section">
             <div class="live-income-row live-income-toggle" id="toggle-driver-app">
                 <span class="live-income-toggle-icon ${driverChildrenClass}">${driverIcon}</span>
                 <span>${ICON.DRIVER} DRIVER</span>
-                <span class="live-income-value driver-value-large ${driverColor.color} ${driverColor.blink}" style="margin-left: auto;">${formatRupiah(liveIncome.driver)}</span>
+                <span class="live-income-value driver-value-large ${driverInfo.color} ${driverInfo.blink}" style="margin-left: auto;">
+                    ${speakerHtml}${formatRupiah(liveIncome.driver)}
+                </span>
             </div>
             <div class="live-income-children ${driverChildrenClass}" id="children-driver">
                 <div class="live-income-row live-income-sub">
@@ -525,6 +557,28 @@ function renderLiveIncome() {
         </div>`;
 
     bindToggleEvents();
+    bindSpeakerEvent();
+}
+
+function bindSpeakerEvent() {
+    const btn = document.getElementById('sound-toggle-btn');
+    if (!btn) return;
+    btn.removeEventListener('click', handleSpeakerClick);
+    btn.addEventListener('click', handleSpeakerClick);
+}
+
+function handleSpeakerClick(e) {
+    e.stopPropagation();
+    soundEnabled = !soundEnabled;
+    const btn = document.getElementById('sound-toggle-btn');
+    if (btn) {
+        btn.textContent = soundEnabled ? ICON.SOUND_ON : ICON.SOUND_OFF;
+    }
+    if (soundEnabled) {
+        startSoundIfNeeded(currentSoundInterval);
+    } else {
+        stopSound();
+    }
 }
 
 function bindToggleEvents() {
@@ -643,7 +697,55 @@ function renderTripSummaryCard() {
 }
 
 // =============================================================================
-// 10. KONTEN POPUP (tetap, tidak berubah)
+// 10. FUNGSI SUARA (Web Audio API)
+// =============================================================================
+
+function getBeepCtx() {
+    if (!beepAudioCtx) {
+        beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (beepAudioCtx.state === 'suspended') {
+        beepAudioCtx.resume().catch(() => {});
+    }
+    return beepAudioCtx;
+}
+
+function playNotificationBeep() {
+    try {
+        const ctx = getBeepCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 2800;
+        osc.type = 'sine';
+        gain.gain.value = 0.25;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {
+        // Abaikan error audio (mis. browser blokir)
+    }
+}
+
+function stopSound() {
+    if (soundTimer) {
+        clearInterval(soundTimer);
+        soundTimer = null;
+    }
+    currentSoundInterval = null;
+}
+
+function startSoundIfNeeded(intervalMs) {
+    stopSound();
+    if (!intervalMs || !soundEnabled) return;
+    if (calcMode === 'operational') return;
+    if (currentStage !== 'pickup' && currentStage !== 'dropoff') return;
+    soundTimer = setInterval(playNotificationBeep, intervalMs);
+    currentSoundInterval = intervalMs;
+}
+
+// =============================================================================
+// 11. KONTEN POPUP (dengan perbaikan slide)
 // =============================================================================
 
 function createCancelPopupContent() {
@@ -757,11 +859,21 @@ function createSelesaiPopupContent() {
     btnContainer.appendChild(btnHitung);
     container.appendChild(btnContainer);
 
+    // Opsi popup: reset slide saat ditutup (tanpa aksi)
     container._popupOptions = {
         title: 'SELESAI TRACKING',
         showActions: false,
         showCloseButton: true,
-        closeOnOverlay: false
+        closeOnOverlay: false,
+        onClose: () => {
+            // Reset slide ke kiri
+            if (typeof updateFooter === 'function') {
+                updateFooter();
+            }
+            if (window.__trackingResetSlide) {
+                delete window.__trackingResetSlide;
+            }
+        }
     };
 
     return container;
@@ -818,29 +930,27 @@ function createOfflineBiayaTambahanContent() {
             {
                 text: `${ICON.SAVE} SIMPAN`,
                 type: 'primary',
-onClick: () => {
-    const e100 = parseNumber(document.getElementById('popup-offline-E100')?.value || '');
-    const e104 = parseNumber(document.getElementById('popup-offline-E104')?.value || '');
-    offlineAdditionalData.E100 = e100 || null;
-    offlineAdditionalData.E104 = e104 || null;
+                onClick: () => {
+                    const e100 = parseNumber(document.getElementById('popup-offline-E100')?.value || '');
+                    const e104 = parseNumber(document.getElementById('popup-offline-E104')?.value || '');
+                    offlineAdditionalData.E100 = e100 || null;
+                    offlineAdditionalData.E104 = e104 || null;
+                    StateManager.updateInput('E100', offlineAdditionalData.E100);
+                    StateManager.updateInput('E104', offlineAdditionalData.E104);
 
-    // Simpan ke state input
-    StateManager.updateInput('E100', offlineAdditionalData.E100);
-    StateManager.updateInput('E104', offlineAdditionalData.E104);
+                    if (!isMotor) {
+                        const e102 = parseNumber(document.getElementById('popup-offline-E102')?.value || '');
+                        offlineAdditionalData.E102 = e102 || null;
+                        StateManager.updateInput('E102', offlineAdditionalData.E102);
+                    } else {
+                        offlineAdditionalData.E102 = null;
+                        StateManager.updateInput('E102', null);
+                    }
 
-    if (!isMotor) {
-        const e102 = parseNumber(document.getElementById('popup-offline-E102')?.value || '');
-        offlineAdditionalData.E102 = e102 || null;
-        StateManager.updateInput('E102', offlineAdditionalData.E102);
-    } else {
-        offlineAdditionalData.E102 = null;
-        StateManager.updateInput('E102', null);
-    }
-
-    StateManager.set('tracking.offlineAdditionalData', { ...offlineAdditionalData });
-    renderTripSummaryCard();
-    Router.navigateTo({ popup: 0 });
-}
+                    StateManager.set('tracking.offlineAdditionalData', { ...offlineAdditionalData });
+                    renderTripSummaryCard();
+                    Router.navigateTo({ popup: 0 });
+                }
             }
         ]
     };
@@ -849,15 +959,56 @@ onClick: () => {
 }
 
 function createWarningPopupContent() {
+    /**
+     * Membersihkan nomor untuk tautan tel:
+     * - Hanya mengizinkan digit dan tanda '+' di awal.
+     * - Contoh: "+62 812-3456-7890" → "+6281234567890"
+     */
+    const cleanTel = (num) => {
+        if (!num) return '';
+        // Cari tanda '+' di awal (opsional), lalu ambil semua digit setelahnya
+        const match = num.match(/^(\+?)\D*(\d[\d\s\-\(\)]*)$/);
+        if (!match) {
+            // Fallback: buang semua karakter non-digit
+            return num.replace(/\D/g, '');
+        }
+        return match[1] + match[2].replace(/\D/g, '');
+    };
+
+    /**
+     * Membersihkan nomor untuk tautan WhatsApp (format internasional tanpa '+').
+     * - Buang semua non-digit.
+     * - Jika dimulai dengan '0', ganti dengan '62' (kode Indonesia).
+     * - Jika dimulai dengan '+', buang tanda plus.
+     */
+    const cleanWA = (num) => {
+        if (!num) return '';
+        let cleaned = num.replace(/\D/g, '');
+        if (cleaned.startsWith('0')) {
+            cleaned = '62' + cleaned.substring(1);
+        }
+        if (cleaned.startsWith('+')) {
+            cleaned = cleaned.substring(1);
+        }
+        return cleaned;
+    };
+
     const emergencyContacts = StorageManager.getEmergencyContacts();
     const kerabat = emergencyContacts.kerabat || '';
     const darurat = emergencyContacts.darurat || '112';
     const ambulance = emergencyContacts.ambulance || '118';
     const polisi = emergencyContacts.polisi || '110';
 
+    // Bersihkan setiap nomor
+    const kerabatClean = cleanWA(kerabat);
+    const daruratClean = cleanTel(darurat);
+    const ambulanceClean = cleanTel(ambulance);
+    const polisiClean = cleanTel(polisi);
+
     const container = document.createElement('div');
     container.className = 'popup-warning-content';
 
+    // HTML struktur popup
     container.innerHTML = `
         <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">
             Ini adalah cara yg sama dan dilakukan oleh aplikasi untuk melindungi driver/penumpang:
@@ -869,25 +1020,29 @@ function createWarningPopupContent() {
             <li>Share live lokasi (WA) anda kepada kerabat terpercaya.</li>
         </ol>
         <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Baris WA Kerabat -->
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: var(--text-xs);">WA KERABAT</span>
-                ${kerabat ? 
-                    `<a href="https://wa.me/${kerabat.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener noreferrer" 
+                ${kerabatClean ? 
+                    `<a href="https://wa.me/${kerabatClean}" target="_blank" rel="noopener noreferrer" 
                         class="btn btn-sm btn-success" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">HUBUNGI</a>` :
                     `<button class="btn btn-sm btn-outline" style="width: 90px; font-size: var(--text-xs);" disabled>SIMPAN</button>`
                 }
             </div>
+            <!-- Baris Kontak Darurat -->
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: var(--text-xs);">KONTAK DARURAT</span>
-                <a href="tel:${darurat}" class="btn btn-sm btn-danger" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${darurat}</a>
+                <a href="tel:${daruratClean}" class="btn btn-sm btn-danger" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${darurat}</a>
             </div>
+            <!-- Baris Ambulance -->
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: var(--text-xs);">AMBULANCE</span>
-                <a href="tel:${ambulance}" class="btn btn-sm btn-info" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${ambulance}</a>
+                <a href="tel:${ambulanceClean}" class="btn btn-sm btn-info" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs);">${ambulance}</a>
             </div>
+            <!-- Baris Polisi -->
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: var(--text-xs);">POLISI</span>
-                <a href="tel:${polisi}" class="btn btn-sm" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs); background-color: #8B7355; color: white; border-color: #8B7355;">${polisi}</a>
+                <a href="tel:${polisiClean}" class="btn btn-sm" style="width: 90px; text-align: center; text-decoration: none; font-size: var(--text-xs); background-color: #8B7355; color: white; border-color: #8B7355;">${polisi}</a>
             </div>
         </div>
     `;
@@ -915,13 +1070,21 @@ function createWarningPopupContent() {
 }
 
 // =============================================================================
-// 11. FINALISASI & PEMBATALAN
+// 12. FINALISASI & PEMBATALAN
 // =============================================================================
 
 function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
     GPS.stop();
     stopClockTimer();
+    stopSound();
+    if (beepAudioCtx) {
+        beepAudioCtx.close();
+        beepAudioCtx = null;
+    }
+if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
+    window.__nativeBG.stop();
+}
 }
 
 async function finalizeTracking(isOnline, isPenumpang) {
@@ -976,7 +1139,6 @@ async function finalizeTracking(isOnline, isPenumpang) {
     _trackingModule = null;
     window.trackingModule = null;
 
-    // Invalidasi cache tracking
     if (window.Cache) {
         window.Cache.invalidate('tracking');
     }
@@ -1006,12 +1168,11 @@ async function goToRealityManual(isPenumpang, isOnline) {
             E84: data.E84 ?? data.dropoffTime
         });
         
-// Setelah StateManager.batchUpdateInput untuk E78-E84
-if (isOfflineMode) {
-    StateManager.updateInput('E100', offlineAdditionalData.E100 ?? null);
-    StateManager.updateInput('E102', offlineAdditionalData.E102 ?? null);
-    StateManager.updateInput('E104', offlineAdditionalData.E104 ?? null);
-}
+        if (isOfflineMode) {
+            StateManager.updateInput('E100', offlineAdditionalData.E100 ?? null);
+            StateManager.updateInput('E102', offlineAdditionalData.E102 ?? null);
+            StateManager.updateInput('E104', offlineAdditionalData.E104 ?? null);
+        }
         
         StateManager.set('trackingData', null);
         StateManager.set('realityResult', null);
@@ -1042,7 +1203,7 @@ function parsePopupInput(id, cell) {
 }
 
 // =============================================================================
-// 12. FOOTER & HEADER
+// 13. FOOTER & HEADER
 // =============================================================================
 
 function updateFooterForIdle() {
@@ -1096,19 +1257,35 @@ function updateFooterForActive() {
             }
             goToStage(resumeStage);
         },
-        onAngkut: () => {
-            if (calculate) {
-                calculate.switchToDropoff();
-                if (currentPosition) {
-                    MapManager?.addMarker(currentPosition.lat, currentPosition.lng, 'pickup', { replace: false });
+        
+onAngkut: () => {
+    if (calculate) {
+        calculate.switchToDropoff();
+        const pos = currentPosition || (calculate.getLastPosition && calculate.getLastPosition());
+        if (pos) {
+            MapManager?.addMarker(pos.lat, pos.lng, 'pickup', { replace: false });
+        } else {
+            // Fallback: ambil posisi terakhir dari GPS secara paksa
+            GPS.getCurrentPosition((p) => {
+                if (p && MapManager) {
+                    MapManager.addMarker(p.lat, p.lng, 'pickup', { replace: false });
                 }
-            }
-            goToStage('dropoff');
-        },
+            });
+        }
+    }
+    goToStage('dropoff');
+},
+
         onSelesai: () => {
             if (currentPosition) {
                 MapManager?.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
             }
+            // Simpan fungsi reset untuk dipanggil saat popup ditutup
+            window.__trackingResetSlide = () => {
+                if (typeof updateFooter === 'function') {
+                    updateFooter();
+                }
+            };
             Router.navigateTo({ target: 'popup15' });
         }
     };
@@ -1159,7 +1336,7 @@ function updateHeader() {
 }
 
 // =============================================================================
-// 13. BUILD HTML
+// 14. BUILD HTML
 // =============================================================================
 
 function buildHTML() {
@@ -1204,7 +1381,7 @@ function buildHTML() {
 }
 
 // =============================================================================
-// 14. RENDER IDLE
+// 15. RENDER IDLE
 // =============================================================================
 
 async function renderIdle(params, context = {}) {
@@ -1218,13 +1395,14 @@ async function renderIdle(params, context = {}) {
     shareCount = 1;
     setLimit = 0;
     offlineAdditionalData = {};
+    soundEnabled = true;
+    stopSound();
     
-// renderIdle() - setelah deklarasi offlineAdditionalData
-StateManager.updateInput('E100', null);
-StateManager.updateInput('E102', null);
-StateManager.updateInput('E104', null);
-StateManager.set('tracking.offlineAdditionalData', null);
-offlineAdditionalData = { E100: null, E102: null, E104: null };
+    StateManager.updateInput('E100', null);
+    StateManager.updateInput('E102', null);
+    StateManager.updateInput('E104', null);
+    StateManager.set('tracking.offlineAdditionalData', null);
+    offlineAdditionalData = { E100: null, E102: null, E104: null };
 
     liveIncome = { driver: 0, app: 0, passengerPayment: 0, passengerBill: 0, bbm: 0, maintenance: 0, total: 0 };
     lastUpdateDistance = 0;
@@ -1264,6 +1442,7 @@ offlineAdditionalData = { E100: null, E102: null, E104: null };
     }
     GPS.stop();
     stopClockTimer();
+    stopSound();
 
     content.innerHTML = buildHTML();
     updateHeader();
@@ -1278,6 +1457,7 @@ offlineAdditionalData = { E100: null, E102: null, E104: null };
 
     if (!mapReady) {
         calculate = new Calculate({ role, trackingMode: calcMode, vehicleData, estimateResult });
+        window.__trackingCalculate = calculate;   // <-- TAMBAHKAN
         calculate.setCallbacks({
             onStatusChange: () => {},
             onJump: (data) => {
@@ -1304,7 +1484,7 @@ offlineAdditionalData = { E100: null, E102: null, E104: null };
 }
 
 // =============================================================================
-// 15. RENDER ACTIVE
+// 16. RENDER ACTIVE
 // =============================================================================
 
 async function renderActive(params, context = {}) {
@@ -1318,6 +1498,8 @@ async function renderActive(params, context = {}) {
     shareCount = 1;
     setLimit = 0;
     offlineAdditionalData = {};
+    soundEnabled = true;
+    stopSound();
 
     liveIncome = { driver: 0, app: 0, passengerPayment: 0, passengerBill: 0, bbm: 0, maintenance: 0, total: 0 };
     lastUpdateDistance = 0;
@@ -1362,8 +1544,10 @@ async function renderActive(params, context = {}) {
     }
     GPS.stop();
     stopClockTimer();
+    stopSound();
 
     calculate = new Calculate({ role, trackingMode: calcMode, vehicleData, estimateResult });
+    window.__trackingCalculate = calculate;   // <-- TAMBAHKAN
     calculate.setCallbacks({
         onStatusChange: () => {
             updateFooterForActive();
@@ -1375,12 +1559,10 @@ async function renderActive(params, context = {}) {
         }
     });
 
-    // StateManager.batchUpdateInput({
-    //    E78: null, E80: null, E82: null, E84: null,
-    //    E92: null, E100: null, E102: null, E104: null
-    // });
-    
     calculate.start();
+if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
+    window.__nativeBG.start();
+}
     GPS.start(handleGPSPosition, handleGPSError);
     startClockTimer();
 
@@ -1415,7 +1597,7 @@ async function renderActive(params, context = {}) {
 }
 
 // =============================================================================
-// 16. POLYLINE RENCANA (PICKER)
+// 17. POLYLINE RENCANA (PICKER)
 // =============================================================================
 
 function drawPlannedRoute() {
@@ -1440,7 +1622,7 @@ function drawPlannedRoute() {
 }
 
 // =============================================================================
-// 17. INISIALISASI SHARE COST & SET LIMIT UI
+// 18. INISIALISASI SHARE COST & SET LIMIT UI
 // =============================================================================
 
 function initShareLimitUI() {
@@ -1472,7 +1654,7 @@ function initShareLimitUI() {
 }
 
 // =============================================================================
-// 18. DESTROY
+// 19. DESTROY
 // =============================================================================
 
 function destroy() {
@@ -1486,11 +1668,20 @@ function destroy() {
     GPS.stop();
     calculate?.stop();
     calculate = null;
+    stopSound();
+    if (beepAudioCtx) {
+        beepAudioCtx.close();
+        beepAudioCtx = null;
+    }
     if (MapManager) MapManager.destroy();
     mapReady = false;
     if (window.Cache) {
         window.Cache.invalidate('tracking');
     }
+    
+if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
+    window.__nativeBG.stop();
+}
     currentPosition = null;
     isOfflineMode = false;
     offlineAdditionalData = {};
@@ -1500,7 +1691,7 @@ function destroy() {
 }
 
 // =============================================================================
-// 19. FORCE STOP TRACKING
+// 20. FORCE STOP TRACKING
 // =============================================================================
 
 window.forceStopTracking = function() {
@@ -1521,7 +1712,7 @@ window.forceStopTracking = function() {
 };
 
 // =============================================================================
-// 20. REGISTRASI POPUP CUSTOM
+// 21. REGISTRASI POPUP CUSTOM
 // =============================================================================
 
 PopupManager.register(14, () => createCancelPopupContent());
@@ -1530,7 +1721,7 @@ PopupManager.register(18, () => createWarningPopupContent());
 PopupManager.register(19, () => createOfflineBiayaTambahanContent());
 
 // =============================================================================
-// 21. EKSPOR
+// 22. EKSPOR
 // =============================================================================
 
 export const PageTrackingidle = {
@@ -1543,18 +1734,14 @@ export const PageTrackingactive = {
     destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (Cache API, Output validasi)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev3: speaker & perbaikan slide)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Ganti clearMemo/resetTrackingCache dengan
-//             Cache.invalidate, validasi sel via Output.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.FUEL, ICON.DRIVER, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Seluruh ikon inline dihapus, objek ICON diperluas dengan
-//             LOCATION, MAP, GEAR. Semua string ikon kini merujuk ke ICON.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
+// 2.0a-rev0 : Inisiasi awal.
+// 2.0a-rev1 : Hapus getIcon, ikon lokal.
+// 2.0a-rev2 : Ikon inline dihapus, tambah LOCATION, MAP, GEAR.
+// 2.0a-rev3 : Tambah speaker notifikasi suara (2800 Hz, 250 ms), perbaikan
+//             slide selesai (reset saat popup ditutup), manajemen suara
+//             berdasarkan kategori driver, ikon speaker lokal.
 //
 // ================================ End Of File ================================

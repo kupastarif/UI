@@ -4,21 +4,11 @@
  * FILE VERSION : 2.0a-rev3
  * APP VERSION  : 2.0a-beta
  * DATE         : 14 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Tentang – Menampilkan informasi tentang aplikasi KupasTarif.
  *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
- *
- *   Mulai rev2, seluruh ikon didefinisikan dalam ICON dan tidak ada
- *   lagi ikon yang ditulis langsung (inline). Setiap file menjadi
- *   sumber kebenaran tunggal untuk ikon yang digunakan.
- *   Mulai rev3, konten detail (sebelumnya dari docs/about.html) digabung
- *   langsung ke dalam file ini. Tidak ada lagi dependensi fetch eksternal.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

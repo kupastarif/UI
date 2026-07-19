@@ -4,19 +4,12 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Artikel – Menampilkan daftar dan detail artikel.
  *   Selalu memuat ulang data dari server saat render (maju maupun mundur)
  *   agar list tidak hilang.
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

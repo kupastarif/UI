@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 14 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -13,14 +12,6 @@
  *   - catatan: overview dengan tombol "Lihat Lebih Lanjut".
  *   - catatantldr: detail penuh dari docs/notes.html dengan tombol "Kembali".
  *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *   Mulai rev2, konten detail (sebelumnya dari docs/notes.html) digabung
- *   langsung ke dalam file ini. Tidak ada lagi dependensi fetch eksternal.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
  *
  * =================================================================================
  */

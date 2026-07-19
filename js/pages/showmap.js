@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -13,13 +12,6 @@
  *   - showmapdetail: mode peta, header landing, footer dengan tombol back, copy, export.
  *   Info panel menampilkan zona waktu (WIB/WITA/WIT) jika tersedia di data.
  *   Semua navigasi menggunakan Router.navigateTo().
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache.
- *   - Hanya menggunakan fungsi Output (encode/decode/generate/parse rute).
  *
  * =================================================================================
  */

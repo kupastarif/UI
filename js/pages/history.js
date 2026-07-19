@@ -4,19 +4,11 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Riwayat – Menampilkan daftar riwayat perjalanan.
  *   Selalu memuat ulang data dari storage saat render agar data selalu akurat.
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan pada Engine atau Cache. Hanya membaca data dari
- *     StorageManager dan menghitung statistik dengan fungsi format murni.
  *
  * =================================================================================
  */

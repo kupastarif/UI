@@ -4,7 +4,6 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,14 +11,6 @@
  *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
  *   Popup custom (index 13) dan popup bantuan (index 2) dibuka melalui target overlay.
  *   Perhitungan dilakukan melalui Cache.reality().
- *   ** v2.0a-rev0: pastikan biaya tambahan offline tidak hilang saat pindah halaman **
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *
- * NOTES        :
- *   - Semua akses data statis Engine melalui Output (getMaxPickupDistance, dll.).
- *   - Orkestrasi reality menggunakan Cache.reality().
  *
  * =================================================================================
  */

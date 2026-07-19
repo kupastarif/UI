@@ -4,21 +4,12 @@
  * FILE VERSION : 2.0a-rev2
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Report – Menampilkan analisis lengkap hasil perjalanan.
  *   Data dari local storage (history). Membedakan mode online, offline, 
  *   dan operasional. Standarisasi card dan font.
- *
- *   Mulai rev2, seluruh ikon didefinisikan dalam ICON dan tidak ada
- *   lagi ikon yang ditulis langsung (inline). Setiap file menjadi
- *   sumber kebenaran tunggal untuk ikon yang digunakan.
- *
- * NOTES        :
- *   - Tidak ada akses ke Engine atau Cache. Hanya membaca data dari StorageManager.
- *   - Seluruh sel output sudah mengacu ke Engine v1.0.0‑beta (E981, E982, dll).
  *
  * =================================================================================
  */

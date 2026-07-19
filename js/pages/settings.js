@@ -4,20 +4,12 @@
  * FILE VERSION : 2.0a-rev1
  * APP VERSION  : 2.0a-beta
  * DATE         : 1 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Pengaturan – Mengelola preferensi pengguna, data driver,
  *   custom copy template, kontak darurat, dan toggle Cache Maksimal.
  *   Semua akses data statis Engine melalui Output.
- *
- *   Mulai rev1, ikon didefinisikan secara lokal dan pemanggilan FooterManager
- *   menggunakan karakter ikon langsung, bukan kunci registry.
- *
- * NOTES        :
- *   - Toggle Cache Maksimal hanya aktif di mode production.
- *   - Saat toggle diubah, Cache.setMode() dipanggil langsung.
  *
  * =================================================================================
  */
@@ -205,7 +197,6 @@ function buildHTML() {
     // Cache maksimal hanya bisa diubah di production
     const isDev = window.APP_CONFIG?.isDevMode;
     const cacheToggleDisabled = isDev;
-    const cacheToggleLabel = isDev ? 'Tidak tersedia di mode pengembangan' : '';
 
     return `<div class="page-container">
         <div class="page-title">${ICON.GEAR} PENGATURAN</div>
@@ -240,7 +231,6 @@ function buildHTML() {
                     <span>${ICON.SETTINGS} Maksimalkan Cache <span class="input-info" data-help="settings-cache">${ICON.INFO}</span></span>
                     ${renderToggle('cache-maksimal-toggle', cm)}
                 </div>
-                ${cacheToggleLabel ? `<p class="text-muted text-xs mt-xs">${cacheToggleLabel}</p>` : ''}
             </div>
         </div>
 
@@ -564,7 +554,10 @@ function debouncedSave() {
 function saveDriverInfo() {
     if (isDestroyed) return;
     const prefs = collectPreferences();
-    StorageManager?.saveDriverInfo(prefs.driverInfo);
+    const success = StorageManager?.saveDriverInfo(prefs.driverInfo);
+    if (success) {
+        ThemeManager?.showToast('Driver info tersimpan', 'success', 1500);
+    }
 }
 
 function saveTemplate() {
@@ -603,8 +596,11 @@ function saveEmergencyContactsData() {
         ambulance: document.getElementById('emergency-ambulance')?.value.trim() || '118',
         polisi: document.getElementById('emergency-polisi')?.value.trim() || '110'
     };
-    StorageManager?.saveEmergencyContacts(contacts);
+    const success = StorageManager?.saveEmergencyContacts(contacts);
     emergencyContacts = contacts;
+    if (success) {
+        ThemeManager?.showToast('Kontak darurat tersimpan', 'success', 1500);
+    }
 }
 
 // =============================================================================

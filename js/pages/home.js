@@ -4,20 +4,12 @@
  * FILE VERSION : 2.0a-rev3
  * APP VERSION  : 2.0a-beta
  * DATE         : 2 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Home – Tampilan awal aplikasi. Semua navigasi menggunakan
  *   Router.navigateTo(). Input kendaraan dikelola melalui StateManager.
  *   Akses data statis Engine melalui Output, orkestrasi melalui Cache.
- *
- *   Mulai rev3, tombol "Cek Tarif Offline" juga menyetel E36 ke 'offline'
- *   agar halaman Order langsung terbuka dalam mode offline.
- *
- * NOTES        :
- *   - Cache diinvalidasi saat menyiapkan data order/tracking.
- *   - Popup role menggunakan dropdown dari Output.
  *
  * =================================================================================
  */
@@ -64,7 +56,7 @@ const ICON = {
 // =============================================================================
 
 let isDestroyed = false;
-let quote = ['Tarif transparan', 'driver sejahtera'];
+let quote = ['Tebak-tebak buah manggis', 'Nyari tarif sesuai susah, nyari driver susah. Siapakah yg biasanya berantem?'];
 let battleStats = { driver: { value: 0, percent: 0 }, app: { value: 0, percent: 0 }, totalMatch: 0 };
 let preferences = null;
 let currentHeader = null;
@@ -78,13 +70,13 @@ function loadData() {
         const history = StorageManager.getHistory();
         battleStats = calculateBattleStats(history);
     }
-    if (Texts?.getRandomQuote) {
-        quote = Texts.getRandomQuote({
-            driverPercent: battleStats.driver.percent,
-            appPercent: battleStats.app.percent,
-            totalMatch: battleStats.totalMatch
-        });
-    }
+    //if (Texts?.getRandomQuote) {
+    //    quote = Texts.getRandomQuote({
+    //        driverPercent: battleStats.driver.percent,
+    //        appPercent: battleStats.app.percent,
+    //        totalMatch: battleStats.totalMatch
+    //    });
+    //}
     preferences = StateManager.get('preferences') || PreferencesManager.load();
     window.log.info('[Home ' + F_V + '] (1) loadData selesai');
 }

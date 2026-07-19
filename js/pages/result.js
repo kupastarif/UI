@@ -4,20 +4,12 @@
  * FILE VERSION : 2.0a-rev9
  * APP VERSION  : 2.0a-beta
  * DATE         : 16 Juli 2026
- *
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Result – Step 3. Menampilkan struk digital hasil perjalanan.
  *   **Satu‑satunya tempat penyimpanan history (SSOT).**
  *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
- *
- *   rev9 : Ganti operator ?? dengan pengecekan kompatibel untuk lingkungan
- *          tanpa dukungan nullish coalescing (ES2020).
- *
- * NOTES        :
- *   - Tidak ada akses langsung ke Engine, hanya Cache & Output.
- *   - Cache diinvalidasi setelah simpan.
  *
  * =================================================================================
  */
@@ -103,7 +95,7 @@ function loadData() {
         realityResult = StateManager.get('realityResult');
         const input = StateManager.get('input') || {};
         vehicleData = {
-            E10: input.E10 || 'Motor',
+            E10: input.E10 || 'Mobil',
             E12: input.E12 || 'Driver',
             E20: input.E20 || 'Jabodetabek',
             E22: input.E22 || '125cc',

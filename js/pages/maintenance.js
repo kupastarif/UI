@@ -1,10 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/maintenance.js
- * FILE VERSION : 2.0a-rev2
+ * FILE VERSION : 2.0a-rev5
  * APP VERSION  : 2.0a-beta
- * DATE         : 1 Juli 2026
- *
+ * DATE         : 17 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,21 +11,13 @@
  *   dan penyusutan kendaraan berdasarkan akumulasi history.
  *   Semua akses data statis melalui Output (helpers/output.js).
  *
- *   Mulai rev2, tidak ada lagi ikon yang ditulis langsung (inline) di
- *   dalam kode. Objek ICON menjadi sumber kebenaran tunggal.
- *
- * NOTES        :
- *   - Tidak ada ketergantungan langsung pada Engine.
- *   - Menggunakan fungsi calculateMaintenanceProgress dan
- *     calculateDepreciationSummary dari Output.
- *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0a-rev5';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -46,7 +37,7 @@ import {
 } from '../helpers/output.js';
 
 // =============================================================================
-// 0. IKON LOKAL (tidak lagi bergantung pada getIcon dari texts.js)
+// 0. IKON LOKAL
 // =============================================================================
 
 const ICON = {
@@ -55,7 +46,7 @@ const ICON = {
     INFO: 'ⓘ',
     MAINTENANCE: '🔧',
     FUEL: '⛽',
-    TAX: '📄',           // pajak tidak punya ikon khusus di registry, pakai DOCUMENT
+    TAX: '📄',
     DOCUMENT: '📄',
     MENU: '☰',
     HOME: '🏠'
@@ -66,15 +57,18 @@ const ICON = {
 // =============================================================================
 
 let isDestroyed = false;
-let currentFilter = 'Mobil';
+let currentFilter = 'Mobil';   // 'Mobil' atau 'Motor'
 let currentHeader = null;
 
-let accumulatedData = { totalDistance: 0, totalTime: 0, totalDepreciation: 0, totalWelfare: 0, totalFuelRupiah: 0 };
+// Akumulasi data terpisah
+let accumulatedMobil = { totalDistance: 0, totalTime: 0, totalDepreciation: 0, totalWelfare: 0, totalFuelRupiah: 0 };
+let accumulatedMotor = { totalDistance: 0, totalTime: 0, totalDepreciation: 0, totalWelfare: 0, totalFuelRupiah: 0 };
+
 let maintenanceItems = [];
 let taxItems = [];
 let attributeItems = [];
 let depreciationSummary = null;
-let cycleData = {};
+let cycleData = {};          // data siklus untuk mode saat ini (tanpa prefix)
 let debounceTimers = {};
 
 let tripCountMobil = 0;
@@ -86,21 +80,29 @@ let extraKmGemukCost = 0;
 // 2. HELPER
 // =============================================================================
 
+/**
+ * Mengembalikan cc default sesuai mode kendaraan yang sedang difilter.
+ * Tidak bergantung pada input halaman lain agar data pajak/perawatan
+ * selalu menampilkan item yang valid untuk mode tersebut.
+ */
 function getCurrentCC() {
-    const stateInput = StateManager?.get('input');
-    if (stateInput?.E22) return stateInput.E22;
-    const prefs = PreferencesManager?.getDefaultVehicle();
-    if (prefs?.cc) return prefs.cc;
     return currentFilter === 'Mobil' ? '1000cc' : '125cc';
 }
 
 function getFuelPrice() {
     const cc = getCurrentCC();
-    // Gunakan Output untuk konstanta
     if (currentFilter === 'Mobil' && cc === '2000cc') {
         return getConstant('E303') || 6500;
     }
     return getConstant('E302') || 10000;
+}
+
+function _makeCycleKey(label) {
+    return currentFilter + '_' + label;
+}
+
+function getAccumulatedData() {
+    return currentFilter === 'Mobil' ? accumulatedMobil : accumulatedMotor;
 }
 
 // =============================================================================
@@ -108,7 +110,8 @@ function getFuelPrice() {
 // =============================================================================
 
 function loadAccumulatedData() {
-    let totalDistance = 0, totalTime = 0, totalDepreciation = 0, totalWelfare = 0, totalFuelRupiah = 0;
+    accumulatedMobil = { totalDistance: 0, totalTime: 0, totalDepreciation: 0, totalWelfare: 0, totalFuelRupiah: 0 };
+    accumulatedMotor = { totalDistance: 0, totalTime: 0, totalDepreciation: 0, totalWelfare: 0, totalFuelRupiah: 0 };
     let countMobil = 0, countMotor = 0;
 
     if (StorageManager) {
@@ -117,87 +120,88 @@ function loadAccumulatedData() {
             const r = item.result || {};
             const input = item.input || {};
             const mode = input.E10 || 'Mobil';
+            const dist = r.E752 || 0;
+            const time = r.E753 || 0;   // menit
+            const dep = r.E825 || 0;
+            const welfare = r.E701 || 0;
+            const fuel = r.E911 || 0;
 
-            totalDistance += r.E752 || 0;
-            totalTime += r.E753 || 0;
-            totalDepreciation += r.E825 || 0;
-            totalWelfare += r.E701 || 0;
-            totalFuelRupiah += r.E911 || 0;
-
-            if (mode === 'Mobil') countMobil++;
-            else if (mode === 'Motor') countMotor++;
+            if (mode === 'Mobil') {
+                accumulatedMobil.totalDistance += dist;
+                accumulatedMobil.totalTime += time;
+                accumulatedMobil.totalDepreciation += dep;
+                accumulatedMobil.totalWelfare += welfare;
+                accumulatedMobil.totalFuelRupiah += fuel;
+                countMobil++;
+            } else {
+                accumulatedMotor.totalDistance += dist;
+                accumulatedMotor.totalTime += time;
+                accumulatedMotor.totalDepreciation += dep;
+                accumulatedMotor.totalWelfare += welfare;
+                accumulatedMotor.totalFuelRupiah += fuel;
+                countMotor++;
+            }
         });
     }
 
-    accumulatedData = { totalDistance, totalTime, totalDepreciation, totalWelfare, totalFuelRupiah };
     tripCountMobil = countMobil;
     tripCountMotor = countMotor;
 }
 
 function determineDefaultFilter() {
-    if (!StorageManager) return 'Mobil';
-
-    const history = StorageManager.getHistory();
-    let totalKmMobil = 0, totalKmMotor = 0;
-
-    history.forEach(item => {
-        const input = item.input || {};
-        const result = item.result || {};
-        const mode = input.E10 || 'Mobil';
-        if (mode === 'Mobil') totalKmMobil += result.E752 || 0;
-        else if (mode === 'Motor') totalKmMotor += result.E752 || 0;
-    });
-
-    return totalKmMobil >= totalKmMotor ? 'Mobil' : 'Motor';
+    if (accumulatedMobil.totalDistance >= accumulatedMotor.totalDistance) return 'Mobil';
+    return 'Motor';
 }
 
 function loadCycleData() {
-    cycleData = StorageManager?.getCycleData() || {};
+    const allData = StorageManager?.getCycleData() || {};
+    const prefix = currentFilter + '_';
+    cycleData = {};
+    for (const key in allData) {
+        if (key.startsWith(prefix)) {
+            const label = key.substring(prefix.length);
+            cycleData[label] = allData[key];
+        }
+    }
 }
 
 function loadMaintenanceData() {
+    const acc = getAccumulatedData();
     const cc = getCurrentCC();
 
-    // Ambil data mentah melalui Output (wrapper DATA)
     maintenanceItems = getMaintenanceItems(currentFilter, cc) || [];
     taxItems = getTaxItems(currentFilter, cc) || [];
     attributeItems = getAttributeItems(currentFilter) || [];
 
-    // Filter item Penyusutan Tambahan (Eks Ojol) – label sesuai data baru
+    // Filter item khusus
     maintenanceItems = maintenanceItems.filter(item => item.label !== 'Penyusutan Extra Km Gemuk (bekas ojol)');
 
-    // Hitung biaya extra km gemuk: value=10, interval=1 → Rp 10 per km
-    extraKmGemukCost = accumulatedData.totalDistance * 10;
+    extraKmGemukCost = acc.totalDistance * 10;
 
-    // Proses progress melalui Output
+    // Paksa interval: perawatan => km, pajak & atribut => hari
     maintenanceItems = calculateMaintenanceProgress(
-        maintenanceItems,
-        accumulatedData.totalDistance,
-        accumulatedData.totalTime,
-        cycleData
+        maintenanceItems, acc.totalDistance, acc.totalTime, cycleData, 'km'
     );
     taxItems = calculateMaintenanceProgress(
-        taxItems,
-        accumulatedData.totalDistance,
-        accumulatedData.totalTime,
-        cycleData
+        taxItems, acc.totalDistance, acc.totalTime, cycleData, 'day'
     );
     attributeItems = calculateMaintenanceProgress(
-        attributeItems,
-        accumulatedData.totalDistance,
-        accumulatedData.totalTime,
-        cycleData
+        attributeItems, acc.totalDistance, acc.totalTime, cycleData, 'day'
     );
+
+    // Buang item tanpa biaya
+    maintenanceItems = maintenanceItems.filter(item => item.dcell > 0);
+    taxItems = taxItems.filter(item => item.dcell > 0);
+    attributeItems = attributeItems.filter(item => item.dcell > 0);
 
     // Urutkan berdasarkan progress menurun
     maintenanceItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
     taxItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
     attributeItems.sort((a, b) => (b.progressPercent || 0) - (a.progressPercent || 0));
 
-    // Hitung depresiasi
     depreciationSummary = calculateDepreciationSummary(
         { E10: currentFilter, E22: cc },
-        accumulatedData.totalDepreciation
+        acc.totalDepreciation
     );
 }
 
@@ -211,16 +215,18 @@ function handleReset(itemLabel, intervalKm, cost) {
     }
 
     debounceTimers[itemLabel] = setTimeout(() => {
-        const currentCycle = cycleData[itemLabel] || { cycleCount: 0 };
+        const allData = StorageManager?.getCycleData() || {};
+        const key = _makeCycleKey(itemLabel);
+        const currentCycle = allData[key] || { cycleCount: 0 };
         const newCycleCount = (currentCycle.cycleCount || 0) + 1;
 
-        cycleData[itemLabel] = {
+        allData[key] = {
             cycleCount: newCycleCount,
             lastReset: Date.now()
         };
 
-        StorageManager?.saveCycleData(cycleData);
-
+        StorageManager?.saveCycleData(allData);
+        loadCycleData();
         loadMaintenanceData();
         refreshUI();
 
@@ -242,20 +248,21 @@ function renderFilter() {
 }
 
 function renderSummaryCards() {
-    const totalLiter = accumulatedData.totalFuelRupiah / getFuelPrice();
+    const acc = getAccumulatedData();
+    const totalLiter = acc.totalFuelRupiah / getFuelPrice();
 
     return `<div class="maint-summary-grid" style="grid-template-columns: 1fr 1fr;">
         <div class="maint-summary-item">
             <div class="maint-summary-label">Total Jarak <span class="input-info" data-help="maintenance-jarak">${ICON.INFO}</span></div>
-            <div class="maint-summary-value">${formatKm(accumulatedData.totalDistance)}</div>
+            <div class="maint-summary-value">${formatKm(acc.totalDistance)}</div>
         </div>
         <div class="maint-summary-item">
             <div class="maint-summary-label">Total Waktu <span class="input-info" data-help="maintenance-waktu">${ICON.INFO}</span></div>
-            <div class="maint-summary-value">${formatMenitPanjang(accumulatedData.totalTime)}</div>
+            <div class="maint-summary-value">${formatMenitPanjang(acc.totalTime)}</div>
         </div>
         <div class="maint-summary-item">
             <div class="maint-summary-label">Kesejahteraan Driver</div>
-            <div class="maint-summary-value">${formatRupiah(accumulatedData.totalWelfare)}</div>
+            <div class="maint-summary-value">${formatRupiah(acc.totalWelfare)}</div>
             <div class="maint-summary-footer">tapi aplikasi? <span class="input-info input-info-danger" data-help="maintenance-kesejahteraan">${ICON.INFO}</span></div>
         </div>
         <div class="maint-summary-item">
@@ -280,8 +287,17 @@ function getStatusLabel(item) {
     return 'AMAN';
 }
 
+function formatDaysAndHours(totalDays) {
+    const days = Math.floor(totalDays);
+    const hours = Math.round((totalDays - days) * 24);
+    return `${days} hari ${hours} jam`;
+}
+
 function renderProgressList(title, icon, helpKey, items) {
     if (!items || items.length === 0) return '';
+
+    const acc = getAccumulatedData();
+    const totalDays = acc.totalTime / 1440;
 
     let itemsHTML = '';
     items.forEach(item => {
@@ -292,15 +308,23 @@ function renderProgressList(title, icon, helpKey, items) {
 
         const cycleCount = item.cycleCount || 0;
         const interval = item.ecell || 0;
-        const effectiveDistance = item.effectiveDistance || 
-            Math.max(0, accumulatedData.totalDistance - (cycleCount * interval));
 
         let detailText = '';
-        if (interval) {
-            detailText = `${formatKm(effectiveDistance, false)} / ${formatKm(interval, false)}`;
+        if (interval > 0) {
+            if (item.intervalType === 'day') {
+                const effectiveDays = item.effectiveDays != null
+                    ? item.effectiveDays
+                    : Math.max(0, totalDays - (cycleCount * interval));
+                detailText = `${formatDaysAndHours(effectiveDays)} / ${interval} hari`;
+            } else {
+                // default km – tampilkan dengan satuan km
+                const effectiveDistance = item.effectiveDistance != null
+                    ? item.effectiveDistance
+                    : Math.max(0, acc.totalDistance - (cycleCount * interval));
+                detailText = `${formatKm(effectiveDistance, true)} / ${formatKm(interval, true)}`;
+            }
             if (cycleCount > 0) detailText += ` · Servis ke-${cycleCount + 1}`;
         } else {
-            // Jika bukan interval km, tidak ditampilkan
             detailText = '-';
         }
 
@@ -322,7 +346,6 @@ function renderProgressList(title, icon, helpKey, items) {
         </div>`;
     });
 
-    // Gunakan ICON.MAINTENANCE sebagai fallback aman jika icon tidak disediakan
     const displayIcon = icon || ICON.MAINTENANCE;
 
     return `<div class="card">
@@ -363,7 +386,6 @@ function renderDepreciation() {
             <span class="maint-depreciation-label">Umur Penyusutan</span>
             <span class="maint-depreciation-value">${d.umurTahun || 0} tahun</span>
         </div>
-        <!-- Extra km gemuk -->
         <div class="maint-depreciation-row" style="margin-top: var(--space-sm); border-top: 1px solid var(--border); padding-top: var(--space-xs);">
             <span class="maint-depreciation-label">Extra km gemuk (bekas ojol)</span>
             <span class="maint-depreciation-value">${formatRupiah(extraKmGemukCost)}</span>
@@ -399,6 +421,7 @@ function bindEvents() {
         btn.addEventListener('click', () => {
             if (isDestroyed) return;
             currentFilter = btn.dataset.filter;
+            loadCycleData();
             loadMaintenanceData();
             refreshUI();
         });
@@ -484,8 +507,8 @@ async function render(params, context = {}) {
     const direction = context.direction || 'forward';
 
     if (direction === 'forward') {
+        loadAccumulatedData();          // hitung akumulasi untuk kedua mode
         currentFilter = determineDefaultFilter();
-        loadAccumulatedData();
         loadCycleData();
         loadMaintenanceData();
     }
@@ -528,13 +551,13 @@ export const PageMaintenance = {
 window.log.info('[Maintenance ' + F_V + '] (2) PageMaintenance dimuat (via Output)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Gunakan Output untuk semua data dan kalkulasi
-//             maintenance, hapus ketergantungan pada Engine.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.MOBIL, ICON.INFO, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Hilangkan fallback ikon inline ('🔧') di renderProgressList,
-//             gunakan ICON.MAINTENANCE sebagai fallback yang aman.
+// 2.0a-rev0 : Inisiasi awal.
+// 2.0a-rev1 : Hapus ketergantungan getIcon.
+// 2.0a-rev2 : Hilangkan fallback ikon inline.
+// 2.0a-rev3 : Akumulasi per mode, format hari, siklus servis dengan prefix.
+// 2.0a-rev4 : forceIntervalType pada calculateMaintenanceProgress.
+// 2.0a-rev5 : Satuan km ditampilkan, getCurrentCC tidak bergantung pada input
+//             halaman lain sehingga pajak motor muncul kembali.
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
