@@ -1595,6 +1595,16 @@ label.switch { display: none; }
     cursor: grabbing;
 }
 
+.slide-thumb--primary {
+    background-color: var(--primary);
+}
+.slide-thumb--warning {
+    background-color: var(--warning);
+}
+.slide-thumb--danger {
+    background-color: var(--danger);
+}
+
 /* Dark mode otomatis karena variabel */
 
 /* ============================================== */
