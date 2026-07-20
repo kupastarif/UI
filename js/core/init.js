@@ -85,6 +85,17 @@
     window.log.info('[Init ' + F_V + '] (4) APP_CONFIG berhasil dibuat (v' + window.APP_CONFIG.version + ')');
 
     // =========================================================================
+    // DETEKSI PLATFORM (SSOT)
+    // =========================================================================
+    window.__platform = {
+        isNative: !!(window.Capacitor && 
+                     typeof window.Capacitor.isNativePlatform === 'function' && 
+                     window.Capacitor.isNativePlatform())
+    };
+    window.log.info('[Init] Platform isNative:', window.__platform.isNative);
+
+
+    // =========================================================================
     // 5. FUNGSI CACHE BUST
     // =========================================================================
     window.cacheBust = function(url) {
