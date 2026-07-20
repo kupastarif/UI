@@ -48,28 +48,19 @@ jobs:
         run: |
           npx cap init KupasTarif kupastarif.gk.app.id --web-dir=public
 
-      # ==============================================
-      # 3. Pastikan webDir = public
-      # ==============================================
       - name: Set webDir to public
         run: |
           sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
           cat capacitor.config.json
 
-      # ==============================================
-      # 4. Tambah platform Android
-      # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
-      # ==============================================
-      # 5. Sync Capacitor
-      # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
 
       # ==============================================
-      # 6. [UPDATE] Set minSdkVersion & targetSdkVersion
+      # 3. Set minSdkVersion & targetSdkVersion
       # ==============================================
       - name: Set Android SDK versions
         run: |
@@ -78,7 +69,7 @@ jobs:
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
-      # 7. [UPDATE] Buat colors.xml untuk adaptive icon
+      # 4. Buat colors.xml dengan nama custom (tidak bentrok)
       # ==============================================
       - name: Create colors.xml for adaptive icon
         run: |
@@ -86,13 +77,13 @@ jobs:
           cat > android/app/src/main/res/values/colors.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <color name="ic_launcher_background">#0a1f1a</color>
+              <color name="custom_ic_launcher_background">#0a1f1a</color>
           </resources>
           EOF
-          echo "colors.xml created."
+          echo "colors.xml created with custom color name."
 
       # ==============================================
-      # 8. Copy Launcher Icons (Manual)
+      # 5. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -102,21 +93,18 @@ jobs:
           mkdir -p android/app/src/main/res/mipmap-xxhdpi
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
 
-          # ic_launcher.png (non-adaptive fallback)
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-          # ic_launcher_round.png (untuk perangkat yang mendukung)
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
-          # ic_launcher_foreground.png (untuk adaptive icon)
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
@@ -126,7 +114,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 9. Adaptive Icon XML (Android 8+)
+      # 6. Adaptive Icon XML (gunakan warna custom)
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -134,14 +122,14 @@ jobs:
           cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@color/ic_launcher_background"/>
+              <background android:drawable="@color/custom_ic_launcher_background"/>
               <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
           </adaptive-icon>
           EOF
           echo "Adaptive icon created."
 
       # ==============================================
-      # 10. Copy Notification Icon
+      # 7. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -150,16 +138,13 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 11. Inject Permissions and Service
+      # 8. Inject Permissions and Service
       # ==============================================
       - name: Inject Background Permissions and Service
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-
-          # Install xmlstarlet
           sudo apt-get update && sudo apt-get install -y xmlstarlet
 
-          # Tambahkan izin jika belum ada
           if ! grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST; then
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
           fi
@@ -170,7 +155,6 @@ jobs:
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           fi
 
-          # Tambahkan service menggunakan xmlstarlet
           if ! grep -q "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" $MANIFEST; then
             xmlstarlet ed --inplace -N android="http://schemas.android.com/apk/res/android" \
               -s "/manifest/application" -t elem -n "service" -v "" \
@@ -185,7 +169,7 @@ jobs:
           echo "================================"
 
       # ==============================================
-      # 12. Clean and Build APK
+      # 9. Clean and Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -195,7 +179,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 13. Upload APK
+      # 10. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
