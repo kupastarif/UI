@@ -129,13 +129,13 @@ jobs:
                           android:resource="@xml/file_paths" />
                   </provider>
 
-                  <!-- ============================================================
-                       SERVICE BACKGROUND GEOLOCATION (Plugin Komunitas)
-                       ============================================================ -->
-                  <service
-                      android:name="com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
-                      android:foregroundServiceType="location"
-                      android:exported="false" />
+                  <!--
+                    SERVICE BACKGROUND GEOLOCATION TIDAK PERLU DIDEFINISIKAN ULANG DI SINI.
+                    Plugin @capacitor-community/background-geolocation sudah menyediakan
+                    deklarasi service sendiri dengan exported="true" melalui manifes internalnya.
+                    Menambahkan deklarasi kedua akan menyebabkan konflik (manifest merger)
+                    dan gagal build.
+                  -->
 
               </application>
 
