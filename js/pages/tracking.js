@@ -1,18 +1,17 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev1
+ * FILE VERSION : 2.0.0-rev2
  * APP VERSION  : 2.0.0
- * DATE         : 17 Juli 2026
+ * DATE         : 20 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
  *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
- *   [UPDATE] Menambahkan wake lock (layar tetap menyala) dengan dynamic import
- *   agar aman di browser dan Android. Dukungan background GPS di Android
- *   via @capgo/background-geolocation.
+ *   [FIX] Perbaikan wake lock menggunakan @capacitor-community/keep-awake
+ *   dengan dynamic import agar aman di browser dan Android.
  *
  * =================================================================================
  */
@@ -20,7 +19,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.0-rev2';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -72,9 +71,9 @@ const ICON = {
 // 1. STATE INTERNAL
 // =============================================================================
 
-// Wake lock state
-let wakeLockActive = false;        // true jika plugin wake lock aktif (Android)
-let wakeLockWeb = null;           // referensi ke navigator.wakeLock (Web)
+// Wake lock state (KeepAwake plugin)
+let keepAwakeActive = false;        // true jika plugin keep-awake aktif (Android)
+let wakeLockWeb = null;            // referensi ke navigator.wakeLock (Web)
 
 let isDestroyed = false;
 let calculate = null;
@@ -134,11 +133,13 @@ let currentSoundInterval = null;    // ms interval suara saat ini (null jika tid
 // =============================================================================
 
 function debounce(fn, delay) {
-    let timer;
-    return function(...args) {
+    var timer;
+    return function() {
+        var args = arguments;
+        var self = this;
         clearTimeout(timer);
         timer = setTimeout(function() {
-            fn.apply(this, args);
+            fn.apply(self, args);
         }, delay);
     };
 }
@@ -1055,15 +1056,15 @@ function createWarningPopupContent() {
 // =============================================================================
 
 async function releaseWakeLock() {
-    // Lepas wake lock plugin (Android)
-    if (wakeLockActive) {
+    // Lepas KeepAwake plugin (Android)
+    if (keepAwakeActive) {
         try {
             var module = await import('@capacitor-community/keep-awake');
-            await module.WakeLock.release();
-            wakeLockActive = false;
-            window.log.info('[Tracking] Wake Lock plugin dilepas');
+            await module.KeepAwake.allowSleep();
+            keepAwakeActive = false;
+            window.log.info('[Tracking] KeepAwake plugin dilepas');
         } catch (err) {
-            window.log.warn('[Tracking] Gagal melepas wake lock plugin:', err);
+            window.log.warn('[Tracking] Gagal melepas KeepAwake plugin:', err);
         }
     }
     // Lepas wake lock Web
@@ -1578,16 +1579,15 @@ async function renderActive(params, context) {
         GPS.start(handleGPSPosition, handleGPSError);
     }
 
-    // Aktifkan wake lock
+    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala)
     if (window.Capacitor && window.Capacitor.isNative) {
-        // Android: gunakan plugin Capacitor (dynamic import)
         try {
             var module = await import('@capacitor-community/keep-awake');
-            await module.WakeLock.request('screen');
-            wakeLockActive = true;
-            window.log.info('[Tracking] Wake Lock plugin diaktifkan');
+            await module.KeepAwake.keepAwake();
+            keepAwakeActive = true;
+            window.log.info('[Tracking] KeepAwake plugin diaktifkan');
         } catch (err) {
-            window.log.warn('[Tracking] Wake Lock plugin gagal:', err);
+            window.log.warn('[Tracking] KeepAwake plugin gagal:', err);
             // Fallback ke Web API
             try {
                 if ('wakeLock' in navigator) {
@@ -1780,14 +1780,16 @@ export var PageTrackingactive = {
     destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: wake lock dynamic import, background GPS)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: KeepAwake plugin, background GPS)');
 
 // ================================= CHANGELOG =================================
-// 2.0.0-rev1 : Wake lock menggunakan dynamic import agar aman di browser.
-//             Perbaikan penanganan nullish coalescing (diganti dengan || / ternary).
-//             Semua fungsi menggunakan function declaration (bukan arrow) untuk
-//             kompatibilitas.
-// 2.0.0-rev0 : Rilis stabil 2.0.0. Tambah wake lock dan background GPS.
+// 2.0.0-rev2 : Perbaikan wake lock menggunakan @capacitor-community/keep-awake
+//             dengan dynamic import agar aman di browser dan Android.
+//             Method yang benar: KeepAwake.keepAwake() dan KeepAwake.allowSleep().
+//             Penghapusan nullish coalescing agar kompatibel.
+//
+// 2.0.0-rev1 : Wake lock dynamic import, penanganan platform.
+// 2.0.0-rev0 : Rilis stabil 2.0.0.
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
