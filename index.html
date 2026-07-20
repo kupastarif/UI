@@ -310,174 +310,140 @@
         }
     </script>
 
-    <!-- ================================================================
-         NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
-         ================================================================ -->
-    <script>
-        (function() {
-            'use strict';
+<!-- ================================================================
+     NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
+     ================================================================ -->
+<script>
+    (function() {
+        'use strict';
 
-            // ---------- DETEKSI CAPACITOR ----------
-            if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
-                var Capacitor = window.Capacitor;
-            }
-            if (!Capacitor || !Capacitor.isNative) {
-                console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
-                return;
-            }
+        // ---------- DETEKSI CAPACITOR ----------
+        if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
+            var Capacitor = window.Capacitor;
+        }
+        if (!Capacitor || !Capacitor.isNative) {
+            console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
+            return;
+        }
 
-            console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
+        console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
 
-            var _watcherId = null;
+        var _watcherId = null;
+        var _isStarted = false;
+        var _bgPlugin = null;
 
-            async function initNative() {
-                try {
-                    // ---------- AMBIL PLUGIN ----------
-                    var BackgroundGeolocation = Capacitor.Plugins.BackgroundGeolocation;
-                    var Geolocation = Capacitor.Plugins.Geolocation;
-                    var LocalNotifications = Capacitor.Plugins.LocalNotifications;
-
-                    if (!BackgroundGeolocation) {
-                        console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
-                        return;
-                    }
-
-                    // ---------- MINTA IZIN SECARA BERTAHAP ----------
-                    // 1. Izin notifikasi (WAJIB untuk Android 13+)
-                    var notifStatus = await LocalNotifications.checkPermissions();
-                    if (notifStatus.display !== 'granted') {
-                        notifStatus = await LocalNotifications.requestPermissions();
-                    }
-                    if (notifStatus.display !== 'granted') {
-                        console.error('[Bridge] Izin notifikasi ditolak! Background GPS tidak akan berjalan.');
-                        if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
-                            window.ThemeManager.showToast('Aktifkan notifikasi agar GPS berjalan di latar belakang.', 'warning', 5000);
-                        }
-                        // Tetap lanjutkan dengan fallback (mungkin hanya foreground)
-                    }
-
-                    // 2. Izin lokasi (foreground + background)
-                    var geoStatus = await Geolocation.checkPermissions();
-                    if (geoStatus.location !== 'granted') {
-                        geoStatus = await Geolocation.requestPermissions();
-                    }
-                    if (geoStatus.location !== 'granted') {
-                        console.error('[Bridge] Izin lokasi ditolak! GPS tidak akan berjalan.');
-                        return;
-                    }
-
-                    // 3. Izin khusus plugin (opsional)
-                    if (typeof BackgroundGeolocation.requestPermissions === 'function') {
-                        await BackgroundGeolocation.requestPermissions();
-                    }
-
-                    // ---------- DAFTARKAN WATCHER (SATU-SATUNYA CARA YANG BENAR) ----------
-                    // addWatcher secara otomatis menangani foreground service, notifikasi,
-                    // dan callback lokasi. Tidak perlu configure() atau start() terpisah.
-                    _watcherId = await BackgroundGeolocation.addWatcher(
-                        {
-                            desiredAccuracy: 0,                // 0 = high accuracy
-                            distanceFilter: 10,                // meter
-                            stopOnTerminate: false,
-                            startOnBoot: true,
-                            backgroundMessage: "Merekam perjalanan akurasi tinggi...",
-                            backgroundTitle: "⚡ KupasTarif",
-                            backgroundIcon: "ic_notification",
-                            backgroundIconColor: "#0d7c4a",
-                            requestPermissions: false,        // sudah diminta di atas
-                            stale: false,
-                            activityType: 'automotiveNavigation',
-                            minimumActivityRecognitionConfidence: 70
-                        },
-                        function(location, error) {
-                            if (error) {
-                                console.error('[Bridge] Location error:', error);
-                                // Tampilkan notifikasi error
-                                LocalNotifications.schedule({
-                                    notifications: [{
-                                        id: 999,
-                                        title: '⚠️ Gagal Lokasi',
-                                        body: error.message || 'Periksa GPS dan izin aplikasi.',
-                                        schedule: { at: new Date(Date.now() + 500) }
-                                    }]
-                                });
-                                return;
-                            }
-                            if (location) {
-                                var pos = {
-                                    lat: location.latitude || location.coords?.latitude,
-                                    lng: location.longitude || location.coords?.longitude,
-                                    accuracy: location.accuracy || location.coords?.accuracy || 10,
-                                    timestamp: location.timestamp || Date.now()
-                                };
-                                // Kirim ke modul tracking jika sudah siap
-                                if (window.__trackingCalculate) {
-                                    window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                                } else {
-                                    window.__lastNativePos = pos;
-                                }
-                            }
-                        }
-                    );
-
-                    console.log('[Bridge] Watcher registered with id:', _watcherId);
-
-                    // ---------- GLOBAL API UNTUK TRACKING.JS ----------
-                    window.__nativeBG = {
-                        start: async function() {
-                            if (window.__nativeBG._started) {
-                                console.log('[Bridge] GPS sudah berjalan.');
-                                return;
-                            }
-                            // addWatcher sudah otomatis berjalan, kita hanya tandai status
-                            window.__nativeBG._started = true;
-                            // Notifikasi sukses (opsional)
-                            await LocalNotifications.schedule({
-                                notifications: [{
-                                    id: 1,
-                                    title: '🟢 Tracking Dimulai',
-                                    body: 'GPS aktif dengan akurasi tinggi.',
-                                    schedule: { at: new Date(Date.now() + 500) }
-                                }]
-                            });
-                            console.log('[Bridge] GPS background aktif.');
-                        },
-
-                        stop: async function() {
-                            if (!window.__nativeBG._started) {
-                                console.log('[Bridge] GPS sudah berhenti.');
-                                return;
-                            }
-                            try {
-                                if (_watcherId !== null) {
-                                    await BackgroundGeolocation.removeWatcher(_watcherId);
-                                    _watcherId = null;
-                                }
-                                window.__nativeBG._started = false;
-                                await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
-                                console.log('[Bridge] GPS background dihentikan.');
-                            } catch (err) {
-                                console.error('[Bridge] Gagal stop GPS:', err);
-                            }
-                        },
-
-                        _started: false
-                    };
-
-                    console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
-
-                } catch (err) {
-                    console.error('[Bridge] Gagal init plugin:', err);
+        async function initNative() {
+            try {
+                // ---------- AMBIL PLUGIN ----------
+                _bgPlugin = Capacitor.Plugins.BackgroundGeolocation;
+                if (!_bgPlugin) {
+                    console.warn('[Bridge] Plugin BackgroundGeolocation tidak ditemukan.');
+                    return;
                 }
-            }
 
-            if (document.readyState === 'complete') {
-                initNative();
-            } else {
-                window.addEventListener('load', initNative);
+                // ---------- GLOBAL API UNTUK TRACKING.JS ----------
+                window.__nativeBG = {
+                    start: async function() {
+                        if (_isStarted) {
+                            console.log('[Bridge] GPS sudah berjalan.');
+                            return;
+                        }
+                        try {
+                            // ---------- DAFTARKAN WATCHER (SATU‑SATUNYA) ----------
+                            _watcherId = await _bgPlugin.addWatcher(
+                                {
+                                    desiredAccuracy: 0,
+                                    distanceFilter: 10,
+                                    stopOnTerminate: false,
+                                    startOnBoot: true,
+                                    backgroundMessage: "Merekam perjalanan akurasi tinggi...",
+                                    backgroundTitle: "⚡ KupasTarif",
+                                    backgroundIcon: "ic_notification",
+                                    backgroundIconColor: "#0d7c4a",
+                                    requestPermissions: false,
+                                    stale: false,
+                                    activityType: 'automotiveNavigation',
+                                    minimumActivityRecognitionConfidence: 70
+                                },
+                                function(location, error) {
+                                    if (error) {
+                                        console.error('[Bridge] Location error:', error);
+                                        // Tampilkan notifikasi error (opsional)
+                                        try {
+                                            var LocalNotifications = Capacitor.Plugins.LocalNotifications;
+                                            if (LocalNotifications) {
+                                                LocalNotifications.schedule({
+                                                    notifications: [{
+                                                        id: 999,
+                                                        title: '⚠️ Gagal Lokasi',
+                                                        body: error.message || 'Periksa GPS dan izin aplikasi.',
+                                                        schedule: { at: new Date(Date.now() + 500) }
+                                                    }]
+                                                });
+                                            }
+                                        } catch (e) {}
+                                        return;
+                                    }
+                                    if (location) {
+                                        var pos = {
+                                            lat: location.latitude || location.coords?.latitude,
+                                            lng: location.longitude || location.coords?.longitude,
+                                            accuracy: location.accuracy || location.coords?.accuracy || 10,
+                                            timestamp: location.timestamp || Date.now()
+                                        };
+                                        // Kirim ke modul tracking jika sudah siap
+                                        if (window.__trackingCalculate) {
+                                            window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                                        } else {
+                                            window.__lastNativePos = pos;
+                                        }
+                                    }
+                                }
+                            );
+                            _isStarted = true;
+                            console.log('[Bridge] Watcher registered with id:', _watcherId);
+                        } catch (err) {
+                            console.error('[Bridge] Gagal start GPS:', err);
+                        }
+                    },
+
+                    stop: async function() {
+                        if (!_isStarted) {
+                            console.log('[Bridge] GPS sudah berhenti.');
+                            return;
+                        }
+                        try {
+                            if (_watcherId !== null) {
+                                await _bgPlugin.removeWatcher(_watcherId);
+                                _watcherId = null;
+                            }
+                            _isStarted = false;
+                            console.log('[Bridge] GPS background dihentikan.');
+                        } catch (err) {
+                            console.error('[Bridge] Gagal stop GPS:', err);
+                        }
+                    },
+
+                    // Properti status (bisa dibaca dari luar)
+                    _started: false
+                };
+
+                // Jangan panggil start() di sini – tunggu tracking active
+                console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
+
+            } catch (err) {
+                console.error('[Bridge] Gagal init plugin:', err);
             }
-        })();
-    </script>
+        }
+
+        // ---------- INISIALISASI BRIDGE ----------
+        if (document.readyState === 'complete') {
+            initNative();
+        } else {
+            window.addEventListener('load', initNative);
+        }
+    })();
+</script>
 
 </body>
 </html>
