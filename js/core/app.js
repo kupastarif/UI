@@ -415,10 +415,25 @@ if (reloadButton) {
 }
 
 // =============================================================================
-// 10. INISIALISASI - SEGERA JALANKAN
+// 10. INISIALISASI - DENGAN GUARD CAPACITOR NATIVE BRIDGE
 // =============================================================================
-
-initializeApp();
+function bootstrapApp() {
+    // Jika berjalan di perangkat native (Android/iOS), tunggu event 'deviceready'
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+        document.addEventListener('deviceready', function() {
+            window.log.info('[App ' + F_V + '] Device native siap. Memulai inisialisasi.');
+            initializeApp();
+        }, { once: true });
+    } else {
+        // Fallback untuk lingkungan Web / PWA / Development
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
+        } else {
+            initializeApp();
+        }
+    }
+}
+bootstrapApp();
 
 // =============================================================================
 // 11. EKSPOR
