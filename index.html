@@ -2,7 +2,7 @@
 /**
  * =================================================================================
  * FILE         : /index.html
- * FILE VERSION : 2.0.0-rev2
+ * FILE VERSION : 2.0.0-rev3
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -12,6 +12,9 @@
  *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
  *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
  *   Production-ready dengan PWA support dan Service Worker.
+ *
+ *   [FIX] Bridge background GPS sekarang meminta izin notifikasi secara eksplisit,
+ *   menggunakan requestPermissions:true, dan mencegah watcher ganda.
  *
  * =================================================================================
  */
@@ -310,145 +313,179 @@
         }
     </script>
 
-<!-- ================================================================
-     NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
-     ================================================================ -->
-<script>
-    (function() {
-        'use strict';
+    <!-- ================================================================
+         NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
+         ================================================================ -->
+    <script>
+        (function() {
+            'use strict';
 
-        // ---------- DETEKSI CAPACITOR ----------
-        if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
-            var Capacitor = window.Capacitor;
-        }
-        if (!Capacitor || !Capacitor.isNative) {
-            console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
-            return;
-        }
+            // ---------- DETEKSI CAPACITOR ----------
+            if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
+                var Capacitor = window.Capacitor;
+            }
+            if (!Capacitor || !Capacitor.isNative) {
+                console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
+                return;
+            }
 
-        console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
+            console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
 
-        var _watcherId = null;
-        var _isStarted = false;
-        var _bgPlugin = null;
+            var _watcherId = null;
+            var _isStarted = false;
+            var _bgPlugin = null;
 
-        async function initNative() {
-            try {
-                // ---------- AMBIL PLUGIN ----------
-                _bgPlugin = Capacitor.Plugins.BackgroundGeolocation;
-                if (!_bgPlugin) {
-                    console.warn('[Bridge] Plugin BackgroundGeolocation tidak ditemukan.');
-                    return;
+            // Fungsi untuk meminta izin notifikasi jika plugin tersedia
+            async function requestNotificationPermission() {
+                try {
+                    var LocalNotifications = Capacitor.Plugins.LocalNotifications;
+                    if (LocalNotifications && typeof LocalNotifications.requestPermissions === 'function') {
+                        var permissionResult = await LocalNotifications.requestPermissions();
+                        console.log('[Bridge] Izin notifikasi:', permissionResult);
+                    } else {
+                        console.log('[Bridge] LocalNotifications tidak tersedia, tidak meminta izin.');
+                    }
+                } catch (e) {
+                    console.warn('[Bridge] Gagal meminta izin notifikasi:', e);
                 }
+            }
 
-                // ---------- GLOBAL API UNTUK TRACKING.JS ----------
-                window.__nativeBG = {
-                    start: async function() {
-                        if (_isStarted) {
-                            console.log('[Bridge] GPS sudah berjalan.');
-                            return;
-                        }
-                        try {
-                            // ---------- DAFTARKAN WATCHER (SATU‑SATUNYA) ----------
-                            _watcherId = await _bgPlugin.addWatcher(
-                                {
-                                    desiredAccuracy: 0,
-                                    distanceFilter: 10,
-                                    stopOnTerminate: false,
-                                    startOnBoot: true,
-                                    backgroundMessage: "Merekam perjalanan akurasi tinggi...",
-                                    backgroundTitle: "⚡ KupasTarif",
-                                    backgroundIcon: "ic_notification",
-                                    backgroundIconColor: "#0d7c4a",
-                                    requestPermissions: false,
-                                    stale: false,
-                                    activityType: 'automotiveNavigation',
-                                    minimumActivityRecognitionConfidence: 70
-                                },
-                                function(location, error) {
-                                    if (error) {
-                                        console.error('[Bridge] Location error:', error);
-                                        // Tampilkan notifikasi error (opsional)
-                                        try {
-                                            var LocalNotifications = Capacitor.Plugins.LocalNotifications;
-                                            if (LocalNotifications) {
-                                                LocalNotifications.schedule({
-                                                    notifications: [{
-                                                        id: 999,
-                                                        title: '⚠️ Gagal Lokasi',
-                                                        body: error.message || 'Periksa GPS dan izin aplikasi.',
-                                                        schedule: { at: new Date(Date.now() + 500) }
-                                                    }]
-                                                });
+            async function initNative() {
+                try {
+                    // ---------- AMBIL PLUGIN ----------
+                    _bgPlugin = Capacitor.Plugins.BackgroundGeolocation;
+                    if (!_bgPlugin) {
+                        console.warn('[Bridge] Plugin BackgroundGeolocation tidak ditemukan.');
+                        return;
+                    }
+
+                    // ---------- GLOBAL API UNTUK TRACKING.JS ----------
+                    window.__nativeBG = {
+                        // Properti status (bisa dibaca dari luar)
+                        _started: false,
+
+                        start: async function() {
+                            // ============================================================
+                            // GUARD: Jika sudah mulai, hentikan dulu untuk mencegah watcher ganda
+                            // ============================================================
+                            if (_isStarted) {
+                                console.log('[Bridge] GPS sudah berjalan, hentikan dulu sebelum memulai ulang.');
+                                await this.stop();
+                            }
+
+                            // Minta izin notifikasi (jika belum diberikan)
+                            await requestNotificationPermission();
+
+                            try {
+                                console.log('[Bridge] Menambahkan watcher background geolocation...');
+                                // ---------- DAFTARKAN WATCHER ----------
+                                _watcherId = await _bgPlugin.addWatcher(
+                                    {
+                                        desiredAccuracy: 0,
+                                        distanceFilter: 10,
+                                        stopOnTerminate: false,
+                                        startOnBoot: true,
+                                        backgroundMessage: "Merekam perjalanan akurasi tinggi...",
+                                        backgroundTitle: "⚡ KupasTarif",
+                                        backgroundIcon: "ic_notification",
+                                        backgroundIconColor: "#0d7c4a",
+                                        // AKTIFKAN REQUEST PERMISSIONS AGAR PLUGIN MEMINTA IZIN LOKASI DAN NOTIFIKASI
+                                        requestPermissions: true,
+                                        stale: false,
+                                        activityType: 'automotiveNavigation',
+                                        minimumActivityRecognitionConfidence: 70
+                                    },
+                                    function(location, error) {
+                                        if (error) {
+                                            console.error('[Bridge] Location error:', error);
+                                            // Tampilkan notifikasi error (opsional)
+                                            try {
+                                                var LocalNotifications = Capacitor.Plugins.LocalNotifications;
+                                                if (LocalNotifications) {
+                                                    LocalNotifications.schedule({
+                                                        notifications: [{
+                                                            id: 999,
+                                                            title: '⚠️ Gagal Lokasi',
+                                                            body: error.message || 'Periksa GPS dan izin aplikasi.',
+                                                            schedule: { at: new Date(Date.now() + 500) }
+                                                        }]
+                                                    });
+                                                }
+                                            } catch (e) {}
+                                            return;
+                                        }
+                                        if (location) {
+                                            var pos = {
+                                                lat: location.latitude || location.coords?.latitude,
+                                                lng: location.longitude || location.coords?.longitude,
+                                                accuracy: location.accuracy || location.coords?.accuracy || 10,
+                                                timestamp: location.timestamp || Date.now()
+                                            };
+                                            // Kirim ke modul tracking jika sudah siap
+                                            if (window.__trackingCalculate) {
+                                                window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                                            } else {
+                                                window.__lastNativePos = pos;
                                             }
-                                        } catch (e) {}
-                                        return;
-                                    }
-                                    if (location) {
-                                        var pos = {
-                                            lat: location.latitude || location.coords?.latitude,
-                                            lng: location.longitude || location.coords?.longitude,
-                                            accuracy: location.accuracy || location.coords?.accuracy || 10,
-                                            timestamp: location.timestamp || Date.now()
-                                        };
-                                        // Kirim ke modul tracking jika sudah siap
-                                        if (window.__trackingCalculate) {
-                                            window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                                        } else {
-                                            window.__lastNativePos = pos;
                                         }
                                     }
-                                }
-                            );
-                            _isStarted = true;
-                            console.log('[Bridge] Watcher registered with id:', _watcherId);
-                        } catch (err) {
-                            console.error('[Bridge] Gagal start GPS:', err);
-                        }
-                    },
-
-                    stop: async function() {
-                        if (!_isStarted) {
-                            console.log('[Bridge] GPS sudah berhenti.');
-                            return;
-                        }
-                        try {
-                            if (_watcherId !== null) {
-                                await _bgPlugin.removeWatcher(_watcherId);
-                                _watcherId = null;
+                                );
+                                _isStarted = true;
+                                window.__nativeBG._started = true;
+                                console.log('[Bridge] Watcher registered with id:', _watcherId);
+                            } catch (err) {
+                                console.error('[Bridge] Gagal start GPS:', err);
+                                throw err;
                             }
-                            _isStarted = false;
-                            console.log('[Bridge] GPS background dihentikan.');
-                        } catch (err) {
-                            console.error('[Bridge] Gagal stop GPS:', err);
+                        },
+
+                        stop: async function() {
+                            if (!_isStarted) {
+                                console.log('[Bridge] GPS sudah berhenti.');
+                                return;
+                            }
+                            try {
+                                if (_watcherId !== null) {
+                                    console.log('[Bridge] Menghapus watcher dengan id:', _watcherId);
+                                    await _bgPlugin.removeWatcher(_watcherId);
+                                    _watcherId = null;
+                                }
+                                _isStarted = false;
+                                window.__nativeBG._started = false;
+                                console.log('[Bridge] GPS background dihentikan.');
+                            } catch (err) {
+                                console.error('[Bridge] Gagal stop GPS:', err);
+                                throw err;
+                            }
                         }
-                    },
+                    };
 
-                    // Properti status (bisa dibaca dari luar)
-                    _started: false
-                };
+                    // Jangan panggil start() di sini – tunggu tracking active
+                    console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
 
-                // Jangan panggil start() di sini – tunggu tracking active
-                console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
-
-            } catch (err) {
-                console.error('[Bridge] Gagal init plugin:', err);
+                } catch (err) {
+                    console.error('[Bridge] Gagal init plugin:', err);
+                }
             }
-        }
 
-        // ---------- INISIALISASI BRIDGE ----------
-        if (document.readyState === 'complete') {
-            initNative();
-        } else {
-            window.addEventListener('load', initNative);
-        }
-    })();
-</script>
+            // ---------- INISIALISASI BRIDGE ----------
+            if (document.readyState === 'complete') {
+                initNative();
+            } else {
+                window.addEventListener('load', initNative);
+            }
+        })();
+    </script>
 
 </body>
 </html>
 <!--
 // ================================= CHANGELOG =================================
+// 2.0.0-rev3 : - Aktifkan requestPermissions:true pada addWatcher.
+//               - Tambahkan guard di start() untuk mencegah watcher ganda (stop dulu jika _isStarted true).
+//               - Tambahkan permintaan izin notifikasi eksplisit menggunakan LocalNotifications.
+//               - Sinkronkan properti _started pada window.__nativeBG.
+//
 // 2.0.0-rev2 : Perbaikan total bridge Capacitor untuk background GPS.
 //             - Menggunakan addWatcher() sesuai dokumentasi @capgo/background-geolocation v8
 //             - Menghapus configure() dan start() yang usang dan konflik
@@ -460,4 +497,4 @@
 // 2.0.0-rev0 : Rilis stabil 2.0.0. Service Worker dinonaktifkan di Android.
 //
 // ================================ End Of File ================================
---> 
+-->
