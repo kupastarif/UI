@@ -1,7 +1,7 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev3
+ * FILE VERSION : 2.0.0-rev4
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -11,6 +11,8 @@
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
  *   [FIX] Menggunakan @capacitor-community/keep-awake untuk wake lock (Capacitor 6).
+ *   [FIX] Mencegah watcher ganda dengan memanggil stop() sebelum start() di renderActive.
+ *   [FIX] Meminta izin notifikasi secara eksplisit sebelum memulai background location.
  *
  * =================================================================================
  */
@@ -18,7 +20,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev3';
+const F_V = '2.0.0-rev4';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1486,7 +1488,7 @@ async function renderIdle(params, context) {
 }
 
 // =============================================================================
-// 16. RENDER ACTIVE
+// 16. RENDER ACTIVE (DENGAN PERBAIKAN)
 // =============================================================================
 
 async function renderActive(params, context) {
@@ -1563,9 +1565,26 @@ async function renderActive(params, context) {
 
     calculate.start();
 
-    // Pilih sumber lokasi sesuai platform
+    // ================================================================
+    // PERBAIKAN: Pilih sumber lokasi sesuai platform
+    // - Hentikan watcher yang mungkin masih berjalan (mencegah watcher ganda)
+    // - Minta izin notifikasi secara eksplisit (opsional)
+    // ================================================================
     if (window.Capacitor && window.Capacitor.isNative) {
-        // Android: gunakan background geolocation dengan notifikasi
+        // Hentikan watcher yang mungkin masih berjalan (cegah watcher ganda)
+        if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
+            await window.__nativeBG.stop();
+        }
+        // Minta izin notifikasi secara eksplisit (opsional)
+        try {
+            const { LocalNotifications } = Capacitor.Plugins;
+            if (LocalNotifications && typeof LocalNotifications.requestPermissions === 'function') {
+                await LocalNotifications.requestPermissions();
+            }
+        } catch (e) {
+            window.log.warn('[Tracking] Gagal meminta izin notifikasi:', e);
+        }
+        // Mulai background
         if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
             await window.__nativeBG.start();
             GPS.stop(); // hentikan GPS foreground agar tidak duplikasi
@@ -1782,6 +1801,11 @@ export var PageTrackingactive = {
 window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: KeepAwake plugin @capgo, background GPS)');
 
 // ================================= CHANGELOG =================================
+// 2.0.0-rev4 : - Tambahkan panggilan stop() sebelum start() di renderActive untuk
+//                mencegah watcher ganda.
+//              - Tambahkan permintaan izin notifikasi eksplisit menggunakan
+//                LocalNotifications.requestPermissions().
+//
 // 2.0.0-rev3 : Ganti plugin keep-awake dari @capacitor-community/keep-awake ke
 //             @capacitor-community/keep-awake (kompatibel dengan Capacitor 6).
 //             Perbaikan dynamic import ke path yang benar.
