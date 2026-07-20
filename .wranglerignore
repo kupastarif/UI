@@ -1,0 +1,5 @@
+node_modules/
+.github/
+package.json
+bun.lockb
+capacitor.config.json
