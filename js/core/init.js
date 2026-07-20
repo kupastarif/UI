@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/core/init.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -19,7 +19,7 @@
     'use strict';
 
     // ==================== VERSI FILE ====================
-    const F_V = '2.0a-rev0';
+    const F_V = '2.0.0-rev0';
 
     // Guard: cegah eksekusi ganda
     if (window.__INIT_EXECUTED__) return;
@@ -64,7 +64,7 @@
     // 4. APP_CONFIG (SSOT – membaca dari variabel global HTML, fallback aman)
     // =========================================================================
     window.APP_CONFIG = {
-        version:                 window.APP_VERSION              || '2.0a-beta',
+        version:                 window.APP_VERSION              || '2.0.0',
         isDevMode:               isDevMode,
         enableDevTools:          isDevMode,
         timeout:                 window.APP_TIMEOUT              || 10000,
@@ -240,7 +240,7 @@
 })();
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Ganti engine ke v1.0.0‑beta, hapus cacheMode,
+// 2.0.0-rev0 : Inisiasi awal. Ganti engine ke v1.0.0‑beta, hapus cacheMode,
 //             atur Cache.setMode() berdasarkan isDevMode.
 //
 // =============================== FUTURE UPDATE ===============================

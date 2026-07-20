@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/core/preferences.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { StorageManager } from './storage.js';
 import { StateManager } from './state.js';
@@ -132,7 +132,7 @@ function loadPreferences() {
         const stored = StorageManager ? StorageManager.getPreferences() : {};
         const defaults = buildDefaultPreferences();
 
-        // --- PERBAIKAN v2.0a-rev1 ---
+        // --- PERBAIKAN v2.0.0-rev1 ---
         // Driver info harus diambil dari sumber terenkripsi (kt_driver)
         // agar data yang tampil selalu data terbaru yang disimpan
         // melalui StorageManager.saveDriverInfo().
@@ -192,7 +192,7 @@ function loadPreferences() {
 function savePreferences(prefs) {
     window.log.info('[Preferences ' + F_V + '] (8) Memulai savePreferences()');
     try {
-        // --- PERBAIKAN v2.0a-rev1 ---
+        // --- PERBAIKAN v2.0.0-rev1 ---
         // driverInfo TIDAK lagi disertakan di sini.
         // Data sensitif (nama, plat, telepon) hanya disimpan
         // melalui StorageManager.saveDriverInfo() dengan enkripsi.
@@ -392,9 +392,9 @@ export const PreferencesManager = {
 window.log.info('[Preferences ' + F_V + '] (21) PreferencesManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Akses Engine melalui Output, tambah properti
+// 2.0.0-rev0 : Inisiasi awal. Akses Engine melalui Output, tambah properti
 //             cacheMaksimal, validasi via Output.validateCell.
-// 2.0a-rev1 : Hapus penyimpanan driverInfo di kt_prefs (plaintext).
+// 2.0.0-rev1 : Hapus penyimpanan driverInfo di kt_prefs (plaintext).
 //             loadPreferences() sekarang membaca driver info dari
 //             StorageManager.getDriverInfo() (terenkripsi).
 //             StateManager tetap mendapat driverInfo untuk kebutuhan runtime.

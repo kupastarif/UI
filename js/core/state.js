@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/core/state.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev0';
+const F_V = '2.0.0-rev0';
 
 import { getDefaultValues } from '../helpers/output.js';
 
@@ -151,8 +151,8 @@ const AppState = {
         offlineOrder: false,
         alwaysOperational: false,
         largeText: false,
-        hideSafetyReminder: false,          // v2.0a-rev0
-        cacheMaksimal: false,               // v2.0a-rev0
+        hideSafetyReminder: false,          // v2.0.0-rev0
+        cacheMaksimal: false,               // v2.0.0-rev0
         defaultVehicle: {
             mode: 'Mobil', role: 'Driver', area: 'Jabodetabek',
             cc: '1000cc', fuel: 'Pertalite', transmission: 'manual',
@@ -325,7 +325,7 @@ export { AppState, StateManager, StateEvents };
 window.log.info('[State ' + F_V + '] (5) StateManager dimuat (via Output)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Ambil default input dari Output, tambah E40,
+// 2.0.0-rev0 : Inisiasi awal. Ambil default input dari Output, tambah E40,
 //             preferensi cacheMaksimal dan hideSafetyReminder.
 //
 // =============================== FUTURE UPDATE ===============================

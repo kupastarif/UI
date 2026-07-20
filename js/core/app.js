@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/core/app.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 17 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { StateManager, StateEvents } from './state.js';
 import { StorageManager } from './storage.js';
@@ -328,7 +328,7 @@ async function initializeApp() {
         return;
     }
 
-    window.log.info('[App ' + F_V + '] (13) Memulai inisialisasi aplikasi v' + (window.APP_CONFIG?.version || '2.0a-beta'));
+    window.log.info('[App ' + F_V + '] (13) Memulai inisialisasi aplikasi v' + (window.APP_CONFIG?.version || '2.0.0'));
     startLoading();
 
     if (!checkEngine()) return;
@@ -363,7 +363,7 @@ async function initializeApp() {
         finishLoading();
         isInitialized = true;
 
-        window.log.info('[App ' + F_V + '] (19) Aplikasi v' + (window.APP_CONFIG?.version || '2.0a-beta') + ' siap digunakan! Engine ' + (window.Engine.ENGINE_VERSION || window.Engine.VERSION));
+        window.log.info('[App ' + F_V + '] (19) Aplikasi v' + (window.APP_CONFIG?.version || '2.0.0') + ' siap digunakan! Engine ' + (window.Engine.ENGINE_VERSION || window.Engine.VERSION));
 
         // ============================================================
         // [UPDATE] Auto-check update setelah aplikasi siap (2 detik)
@@ -426,7 +426,7 @@ initializeApp();
 
 export const App = {
     reload: reloadApp,
-    version: (window.APP_CONFIG && window.APP_CONFIG.version) || '2.0a-beta',
+    version: (window.APP_CONFIG && window.APP_CONFIG.version) || '2.0.0',
     isReady: function() { return isInitialized; }
 };
 
@@ -437,9 +437,9 @@ if (typeof window !== 'undefined') {
 window.log.info('[App ' + F_V + '] (22) App core dimuat (dengan fitur update)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Engine v1.0.0‑beta, Cache.clear() untuk reload,
+// 2.0.0-rev0 : Inisiasi awal. Engine v1.0.0‑beta, Cache.clear() untuk reload,
 //             isVersionCompatible mendukung format versi baru.
-// 2.0a-rev1 : Penambahan fungsi window.checkForUpdate(manual) dan auto-check
+// 2.0.0-rev1 : Penambahan fungsi window.checkForUpdate(manual) dan auto-check
 //             setelah aplikasi siap. Update state dan toast.
 //
 // =============================== FUTURE UPDATE ===============================

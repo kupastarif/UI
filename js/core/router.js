@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/core/router.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 2 Juli 2026
  * @author      : gk
  *
@@ -21,7 +21,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { StateManager } from './state.js';
 import { PopupManager } from '../components/popup.js';
@@ -805,9 +805,9 @@ window.Router = Router;
 window.log.info('[Router ' + F_V + '] (63) Router dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
 //             Tidak ada perubahan fungsional.
-// 2.0a-rev1 : Perbaikan overlay back – penutupan overlay dari UI menggunakan
+// 2.0.0-rev1 : Perbaikan overlay back – penutupan overlay dari UI menggunakan
 //             history.back() (fungsi closeOverlayUI). Tambah penanganan stack
 //             identik di popstate dan blokir forward tanpa emergency reset.
 //             Callback onClose overlay kini memanggil Router.closeOverlayUI().
