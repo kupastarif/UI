@@ -19,7 +19,7 @@
     ]
   },
   "plugins": {
-    "@capgo/background-geolocation": {
+    "@capacitor-community/background-geolocation": {
       "desiredAccuracy": 0,
       "distanceFilter": 10,
       "stopOnTerminate": false,
