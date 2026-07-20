@@ -2,9 +2,9 @@
 /**
  * =================================================================================
  * FILE         : /index.html
- * FILE VERSION : 2.0.0-rev0
+ * FILE VERSION : 2.0.0-rev1
  * APP VERSION  : 2.0.0
- * DATE         : 17 Juli 2026
+ * DATE         : 20 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -12,6 +12,8 @@
  *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
  *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
  *   Production-ready dengan PWA support dan Service Worker.
+ *   [FIX] Perbaikan bridge Capacitor untuk background GPS agar notifikasi
+ *   persistent muncul dan GPS berjalan di background.
  *
  * =================================================================================
  */
@@ -85,7 +87,7 @@
     <script>
         // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
         window.isDevMode = false;            // false untuk production
-        window.APP_VERSION = '2.0.0';        // <-- UBAH KE 2.0.0
+        window.APP_VERSION = '2.0.0';
         window.SITE_TITLE = 'KupasTarif';
         window.SITE_DISPLAY = 'Kupas⚡Tarif';
         window.SITE_ICON = '⚡';
@@ -95,23 +97,20 @@
         // ---------- CACHE BUST HANYA SAAT DEV MODE ----------
         if (window.isDevMode) {
             var CACHE_BUST = Date.now();
-            window.CACHE_BUST = CACHE_BUST;   // ekspor agar init.js bisa membaca
+            window.CACHE_BUST = CACHE_BUST;
             document.write('<link rel="stylesheet" href="assets/css/main.css?v=' + CACHE_BUST + '">');
             document.write('<link rel="stylesheet" href="assets/css/components.css?v=' + CACHE_BUST + '">');
             document.write('<link rel="stylesheet" href="assets/css/pages.css?v=' + CACHE_BUST + '">');
         } else {
-            // Tanpa cache bust (production)
             document.write('<link rel="stylesheet" href="assets/css/main.css">');
             document.write('<link rel="stylesheet" href="assets/css/components.css">');
             document.write('<link rel="stylesheet" href="assets/css/pages.css">');
         }
 
         // ---------- BASE URL UNTUK SCRIPT DINAMIS (fallback) ----------
-        // Akan di-override oleh init.js jika ada, tapi kita set fallback dari lokasi
         (function() {
             if (!window.APP_FULL_BASE) {
                 var path = window.location.pathname;
-                // Hapus bagian setelah trailing slash terakhir untuk mendapatkan base path
                 var base = path.replace(/\/[^/]*$/, '/');
                 window.APP_FULL_BASE = window.location.origin + base;
             }
@@ -126,7 +125,6 @@
 
             var imageUrl = baseUrl + 'assets/img/og.jpg';
 
-            // Update canonical
             var canonical = document.querySelector('link[rel="canonical"]');
             if (canonical) {
                 canonical.href = baseUrl;
@@ -137,28 +135,24 @@
                 document.head.appendChild(link);
             }
 
-            // Update og:url
             var ogUrl = document.querySelector('meta[property="og:url"]');
             if (ogUrl) ogUrl.content = baseUrl;
 
-            // Update og:image
             var ogImage = document.querySelector('meta[property="og:image"]');
             if (ogImage) ogImage.content = imageUrl;
 
-            // Update twitter:image
             var twImage = document.querySelector('meta[name="twitter:image"]');
             if (twImage) twImage.content = imageUrl;
         })();
     </script>
 
-    <!-- Font Inter (eksternal, tidak perlu cache bust) -->
+    <!-- Font Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <!-- CSS tambahan untuk .sr-only (SEO) -->
     <style>
-        /* Untuk aksesibilitas & SEO – menyembunyikan elemen secara visual tapi tetap dibaca crawler */
         .sr-only {
             position: absolute;
             width: 1px;
@@ -172,25 +166,14 @@
     </style>
 </head>
 <body>
-    <!--
-        =================================================================
-        LOADING SCREEN (AWAL APLIKASI)
-        =================================================================
-        Tema: DARK HIJAU (hardcoded, tidak terpengaruh tema aplikasi)
-        Background: #0a1f1a (hijau sangat gelap)
-        Text: #f8fafc (slate-50)
-        Primary: #00a86b (hijau jade)
-        Progress Background: #1a3a2e
-        Sub Text: #94a3b8
-        Muted Text: #64748b
-    -->
+    <!-- ================================================================
+         LOADING SCREEN
+         ================================================================ -->
     <div id="loading-screen" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: #0a1f1a; display: flex; align-items: center; justify-content: center; z-index: 10001; transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);">
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; width: 85%; max-width: 300px; padding: 20px 0;">
 
-            <!-- Logo -->
             <div style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #00a86b; text-align: center;">Kupas⚡Tarif</div>
 
-            <!-- Wave Animation (5 batang) -->
             <div style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 4px 0;">
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out infinite;"></div>
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.15s infinite;"></div>
@@ -199,23 +182,18 @@
                 <div class="loading-wave-bar" style="width: 4px; height: 100%; background-color: #00a86b; border-radius: 9999px; animation: loading-wave 1.2s ease-in-out 0.6s infinite;"></div>
             </div>
 
-            <!-- Progress Bar -->
             <div style="width: 100%; height: 3px; background-color: #1a3a2e; border-radius: 9999px; overflow: hidden;">
                 <div id="loading-progress-bar" style="height: 100%; width: 0%; background-color: #00a86b; border-radius: 9999px; transition: width 0.1s linear;"></div>
             </div>
 
-            <!-- Loading Text (random, hardcoded) -->
             <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
 
-            <!-- Version -->
-            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0.0</div>  <!-- <-- UBAH KE 2.0.0 -->
+            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0.0</div>
 
-            <!-- Reload Button (hidden by default) -->
             <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
         </div>
     </div>
 
-    <!-- Wave Animation Keyframes -->
     <style>
         @keyframes loading-wave {
             0%, 60%, 100% { transform: scaleY(1); }
@@ -223,21 +201,17 @@
         }
     </style>
 
-    <!--
-        =================================================================
-        APP CONTAINER
-        =================================================================
-    -->
+    <!-- ================================================================
+         APP CONTAINER
+         ================================================================ -->
     <div id="app" class="app-container hidden">
         <header id="app-header" class="app-header"></header>
         <main id="app-content" class="app-content"></main>
         <footer id="app-footer" class="app-footer"></footer>
     </div>
 
-    <!-- H1 tersembunyi untuk SEO & aksesibilitas -->
     <h1 class="sr-only">KupasTarif – Kalkulator Tarif Ojek Online</h1>
 
-    <!-- Fallback untuk crawler atau pengguna tanpa JavaScript -->
     <noscript>
         <div style="padding: 20px; font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
             <h1 style="font-size: 1.5rem; color: #0a1f1a;">KupasTarif – Kalkulator Tarif Ojek Online</h1>
@@ -247,30 +221,23 @@
         </div>
     </noscript>
 
-    <!--
-        =================================================================
-        PORTAL CONTAINERS
-        =================================================================
-    -->
+    <!-- ================================================================
+         PORTAL CONTAINERS
+         ================================================================ -->
     <div id="drawer-container"></div>
     <div id="popup-container"></div>
     <div id="toast-container" class="toast-container"></div>
 
-    <!--
-        =================================================================
-        LOADING OVERLAY (NAVIGASI GLOBAL)
-        =================================================================
-        Tema: MENGIKUTI tema aplikasi (light/dark)
-    -->
+    <!-- ================================================================
+         LOADING OVERLAY (NAVIGASI GLOBAL)
+         ================================================================ -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
     </div>
 
-    <!--
-        =================================================================
-        LOADER SCRIPT (init.js dengan cache bust hanya saat dev mode)
-        =================================================================
-    -->
+    <!-- ================================================================
+         LOADER SCRIPT (init.js)
+         ================================================================ -->
     <script>
         if (window.isDevMode && window.CACHE_BUST) {
             document.write('<script src="js/core/init.js?v=' + window.CACHE_BUST + '"><\/script>');
@@ -279,16 +246,13 @@
         }
     </script>
 
-    <!--
-        =================================================================
-        INLINE: LOADING TEXT (SSOT - HARDCODED, DALAM IIFE)
-        =================================================================
-    -->
+    <!-- ================================================================
+         INLINE: LOADING TEXT
+         ================================================================ -->
     <script>
         (function() {
             'use strict';
 
-            // DAFTAR TEKS LOADING (6 item) - SSOT HANYA DI SINI
             var LOADING_TEXTS = [
                 "Demi sistem, driver terus bekerja...",
                 "Atas nama sistem yang selalu benar!",
@@ -297,14 +261,12 @@
                 "Tidak ada yg lebih penting selain ketidaktahuan penumpang!"
             ];
 
-            // Pilih teks acak
             var randomIndex = Math.floor(Math.random() * LOADING_TEXTS.length);
             var loadingTextElement = document.getElementById('loading-text');
             if (loadingTextElement) {
                 loadingTextElement.textContent = LOADING_TEXTS[randomIndex];
             }
 
-            // Reload button
             var reloadButton = document.getElementById('loading-reload-button');
             if (reloadButton) {
                 reloadButton.addEventListener('click', function() {
@@ -314,21 +276,18 @@
         })();
     </script>
 
-    <!-- =================================================================
-         SERVICE WORKER REGISTRATION (dengan dev mode handling)
-         ================================================================= -->
+    <!-- ================================================================
+         SERVICE WORKER REGISTRATION (nonaktif di Android)
+         ================================================================ -->
     <script>
         if ('serviceWorker' in navigator) {
             if (window.isDevMode) {
-                // --- Development Mode: hapus semua service worker & cache ---
-                // Unregister service worker yang sudah terdaftar
                 navigator.serviceWorker.getRegistrations().then(function(registrations) {
                     registrations.forEach(function(registration) {
                         registration.unregister();
                         console.log('[DEV] Service Worker unregistered');
                     });
                 });
-                // Hapus semua cache yang tersimpan
                 if ('caches' in window) {
                     caches.keys().then(function(cacheNames) {
                         cacheNames.forEach(function(cacheName) {
@@ -338,8 +297,6 @@
                     });
                 }
             } else {
-                // --- Production Mode: daftarkan service worker normal ---
-                // [UPDATE] Nonaktifkan Service Worker di Android
                 if (!window.Capacitor || !window.Capacitor.isNative) {
                     window.addEventListener('load', function() {
                         navigator.serviceWorker.register('/sw.js').then(function(reg) {
@@ -354,185 +311,235 @@
             }
         }
     </script>
-    
-<!-- ============================================================
-     NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
-     ============================================================ -->
-<script>
-(function() {
-    'use strict';
 
-    // ---------- DETEKSI CAPACITOR ----------
-    if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
-        var Capacitor = window.Capacitor;
-    }
-    if (!Capacitor || !Capacitor.isNative) {
-        console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
-        return;
-    }
+    <!-- ================================================================
+         NATIVE BRIDGE UNTUK CAPACITOR (GPS BACKGROUND - CapGo)
+         ================================================================ -->
+    <script>
+        (function() {
+            'use strict';
 
-    console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
-
-    async function initNative() {
-        try {
-            // ---------- AMBIL PLUGIN ----------
-            const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
-            const { Geolocation, LocalNotifications, App } = Capacitor.Plugins;
-
-            if (!BackgroundGeolocation) {
-                console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
+            // ---------- DETEKSI CAPACITOR ----------
+            if (typeof Capacitor === 'undefined' && typeof window.Capacitor !== 'undefined') {
+                var Capacitor = window.Capacitor;
+            }
+            if (!Capacitor || !Capacitor.isNative) {
+                console.log('[Bridge] Bukan Capacitor, GPS web digunakan.');
                 return;
             }
 
-            // ---------- MINTA IZIN ----------
-            // Izin lokasi (wajib)
-            await Geolocation.requestPermissions();
+            console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
 
-            // Izin notifikasi (wajib untuk Android 13+)
-            const notifPerm = await LocalNotifications.requestPermissions();
-            if (notifPerm.display !== 'granted') {
-                console.warn('[Bridge] Izin notifikasi ditolak. Notifikasi tidak akan muncul.');
-            }
+            async function initNative() {
+                try {
+                    // ---------- AMBIL PLUGIN ----------
+                    const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
+                    const { Geolocation, LocalNotifications, App } = Capacitor.Plugins;
 
-            // Izin khusus plugin (opsional)
-            if (typeof BackgroundGeolocation.requestPermissions === 'function') {
-                await BackgroundGeolocation.requestPermissions();
-            }
-
-            // ---------- KONFIGURASI ----------
-            await BackgroundGeolocation.configure({
-                desiredAccuracy: 0,                // 0 = high accuracy
-                distanceFilter: 10,                // meter
-                stopOnTerminate: false,
-                startOnBoot: true,
-                notificationTitle: '⚡ KupasTarif',
-                notificationText: 'Merekam perjalanan akurasi tinggi...',
-                notificationIcon: 'ic_notification',
-                notificationIconColor: '#0d7c4a',
-                // Opsi tambahan untuk performa
-                activityType: 'automotiveNavigation',
-                minimumActivityRecognitionConfidence: 70
-            });
-
-            console.log('[Bridge] BackgroundGeolocation dikonfigurasi.');
-
-            // ---------- LISTENER POSISI ----------
-            BackgroundGeolocation.addListener('location', (location) => {
-                const pos = {
-                    lat: location.latitude || location.coords?.latitude,
-                    lng: location.longitude || location.coords?.longitude,
-                    accuracy: location.accuracy || location.coords?.accuracy || 10,
-                    timestamp: location.timestamp || Date.now()
-                };
-                // Kirim ke modul tracking jika sudah siap
-                if (window.__trackingCalculate) {
-                    window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                } else {
-                    window.__lastNativePos = pos;
-                }
-            });
-
-            // ---------- LISTENER ERROR ----------
-            BackgroundGeolocation.addListener('error', (error) => {
-                console.error('[Bridge] GPS Error:', error);
-                // Tampilkan notifikasi error
-                LocalNotifications.schedule({
-                    notifications: [{
-                        id: 999,
-                        title: '⚠️ Gagal Lokasi',
-                        body: error.message || 'Periksa GPS dan izin aplikasi.',
-                        schedule: { at: new Date(Date.now() + 500) }
-                    }]
-                });
-            });
-
-            // ---------- LISTENER STATE APP ----------
-            App.addListener('appStateChange', async (state) => {
-                // Hanya start jika tracking sudah pernah diaktifkan (_started = true)
-                if (!state.isActive && window.__nativeBG && window.__nativeBG._started) {
-                    try {
-                        await BackgroundGeolocation.start();
-                        console.log('[Bridge] Background GPS resumed (app background).');
-                    } catch (e) {
-                        console.warn('[Bridge] Gagal resume background GPS:', e);
-                    }
-                }
-            });
-
-            // ---------- GLOBAL API ----------
-            window.__nativeBG = {
-                start: async () => {
-                    if (window.__nativeBG._started) {
-                        console.log('[Bridge] GPS already started.');
+                    if (!BackgroundGeolocation) {
+                        console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
                         return;
                     }
-                    try {
-                        await BackgroundGeolocation.start();
-                        window.__nativeBG._started = true;
-                        // Kirim notifikasi sukses
-                        await LocalNotifications.schedule({
+
+                    // ---------- MINTA IZIN ----------
+                    await Geolocation.requestPermissions();
+
+                    const notifPerm = await LocalNotifications.requestPermissions();
+                    if (notifPerm.display !== 'granted') {
+                        console.warn('[Bridge] Izin notifikasi ditolak. Notifikasi tidak akan muncul.');
+                    }
+
+                    if (typeof BackgroundGeolocation.requestPermissions === 'function') {
+                        await BackgroundGeolocation.requestPermissions();
+                    }
+
+                    // ---------- KONFIGURASI (dengan metode yang benar) ----------
+                    // Catatan: configure() sebenarnya opsional jika kita menggunakan parameter di start().
+                    // Tapi kita tetap panggil untuk memastikan setelan notifikasi dan akurasi terpasang.
+                    await BackgroundGeolocation.configure({
+                        desiredAccuracy: 0,
+                        distanceFilter: 10,
+                        stopOnTerminate: false,
+                        startOnBoot: true,
+                        notificationTitle: '⚡ KupasTarif',
+                        notificationText: 'Merekam perjalanan akurasi tinggi...',
+                        notificationIcon: 'ic_notification',
+                        notificationIconColor: '#0d7c4a',
+                        activityType: 'automotiveNavigation',
+                        minimumActivityRecognitionConfidence: 70
+                    });
+
+                    console.log('[Bridge] BackgroundGeolocation dikonfigurasi.');
+
+                    // ---------- LISTENER POSISI ----------
+                    BackgroundGeolocation.addListener('location', function(location) {
+                        var pos = {
+                            lat: location.latitude || location.coords?.latitude,
+                            lng: location.longitude || location.coords?.longitude,
+                            accuracy: location.accuracy || location.coords?.accuracy || 10,
+                            timestamp: location.timestamp || Date.now()
+                        };
+                        if (window.__trackingCalculate) {
+                            window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                        } else {
+                            window.__lastNativePos = pos;
+                        }
+                    });
+
+                    // ---------- LISTENER ERROR ----------
+                    BackgroundGeolocation.addListener('error', function(error) {
+                        console.error('[Bridge] GPS Error:', error);
+                        LocalNotifications.schedule({
                             notifications: [{
-                                id: 1,
-                                title: '🟢 Tracking Dimulai',
-                                body: 'GPS aktif dengan akurasi tinggi.',
+                                id: 999,
+                                title: '⚠️ Gagal Lokasi',
+                                body: error.message || 'Periksa GPS dan izin aplikasi.',
                                 schedule: { at: new Date(Date.now() + 500) }
                             }]
                         });
-                        console.log('[Bridge] GPS background started.');
-                    } catch (err) {
-                        console.error('[Bridge] Gagal start GPS:', err);
-                        // Tampilkan error di UI (toast)
-                        if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
-                            window.ThemeManager.showToast('Gagal memulai GPS background', 'error');
+                    });
+
+                    // ---------- LISTENER STATE APP ----------
+                    App.addListener('appStateChange', async function(state) {
+                        if (!state.isActive && window.__nativeBG && window.__nativeBG._started) {
+                            try {
+                                await BackgroundGeolocation.start(
+                                    {
+                                        backgroundMessage: "Merekam perjalanan akurasi tinggi...",
+                                        backgroundTitle: "⚡ KupasTarif",
+                                        requestPermissions: false,
+                                        stale: false,
+                                        distanceFilter: 10
+                                    },
+                                    function(location, error) {
+                                        if (error) {
+                                            console.error('[Bridge] Location error (resume):', error);
+                                            return;
+                                        }
+                                        if (location) {
+                                            var pos = {
+                                                lat: location.latitude,
+                                                lng: location.longitude,
+                                                accuracy: location.accuracy || 10,
+                                                timestamp: location.timestamp || Date.now()
+                                            };
+                                            if (window.__trackingCalculate) {
+                                                window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                                            } else {
+                                                window.__lastNativePos = pos;
+                                            }
+                                        }
+                                    }
+                                );
+                                console.log('[Bridge] Background GPS resumed (app background).');
+                            } catch (e) {
+                                console.warn('[Bridge] Gagal resume background GPS:', e);
+                            }
                         }
-                    }
-                },
+                    });
 
-                stop: async () => {
-                    if (!window.__nativeBG._started) {
-                        console.log('[Bridge] GPS already stopped.');
-                        return;
-                    }
-                    try {
-                        await BackgroundGeolocation.stop();
-                        window.__nativeBG._started = false;
-                        // Hapus notifikasi
-                        await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
-                        console.log('[Bridge] GPS background stopped.');
-                    } catch (err) {
-                        console.error('[Bridge] Gagal stop GPS:', err);
-                    }
-                },
+                    // ---------- GLOBAL API ----------
+                    window.__nativeBG = {
+                        start: async function() {
+                            if (window.__nativeBG._started) {
+                                console.log('[Bridge] GPS already started.');
+                                return;
+                            }
+                            try {
+                                // ✅ Menggunakan parameter yang benar sesuai dokumentasi
+                                // Parameter pertama: konfigurasi foreground service
+                                // Parameter kedua: callback lokasi
+                                await BackgroundGeolocation.start(
+                                    {
+                                        backgroundMessage: "Merekam perjalanan akurasi tinggi...",
+                                        backgroundTitle: "⚡ KupasTarif",
+                                        requestPermissions: false,
+                                        stale: false,
+                                        distanceFilter: 10
+                                    },
+                                    function(location, error) {
+                                        if (error) {
+                                            console.error('[Bridge] Location error:', error);
+                                            return;
+                                        }
+                                        if (location) {
+                                            var pos = {
+                                                lat: location.latitude,
+                                                lng: location.longitude,
+                                                accuracy: location.accuracy || 10,
+                                                timestamp: location.timestamp || Date.now()
+                                            };
+                                            if (window.__trackingCalculate) {
+                                                window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                                            } else {
+                                                window.__lastNativePos = pos;
+                                            }
+                                        }
+                                    }
+                                );
+                                window.__nativeBG._started = true;
 
-                _started: false
-            };
+                                await LocalNotifications.schedule({
+                                    notifications: [{
+                                        id: 1,
+                                        title: '🟢 Tracking Dimulai',
+                                        body: 'GPS aktif dengan akurasi tinggi.',
+                                        schedule: { at: new Date(Date.now() + 500) }
+                                    }]
+                                });
+                                console.log('[Bridge] GPS background started.');
+                            } catch (err) {
+                                console.error('[Bridge] Gagal start GPS:', err);
+                                if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
+                                    window.ThemeManager.showToast('Gagal memulai GPS background', 'error');
+                                }
+                            }
+                        },
 
-            console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
+                        stop: async function() {
+                            if (!window.__nativeBG._started) {
+                                console.log('[Bridge] GPS already stopped.');
+                                return;
+                            }
+                            try {
+                                await BackgroundGeolocation.stop();
+                                window.__nativeBG._started = false;
+                                await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+                                console.log('[Bridge] GPS background stopped.');
+                            } catch (err) {
+                                console.error('[Bridge] Gagal stop GPS:', err);
+                            }
+                        },
 
-        } catch (err) {
-            console.error('[Bridge] Gagal init plugin:', err);
-        }
-    }
+                        _started: false
+                    };
 
-    // ---------- EKSEKUSI ----------
-    if (document.readyState === 'complete') {
-        initNative();
-    } else {
-        window.addEventListener('load', initNative);
-    }
-})();
-</script>
+                    console.log('[Bridge] Native GPS (CapGo) siap digunakan.');
+
+                } catch (err) {
+                    console.error('[Bridge] Gagal init plugin:', err);
+                }
+            }
+
+            if (document.readyState === 'complete') {
+                initNative();
+            } else {
+                window.addEventListener('load', initNative);
+            }
+        })();
+    </script>
 
 </body>
 </html>
-<!-- 
+<!--
 // ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Rilis stabil 2.0.0. Ubah APP_VERSION menjadi '2.0.0',
-//             ubah tampilan versi di loading screen menjadi v2.0.0.
-//             Service Worker dinonaktifkan di Android (Capacitor).
+// 2.0.0-rev1 : Perbaikan bridge Capacitor untuk background GPS.
+//             - Menggunakan parameter yang benar pada BackgroundGeolocation.start()
+//             - Callback lokasi dipindahkan ke dalam start() agar plugin dapat mengirim lokasi
+//             - Tetap mempertahankan configure() untuk pengaturan notifikasi dan akurasi
+//             - Menambahkan fallback untuk listener lokasi yang sudah ada
 //
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
+// 2.0.0-rev0 : Rilis stabil 2.0.0. Service Worker dinonaktifkan di Android.
 //
-// ================================ End Of File ================================ 
--->
+// ================================ End Of File ================================
+--> 
