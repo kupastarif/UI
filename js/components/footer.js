@@ -89,9 +89,10 @@ function createFlexContent(text, iconChar, onClick) {
  * @param {string} label - Teks yang tampil di track (contoh: 'MULAI')
  * @param {string} iconChar - Karakter ikon langsung (string kosong jika tidak ada)
  * @param {Function} onActivate - Callback saat slide berhasil
+ * @param {string} variant - 'primary' | 'warning' | 'danger' (default 'primary')
  * @returns {HTMLElement}
  */
-function createSlideContent(label, iconChar, onActivate) {
+function createSlideContent(label, iconChar, onActivate, variant = 'primary') {
     const container = document.createElement('div');
     container.className = 'slide-action';
     container.setAttribute('role', 'button');
@@ -113,7 +114,7 @@ function createSlideContent(label, iconChar, onActivate) {
     track.appendChild(labelSpan);
 
     const thumb = document.createElement('div');
-    thumb.className = 'slide-thumb';
+    thumb.className = `slide-thumb slide-thumb--${variant}`;
     thumb.textContent = ICON.SLIDE_THUMB;
     thumb.setAttribute('aria-hidden', 'true');
 
