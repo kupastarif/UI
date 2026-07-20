@@ -1,7 +1,7 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev4
+ * FILE VERSION : 2.0.0-rev6
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -10,9 +10,10 @@
  *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
- *   [FIX] Menggunakan @capacitor-community/keep-awake untuk wake lock (Capacitor 6).
- *   [FIX] Mencegah watcher ganda dengan memanggil stop() sebelum start() di renderActive.
- *   [FIX] Meminta izin notifikasi secara eksplisit sebelum memulai background location.
+ *
+ *   [UPDATE] rev6: Wake Lock sepenuhnya dikelola oleh GPS (gps.js).
+ *   Styling planned route dipindahkan ke map.js (gunakan addPlannedRoute).
+ *   tracking.js sekarang hanya fokus pada UI dan orkestrasi.
  *
  * =================================================================================
  */
@@ -20,7 +21,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev4';
+const F_V = '2.0.0-rev6';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -72,10 +73,6 @@ const ICON = {
 // 1. STATE INTERNAL
 // =============================================================================
 
-// Wake lock state (KeepAwake plugin)
-let keepAwakeActive = false;        // true jika plugin keep-awake aktif (Android)
-let wakeLockWeb = null;            // referensi ke navigator.wakeLock (Web)
-
 let isDestroyed = false;
 let calculate = null;
 let role = 'Driver';
@@ -99,6 +96,7 @@ let lastUpdateDistance = 0;
 let lastUpdateTime = 0;
 let clockTimer = null;
 
+let gpsReady = false;
 const DISTANCE_THRESHOLD = 0.01;
 const TIME_THRESHOLD = 60;
 const UPDATE_DEBOUNCE_MS = 1000;
@@ -266,7 +264,7 @@ function handleGPSError(error) {
 // 5. PETA & GPS AWAL
 // =============================================================================
 
-function requestGPSPermission() {
+function requestGPSPermission(callback) {
     GPS.getCurrentPosition(
         function(pos) {
             currentPosition = { lat: pos.lat, lng: pos.lng };
@@ -278,6 +276,8 @@ function requestGPSPermission() {
             updateDistanceTimeDisplay();
             MapManager.setGPSStatusOverlay(true);
             window.log.info('[Tracking ' + F_V + '] (5) GPS permission granted');
+            gpsReady = true;
+            if (typeof callback === 'function') callback(true);
         },
         function(error) {
             MapManager.setGPSStatusOverlay(false);
@@ -285,6 +285,8 @@ function requestGPSPermission() {
             if (ThemeManager) {
                 ThemeManager.showToast('Izin lokasi ditolak. Tracking tetap berjalan manual.', 'info');
             }
+          gpsReady = false;
+          if (typeof callback === 'function') callback(false);
         }
     );
 }
@@ -1056,43 +1058,15 @@ function createWarningPopupContent() {
 // 12. FINALISASI & PEMBATALAN
 // =============================================================================
 
-async function releaseWakeLock() {
-    // Lepas KeepAwake plugin (Android) – gunakan @capacitor-community/keep-awake
-    if (keepAwakeActive) {
-        try {
-            var module = await import('@capacitor-community/keep-awake');
-            await module.KeepAwake.allowSleep();
-            keepAwakeActive = false;
-            window.log.info('[Tracking] KeepAwake plugin dilepas');
-        } catch (err) {
-            window.log.warn('[Tracking] Gagal melepas KeepAwake plugin:', err);
-        }
-    }
-    // Lepas wake lock Web
-    if (wakeLockWeb) {
-        try {
-            await wakeLockWeb.release();
-            wakeLockWeb = null;
-            window.log.info('[Tracking] Wake Lock Web dilepas');
-        } catch (err) {
-            window.log.warn('[Tracking] Gagal melepas wake lock Web:', err);
-        }
-    }
-}
-
 function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
-    GPS.stop();
+    GPS.stop();                         // GPS.stop() juga menonaktifkan Wake Lock
     stopClockTimer();
     stopSound();
     if (beepAudioCtx) {
         beepAudioCtx.close();
         beepAudioCtx = null;
     }
-    if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
-        window.__nativeBG.stop();
-    }
-    releaseWakeLock();
 }
 
 async function finalizeTracking(isOnline, isPenumpang) {
@@ -1225,12 +1199,30 @@ function updateFooterForIdle() {
     var footer = FooterManager.create('layoutC', {
         frame1: { type: 'icon', content: FooterManager.createIconButton(ICON.CLOSE, callbacks.onClose, 'Tutup') },
         frame2: { type: 'icon', content: FooterManager.createIconButton(ICON.PAUSE, null, 'Pause') },
-        frame3: { type: 'flex', content: FooterManager.createSlideContent('MULAI', '', callbacks.onStart) }
+        frame3: { type: 'flex', content: FooterManager.createSlideContent('MULAI', '', callbacks.onStart, 'primary') }
     });
 
     if (footer) {
         var pauseBtn = footer.querySelectorAll('.footer-icon')[1];
         if (pauseBtn) pauseBtn.disabled = true;
+        
+        // Nonaktifkan slide MULAI jika GPS tidak siap
+        var slide = footer.querySelector('.slide-action');
+        if (slide) {
+            if (!gpsReady) {
+                slide.classList.add('slide-action--disabled');
+                slide.style.pointerEvents = 'none';
+                slide.style.opacity = '0.5';
+                slide.setAttribute('aria-disabled', 'true');
+                slide.title = 'Tunggu izin lokasi';
+            } else {
+                slide.classList.remove('slide-action--disabled');
+                slide.style.pointerEvents = '';
+                slide.style.opacity = '';
+                slide.removeAttribute('aria-disabled');
+                slide.title = '';
+            }
+        }
     }
 
     footerContainer.innerHTML = '';
@@ -1257,9 +1249,7 @@ function updateFooterForActive() {
             var resumeStage = previousStage || 'pickup';
             if (calculate) {
                 calculate.resume();
-                if (!window.Capacitor || !window.Capacitor.isNative) {
-                    GPS.start(handleGPSPosition, handleGPSError);
-                }
+                GPS.start(handleGPSPosition, handleGPSError);
                 startClockTimer();
             }
             goToStage(resumeStage);
@@ -1299,23 +1289,23 @@ function updateFooterForActive() {
         case 'paused':
             f1 = { type: 'icon', content: FooterManager.createIconButton(ICON.STOP, callbacks.onStop, 'Stop') };
             f2 = { type: 'icon', content: FooterManager.createIconButton(ICON.PLAY, callbacks.onResume, 'Lanjutkan') };
-            f3 = { type: 'flex', content: FooterManager.createSlideContent('LANJUT', '', callbacks.onResume) };
+            f3 = { type: 'flex', content: FooterManager.createSlideContent('LANJUT', '', callbacks.onResume, 'warning') };
             break;
         case 'pickup':
             f1 = { type: 'icon', content: FooterManager.createIconButton(ICON.STOP, callbacks.onStop, 'Stop') };
             f2 = { type: 'icon', content: FooterManager.createIconButton(ICON.PAUSE, callbacks.onPause, 'Pause') };
-            f3 = { type: 'flex', content: FooterManager.createSlideContent('ANGKUT', '', callbacks.onAngkut) };
+            f3 = { type: 'flex', content: FooterManager.createSlideContent('ANGKUT', '', callbacks.onAngkut, 'warning') };
             break;
         case 'dropoff':
         case 'operational':
             f1 = { type: 'icon', content: FooterManager.createIconButton(ICON.STOP, callbacks.onStop, 'Stop') };
             f2 = { type: 'icon', content: FooterManager.createIconButton(ICON.PAUSE, callbacks.onPause, 'Pause') };
-            f3 = { type: 'flex', content: FooterManager.createSlideContent('SELESAI', '', callbacks.onSelesai) };
+            f3 = { type: 'flex', content: FooterManager.createSlideContent('SELESAI', '', callbacks.onSelesai, 'danger') };
             break;
         default:
             f1 = { type: 'icon', content: FooterManager.createIconButton(ICON.STOP, callbacks.onStop, 'Stop') };
             f2 = { type: 'icon', content: FooterManager.createIconButton(ICON.PAUSE, callbacks.onPause, 'Pause') };
-            f3 = { type: 'flex', content: FooterManager.createSlideContent('SELESAI', '', callbacks.onSelesai) };
+            f3 = { type: 'flex', content: FooterManager.createSlideContent('SELESAI', '', callbacks.onSelesai, 'danger') };
     }
 
     var footer = FooterManager.create('layoutC', { frame1: f1, frame2: f2, frame3: f3 });
@@ -1469,7 +1459,13 @@ async function renderIdle(params, context) {
             }
         });
         setTimeout(function() {
-            requestGPSPermission();
+            // requestGPSPermission();
+            requestGPSPermission(function(granted) {
+              // Perbarui footer setelah status GPS diketahui (untuk menonaktifkan tombol MULAI jika perlu)
+              if (!granted) {
+                updateFooterForIdle();
+              }
+            });
             initMap();
         }, 100);
     } else {
@@ -1565,66 +1561,8 @@ async function renderActive(params, context) {
 
     calculate.start();
 
-    // ================================================================
-    // PERBAIKAN: Pilih sumber lokasi sesuai platform
-    // - Hentikan watcher yang mungkin masih berjalan (mencegah watcher ganda)
-    // - Minta izin notifikasi secara eksplisit (opsional)
-    // ================================================================
-    if (window.Capacitor && window.Capacitor.isNative) {
-        // Hentikan watcher yang mungkin masih berjalan (cegah watcher ganda)
-        if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
-            await window.__nativeBG.stop();
-        }
-        // Minta izin notifikasi secara eksplisit (opsional)
-        try {
-            const { LocalNotifications } = Capacitor.Plugins;
-            if (LocalNotifications && typeof LocalNotifications.requestPermissions === 'function') {
-                await LocalNotifications.requestPermissions();
-            }
-        } catch (e) {
-            window.log.warn('[Tracking] Gagal meminta izin notifikasi:', e);
-        }
-        // Mulai background
-        if (window.__nativeBG && typeof window.__nativeBG.start === 'function') {
-            await window.__nativeBG.start();
-            GPS.stop(); // hentikan GPS foreground agar tidak duplikasi
-            window.log.info('[Tracking] Background GPS & notifikasi diaktifkan');
-        } else {
-            GPS.start(handleGPSPosition, handleGPSError);
-        }
-    } else {
-        // Web: navigator.geolocation
-        GPS.start(handleGPSPosition, handleGPSError);
-    }
-
-    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala) – menggunakan @capacitor-community/keep-awake
-    if (window.Capacitor && window.Capacitor.isNative) {
-        try {
-            var module = await import('@capacitor-community/keep-awake');
-            await module.KeepAwake.keepAwake();
-            keepAwakeActive = true;
-            window.log.info('[Tracking] KeepAwake plugin diaktifkan');
-        } catch (err) {
-            window.log.warn('[Tracking] KeepAwake plugin gagal:', err);
-            // Fallback ke Web API
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLockWeb = await navigator.wakeLock.request('screen');
-                    window.log.info('[Tracking] Wake Lock Web (fallback) diaktifkan');
-                }
-            } catch (e) {}
-        }
-    } else {
-        // Web: navigator.wakeLock
-        if ('wakeLock' in navigator) {
-            try {
-                wakeLockWeb = await navigator.wakeLock.request('screen');
-                window.log.info('[Tracking] Wake Lock Web diaktifkan');
-            } catch (err) {
-                window.log.warn('[Tracking] Wake Lock Web gagal:', err);
-            }
-        }
-    }
+    // GPS.start() akan mengaktifkan Wake Lock secara otomatis (via gps.js)
+    GPS.start(handleGPSPosition, handleGPSError);
 
     startClockTimer();
 
@@ -1640,7 +1578,12 @@ async function renderActive(params, context) {
     }
 
     setTimeout(function() {
-        requestGPSPermission();
+        // requestGPSPermission();
+        requestGPSPermission(function(granted) {
+          if (!granted && ThemeManager) {
+            ThemeManager.showToast('GPS tidak tersedia. Tracking tetap berjalan tanpa lokasi.', 'warning');
+          }
+        });
         initMap();
     }, 100);
 
@@ -1659,7 +1602,7 @@ async function renderActive(params, context) {
 }
 
 // =============================================================================
-// 17. POLYLINE RENCANA (PICKER)
+// 17. POLYLINE RENCANA (PICKER) – sekarang menggunakan addPlannedRoute
 // =============================================================================
 
 function drawPlannedRoute() {
@@ -1674,11 +1617,8 @@ function drawPlannedRoute() {
         return;
     }
 
-    MapManager.addPolyline(polylineData.coordinates, 'planned', {
-        color: '#9CA3AF',
-        weight: 2,
-        opacity: 0.6
-    });
+    // Styling planned route sepenuhnya ditangani oleh map.js
+    MapManager.addPlannedRoute(polylineData.coordinates);
 
     window.log.info('[Tracking ' + F_V + '] (21) drawPlannedRoute: polyline rencana ditambahkan ke peta');
 }
@@ -1727,7 +1667,7 @@ function destroy() {
     if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
     updateScheduled = false;
     stopClockTimer();
-    GPS.stop();
+    GPS.stop();                         // GPS.stop() juga menonaktifkan Wake Lock
     if (calculate) { calculate.stop(); calculate = null; }
     stopSound();
     if (beepAudioCtx) {
@@ -1739,12 +1679,6 @@ function destroy() {
     if (window.Cache) {
         window.Cache.invalidate('tracking');
     }
-    
-    if (window.__nativeBG && typeof window.__nativeBG.stop === 'function') {
-        window.__nativeBG.stop();
-    }
-
-    releaseWakeLock();
 
     currentPosition = null;
     isOfflineMode = false;
@@ -1798,13 +1732,24 @@ export var PageTrackingactive = {
     destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: KeepAwake plugin @capgo, background GPS)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0-rev6: Wake Lock di GPS, planned route styling di map)');
 
 // ================================= CHANGELOG =================================
+// 2.0.0-rev6 : - Wake Lock sepenuhnya dikelola oleh GPS (gps.js).
+//               - Hapus variabel keepAwakeActive, wakeLockWeb, dan fungsi releaseWakeLock().
+//               - Hapus semua panggilan releaseWakeLock() dan blok kode aktivasi wake lock.
+//               - drawPlannedRoute() sekarang memanggil MapManager.addPlannedRoute()
+//                 tanpa menyertakan opsi styling (styling ditangani map.js).
+//
+// 2.0.0-rev5 : - Hapus semua referensi ke window.__nativeBG.
+//               - GPS.start() dan GPS.stop() digunakan secara universal.
+//               - Hapus permintaan izin notifikasi manual (sudah di gps.js).
+//               - emergencyStop() dan destroy() hanya panggil GPS.stop().
+//               - renderActive() langsung panggil GPS.start().
+//
 // 2.0.0-rev4 : - Tambahkan panggilan stop() sebelum start() di renderActive untuk
-//                mencegah watcher ganda.
-//              - Tambahkan permintaan izin notifikasi eksplisit menggunakan
-//                LocalNotifications.requestPermissions().
+//                mencegah watcher ganda (sekarang ditangani oleh GPS.start()).
+//              - Tambahkan permintaan izin notifikasi eksplisit (dipindah ke gps.js).
 //
 // 2.0.0-rev3 : Ganti plugin keep-awake dari @capacitor-community/keep-awake ke
 //             @capacitor-community/keep-awake (kompatibel dengan Capacitor 6).
