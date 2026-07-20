@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/settings.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { StateManager } from '../core/state.js';
 import { PreferencesManager } from '../core/preferences.js';
@@ -170,7 +170,7 @@ function buildHTML() {
     const ao = preferences.alwaysOperational;
     const lt = preferences.largeText;
     const hs = preferences.hideSafetyReminder;
-    const cm = preferences.cacheMaksimal;                // v2.0a-rev0
+    const cm = preferences.cacheMaksimal;                // v2.0.0-rev0
     const ccEnabled = preferences.customCopy?.enabled || false;
     const ccTemplate = preferences.customCopy?.template || DEFAULT_COPY_TEMPLATE;
 
@@ -736,9 +736,9 @@ export const PageSettings = {
 window.log.info('[Settings ' + F_V + '] (2) PageSettings dimuat (Cache Maksimal, Output API)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Tambah toggle Cache Maksimal, ganti
+// 2.0.0-rev0 : Inisiasi awal. Tambah toggle Cache Maksimal, ganti
 //             getDropdownOptions ke Output, koleksi preferensi cacheMaksimal.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.GEAR, ICON.FUEL, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
 //

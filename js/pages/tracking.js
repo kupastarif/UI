@@ -1,7 +1,7 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev2
+ * FILE VERSION : 2.0.0-rev3
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -10,8 +10,7 @@
  *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
- *   [FIX] Perbaikan wake lock menggunakan @capacitor-community/keep-awake
- *   dengan dynamic import agar aman di browser dan Android.
+ *   [FIX] Menggunakan @capgo/keep-awake untuk wake lock (Capacitor 6).
  *
  * =================================================================================
  */
@@ -19,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.0-rev3';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1056,10 +1055,10 @@ function createWarningPopupContent() {
 // =============================================================================
 
 async function releaseWakeLock() {
-    // Lepas KeepAwake plugin (Android)
+    // Lepas KeepAwake plugin (Android) – gunakan @capgo/keep-awake
     if (keepAwakeActive) {
         try {
-            var module = await import('@capacitor-community/keep-awake');
+            var module = await import('@capgo/keep-awake');
             await module.KeepAwake.allowSleep();
             keepAwakeActive = false;
             window.log.info('[Tracking] KeepAwake plugin dilepas');
@@ -1579,10 +1578,10 @@ async function renderActive(params, context) {
         GPS.start(handleGPSPosition, handleGPSError);
     }
 
-    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala)
+    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala) – menggunakan @capgo/keep-awake
     if (window.Capacitor && window.Capacitor.isNative) {
         try {
-            var module = await import('@capacitor-community/keep-awake');
+            var module = await import('@capgo/keep-awake');
             await module.KeepAwake.keepAwake();
             keepAwakeActive = true;
             window.log.info('[Tracking] KeepAwake plugin diaktifkan');
@@ -1780,14 +1779,14 @@ export var PageTrackingactive = {
     destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: KeepAwake plugin, background GPS)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0: KeepAwake plugin @capgo, background GPS)');
 
 // ================================= CHANGELOG =================================
-// 2.0.0-rev2 : Perbaikan wake lock menggunakan @capacitor-community/keep-awake
-//             dengan dynamic import agar aman di browser dan Android.
-//             Method yang benar: KeepAwake.keepAwake() dan KeepAwake.allowSleep().
-//             Penghapusan nullish coalescing agar kompatibel.
+// 2.0.0-rev3 : Ganti plugin keep-awake dari @capacitor-community/keep-awake ke
+//             @capgo/keep-awake (kompatibel dengan Capacitor 6).
+//             Perbaikan dynamic import ke path yang benar.
 //
+// 2.0.0-rev2 : Perbaikan wake lock menggunakan @capacitor-community/keep-awake.
 // 2.0.0-rev1 : Wake lock dynamic import, penanganan platform.
 // 2.0.0-rev0 : Rilis stabil 2.0.0.
 //

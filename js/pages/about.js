@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/about.js
- * FILE VERSION : 2.0a-rev3
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev3
+ * APP VERSION  : 2.0.0
  * DATE         : 14 Juli 2026
  * @author      : gk
  *
@@ -16,7 +16,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev3';
+const F_V = '2.0.0-rev3';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -48,7 +48,7 @@ const OVERVIEW_HTML = `<div class="about-overview">
     <p class="mb-md"><strong>KupasTarif</strong> adalah aplikasi kalkulator tarif ojek online yang membantu driver dan penumpang memahami rincian biaya perjalanan secara transparan.</p>
     <p class="mb-md">Aplikasi ini membantu:</p>
     <ul class="mb-lg" style="padding-left: 1.5rem;"><li><strong>Driver:</strong> Mengetahui pendapatan bersih setelah dipotong komisi dan biaya operasional.</li><li><strong>Penumpang:</strong> Melihat rincian tarif yang dibayarkan.</li></ul>
-    <div class="bg-muted p-md rounded-lg mb-lg"><div class="flex justify-between"><span class="text-secondary">Versi App</span><span class="font-medium">${window.APP_CONFIG?.version || '2.0a-beta'}</span></div><div class="flex justify-between mt-sm"><span class="text-secondary">Versi Engine</span><span class="font-medium">v${window.Engine?.ENGINE_VERSION || '1.0.0-beta'}</span></div></div>
+    <div class="bg-muted p-md rounded-lg mb-lg"><div class="flex justify-between"><span class="text-secondary">Versi App</span><span class="font-medium">${window.APP_CONFIG?.version || '2.0.0'}</span></div><div class="flex justify-between mt-sm"><span class="text-secondary">Versi Engine</span><span class="font-medium">v${window.Engine?.ENGINE_VERSION || '1.0.0-beta'}</span></div></div>
     <p class="text-muted text-sm text-center">Dibuat dengan ${ICON.ELECTRIC} oleh tim KupasTarif</p>
 </div>`;
 
@@ -183,7 +183,7 @@ const DETAIL_HTML = `
     </ul>
     
     <div class="about-version">
-        Versi App: ${window.APP_CONFIG?.version || '2.0a-beta'} | Engine: v${window.Engine?.ENGINE_VERSION || '1.0.0-beta'}<br>
+        Versi App: ${window.APP_CONFIG?.version || '2.0.0'} | Engine: v${window.Engine?.ENGINE_VERSION || '1.0.0-beta'}<br>
         © 2026 KupasTarif
     </div>
 </div>`;
@@ -315,14 +315,14 @@ export const PageAbouttldr = {
 window.log.info('[About ' + F_V + '] (3) PageAbout & PageAbouttldr dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan,
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan,
 //             versi Engine di OVERVIEW_HTML diperbarui ke 1.0.0‑beta.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.BACK, ICON.MENU, ICON.HOME). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Hapus ikon inline (⚡) di OVERVIEW_HTML, tambahkan ICON.ELECTRIC,
+// 2.0.0-rev2 : Hapus ikon inline (⚡) di OVERVIEW_HTML, tambahkan ICON.ELECTRIC,
 //             gunakan ICON.ELECTRIC sebagai fallback siteIcon dan di teks footer.
-// 2.0a-rev3 : Gabungkan konten docs/about.html ke dalam file ini. Hapus fungsi
+// 2.0.0-rev3 : Gabungkan konten docs/about.html ke dalam file ini. Hapus fungsi
 //             loadDetail() dan fetch eksternal. Konten detail kini disimpan
 //             sebagai konstanta DETAIL_HTML. Render TLDR langsung menampilkan
 //             konten tanpa spinner.

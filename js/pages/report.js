@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/report.js
- * FILE VERSION : 2.0a-rev2
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev2
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0.0-rev2';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -759,12 +759,12 @@ export const PageReport = {
 window.log.info('[Report ' + F_V + '] (10) PageReport dimuat (sel v1.0.0‑beta)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
 //             Tidak ada perubahan fungsional.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.REPORT, ICON.MOTOR, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Hapus semua ikon inline (⚡, 📉, 📄). Tambahkan ICON.SPEED,
+// 2.0.0-rev2 : Hapus semua ikon inline (⚡, 📉, 📄). Tambahkan ICON.SPEED,
 //             ICON.DEPRECIATION, ICON.TAX. Semua ikon kini merujuk ke objek ICON.
 //
 // =============================== FUTURE UPDATE ===============================

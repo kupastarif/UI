@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/home.js
- * FILE VERSION : 2.0a-rev3
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev3
+ * APP VERSION  : 2.0.0
  * DATE         : 2 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev3';
+const F_V = '2.0.0-rev3';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -48,7 +48,7 @@ const ICON = {
     MENU: '☰',
     RANDOM: '🎲',
     MAINTENANCE: '🔧',   // ← Tambahan
-    OFFLINE: '📴'       // v2.0a-rev2: untuk tombol Cek Tarif Offline
+    OFFLINE: '📴'       // v2.0.0-rev2: untuk tombol Cek Tarif Offline
 };
 
 // =============================================================================
@@ -149,7 +149,7 @@ function handleVehicleClick(vehicleMode) {
 
 /**
  * Membuat konten popup pemilihan peran.
- * v2.0a-rev3: tombol "Cek Tarif Offline" menyetel E36 ke 'offline'.
+ * v2.0.0-rev3: tombol "Cek Tarif Offline" menyetel E36 ke 'offline'.
  */
 function createRolePopupContent(mode) {
     const areaOptions = getDropdownOptions('E20') || ['Jabodetabek', 'SumatraJawa', 'TimurIndonesia'];
@@ -158,7 +158,7 @@ function createRolePopupContent(mode) {
     const fuelOptions = getDropdownOptions('E24', { E22: mode === 'Mobil' ? '1000cc' : '125cc' }) || ['Pertalite'];
 
     const container = document.createElement('div');
-    // v2.0a-rev2: tambahkan tombol CEK TARIF OFFLINE sebelum SAYA DRIVER
+    // v2.0.0-rev2: tambahkan tombol CEK TARIF OFFLINE sebelum SAYA DRIVER
     container.innerHTML = `
         <div class="popup-role-content">
             <button class="btn btn-primary btn-block mb-md" data-action="driver">${ICON.DRIVER} SAYA DRIVER</button>
@@ -185,7 +185,7 @@ function createRolePopupContent(mode) {
                 fuel: document.getElementById('popup-fuel')?.value || 'Pertalite'
             };
 
-            // v2.0a-rev3: penanganan khusus tombol CEK TARIF OFFLINE
+            // v2.0.0-rev3: penanganan khusus tombol CEK TARIF OFFLINE
             if (action === 'cek-offline') {
                 // 1. Abaikan penyimpanan preferensi (tidak simpan quick order)
                 // 2. Set flag agar halaman Order tahu ini hanya cek tarif
@@ -536,15 +536,15 @@ export const PageHome = {
 window.log.info('[Home ' + F_V + '] (7) PageHome dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Dropdown via Output, invalidasi Cache, mapping
+// 2.0.0-rev0 : Inisiasi awal. Dropdown via Output, invalidasi Cache, mapping
 //             input sesuai Engine v1.0.0‑beta.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.DRIVER, ICON.MOTOR, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Tambah tombol "CEK TARIF OFFLINE" di popup peran. Tombol ini
+// 2.0.0-rev2 : Tambah tombol "CEK TARIF OFFLINE" di popup peran. Tombol ini
 //             mengeset flag isCheckOffline, memaksa role Driver, dan tidak
 //             menyimpan preferensi. Reset flag terjadi saat Home dirender.
-// 2.0a-rev3 : Perbaikan tombol "Cek Tarif Offline" agar menyetel E36 ke 'offline'
+// 2.0.0-rev3 : Perbaikan tombol "Cek Tarif Offline" agar menyetel E36 ke 'offline'
 //             sehingga halaman Order langsung terbuka dalam mode offline.
 //             Tombol footer menuju halaman perawatan.
 //

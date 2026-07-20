@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/maintenance.js
- * FILE VERSION : 2.0a-rev5
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev5
+ * APP VERSION  : 2.0.0
  * DATE         : 17 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev5';
+const F_V = '2.0.0-rev5';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -551,12 +551,12 @@ export const PageMaintenance = {
 window.log.info('[Maintenance ' + F_V + '] (2) PageMaintenance dimuat (via Output)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal.
-// 2.0a-rev1 : Hapus ketergantungan getIcon.
-// 2.0a-rev2 : Hilangkan fallback ikon inline.
-// 2.0a-rev3 : Akumulasi per mode, format hari, siklus servis dengan prefix.
-// 2.0a-rev4 : forceIntervalType pada calculateMaintenanceProgress.
-// 2.0a-rev5 : Satuan km ditampilkan, getCurrentCC tidak bergantung pada input
+// 2.0.0-rev0 : Inisiasi awal.
+// 2.0.0-rev1 : Hapus ketergantungan getIcon.
+// 2.0.0-rev2 : Hilangkan fallback ikon inline.
+// 2.0.0-rev3 : Akumulasi per mode, format hari, siklus servis dengan prefix.
+// 2.0.0-rev4 : forceIntervalType pada calculateMaintenanceProgress.
+// 2.0.0-rev5 : Satuan km ditampilkan, getCurrentCC tidak bergantung pada input
 //             halaman lain sehingga pajak motor muncul kembali.
 //
 // =============================== FUTURE UPDATE ===============================

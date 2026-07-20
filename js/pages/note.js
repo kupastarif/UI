@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/note.js
- * FILE VERSION : 2.0a-rev2
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev2
+ * APP VERSION  : 2.0.0
  * DATE         : 14 Juli 2026
  * @author      : gk
  *
@@ -19,7 +19,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0.0-rev2';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -371,11 +371,11 @@ export const PageCatatantldr = {
 window.log.info('[Note ' + F_V + '] (3) PageCatatan & PageCatatantldr dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.DOCUMENT, ICON.BACK, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
-// 2.0a-rev2 : Gabungkan konten docs/notes.html ke dalam file ini. Hapus fungsi
+// 2.0.0-rev2 : Gabungkan konten docs/notes.html ke dalam file ini. Hapus fungsi
 //             loadDetail() dan fetch eksternal. Konten detail kini disimpan
 //             sebagai konstanta DETAIL_HTML. Render TLDR langsung menampilkan
 //             konten tanpa spinner. Fungsi render tidak lagi async.

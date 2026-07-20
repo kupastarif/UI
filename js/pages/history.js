@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/history.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -16,7 +16,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -512,9 +512,9 @@ export const PageHistory = {
 window.log.info('[History ' + F_V + '] (5) PageHistory dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
 //             Tidak ada perubahan fungsional.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.DRIVER, ICON.MOTOR, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
 //

@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/reality.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -600,8 +600,8 @@ export const PageReality = {
 window.log.info('[Reality ' + F_V + '] (14) PageReality dimuat (Cache API, Output validasi)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Gunakan Cache.reality(), validasi & konstanta via Output.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
+// 2.0.0-rev0 : Inisiasi awal. Gunakan Cache.reality(), validasi & konstanta via Output.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
 //             lokal (ICON.GPS, ICON.INFO, dll). Pemanggilan FooterManager
 //             menggunakan karakter ikon langsung.
 //

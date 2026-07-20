@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/order.js
- * FILE VERSION : 2.0a-rev4
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev4
+ * APP VERSION  : 2.0.0
  * DATE         : 18 Juli 2026
  *
  * @author      : gk
@@ -36,7 +36,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev4';
+const F_V = '2.0.0-rev4';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1228,13 +1228,13 @@ export const PageOrder = {
 window.log.info('[Order ' + F_V + '] (7) PageOrder dimuat (Cache API, slider E40, Cek Tarif Offline, Popup Bon)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Cache API, slider E40, validasi & dropdown via Output.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara lokal.
-// 2.0a-rev2 : Hapus ikon inline terakhir, tambahkan ICON.LOCATION.
-// 2.0a-rev3 : Tambah dukungan mode Cek Tarif Offline: flag isCheckOffline,
+// 2.0.0-rev0 : Inisiasi awal. Cache API, slider E40, validasi & dropdown via Output.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara lokal.
+// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.LOCATION.
+// 2.0.0-rev3 : Tambah dukungan mode Cek Tarif Offline: flag isCheckOffline,
 //             header role berubah, tombol switch disembunyikan, footer HOME.
 //             Reset E40 via Engine di loadInitialData, handleReset, performSwitch.
-// 2.0a-rev4 : Tambah popup "Nota Pesanan" (index 23) khusus mode Cek Tarif Offline.
+// 2.0.0-rev4 : Tambah popup "Nota Pesanan" (index 23) khusus mode Cek Tarif Offline.
 //             Footer berubah menjadi BUAT BON, tombol Capture & Copy di dalam popup
 //             langsung menutup popup dan memberi toast. Nama file capture dengan
 //             format tanggal. Tidak ada penyimpanan history.
