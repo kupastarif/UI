@@ -1058,7 +1058,7 @@ async function releaseWakeLock() {
     // Lepas wake lock plugin (Android)
     if (wakeLockActive) {
         try {
-            var module = await import('@capacitor-community/wake-lock');
+            var module = await import('@capacitor-community/keep-awake');
             await module.WakeLock.release();
             wakeLockActive = false;
             window.log.info('[Tracking] Wake Lock plugin dilepas');
@@ -1582,7 +1582,7 @@ async function renderActive(params, context) {
     if (window.Capacitor && window.Capacitor.isNative) {
         // Android: gunakan plugin Capacitor (dynamic import)
         try {
-            var module = await import('@capacitor-community/wake-lock');
+            var module = await import('@capacitor-community/keep-awake');
             await module.WakeLock.request('screen');
             wakeLockActive = true;
             window.log.info('[Tracking] Wake Lock plugin diaktifkan');
