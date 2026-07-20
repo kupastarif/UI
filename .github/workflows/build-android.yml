@@ -133,7 +133,7 @@ jobs:
                        SERVICE BACKGROUND GEOLOCATION (Plugin Komunitas)
                        ============================================================ -->
                   <service
-                      android:name="com.equimiano.capacitor.backgroundgeolocation.BackgroundGeolocationService"
+                      android:name="com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
                       android:foregroundServiceType="location"
                       android:exported="false" />
 
