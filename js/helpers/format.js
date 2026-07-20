@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/helpers/format.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev0';
+const F_V = '2.0.0-rev0';
 
 // =============================================================================
 // 1. KONSTANTA
@@ -483,7 +483,7 @@ export function getAreaLabel(area) {
 }
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Hapus getValidationRange, getServiceOptions, getTargetDriver
+// 2.0.0-rev0 : Hapus getValidationRange, getServiceOptions, getTargetDriver
 //             (pindah ke output.js). Hanya berisi fungsi pure formatting.
 //
 // =============================== FUTURE UPDATE ===============================

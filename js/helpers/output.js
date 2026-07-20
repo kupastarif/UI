@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/helpers/output.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -21,7 +21,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import {
     formatRupiah, formatKm, formatMenit, formatPersen,
@@ -466,7 +466,7 @@ export function prepareCopyTemplateData(estimateResult, vehicleData) {
 
 export function encodeRouteData(compactData, refId, payment = 0, bill = 0, driverInfo = {}) {
     const metadata = {
-        v: '2.0a',
+        v: '2.0.0',
         u: refId,
         d: { nm: driverInfo.name || '', pl: driverInfo.plate || '', ph: driverInfo.phone || '' },
         S: compactData.startTime || '',
@@ -734,9 +734,9 @@ export function calculateDepreciationSummary(vehicleData, accumulatedDepreciatio
 window.log.info('[Output ' + F_V + '] dimuat (Engine wrapper, badge, copy, route, maintenance)');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Wrapper Engine statis, badge, copy, route,
+// 2.0.0-rev0 : Inisiasi awal. Wrapper Engine statis, badge, copy, route,
 //             maintenance calculator. Semua akses Engine melalui Output.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon
 //             didefinisikan secara lokal (ICON.UP_ARROW, dll).
 //
 // =============================== FUTURE UPDATE ===============================
