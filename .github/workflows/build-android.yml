@@ -42,7 +42,7 @@ jobs:
           echo "Web files copied to public/"
 
       # ==============================================
-      # 2. Init Capacitor (hanya config)
+      # 2. Init Capacitor
       # ==============================================
       - name: Init Capacitor
         run: |
@@ -54,13 +54,99 @@ jobs:
           cat capacitor.config.json
 
       # ==============================================
-      # 3. Sync Capacitor (TANPA "add android")
+      # 3. Hapus folder android jika ada (clean state)
+      # ==============================================
+      - name: Remove existing android folder
+        run: |
+          rm -rf android || true
+
+      # ==============================================
+      # 4. Add Android platform (membuat proyek default)
+      # ==============================================
+      - name: Add Android platform
+        run: npx cap add android
+
+      # ==============================================
+      # 5. Buat AndroidManifest.xml kustom (timpa default)
+      # ==============================================
+      - name: Create custom AndroidManifest.xml
+        run: |
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="kupastarif.gk.app.id">
+
+              <!-- Izin Lokasi -->
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+              <!-- Izin Foreground Service & Notifikasi -->
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+              <!-- Izin Penyimpanan -->
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+              <!-- Izin Wake Lock -->
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/AppTheme">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+                      android:exported="true"
+                      android:label="@string/title_activity_main"
+                      android:launchMode="singleTask"
+                      android:theme="@style/AppTheme.NoActionBarLaunch">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <!-- Provider default Capacitor untuk File Sharing -->
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="${applicationId}.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+
+                  <!-- ============================================================
+                       SERVICE BACKGROUND GEOLOCATION (Plugin Komunitas)
+                       ============================================================ -->
+                  <service
+                      android:name="com.equimiano.capacitor.backgroundgeolocation.BackgroundGeolocationService"
+                      android:foregroundServiceType="location"
+                      android:exported="false" />
+
+              </application>
+
+          </manifest>
+          EOF
+          echo "Custom AndroidManifest.xml created."
+
+      # ==============================================
+      # 6. Sync Capacitor
       # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
 
       # ==============================================
-      # 4. Set minSdkVersion & targetSdkVersion
+      # 7. Set minSdkVersion & targetSdkVersion
       # ==============================================
       - name: Set Android SDK versions
         run: |
@@ -69,7 +155,7 @@ jobs:
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
-      # 5. Buat colors.xml (adaptive icon)
+      # 8. Buat colors.xml untuk adaptive icon
       # ==============================================
       - name: Create colors.xml for adaptive icon
         run: |
@@ -83,7 +169,7 @@ jobs:
           echo "colors.xml created."
 
       # ==============================================
-      # 6. Copy Launcher Icons
+      # 9. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -114,7 +200,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 7. Adaptive Icon XML
+      # 10. Adaptive Icon XML
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -129,7 +215,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 8. Copy Notification Icon
+      # 11. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -138,7 +224,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 9. Inject Permissions (TANPA service manual)
+      # 12. Inject Permissions (hanya untuk jaga-jaga)
       # ==============================================
       - name: Inject Permissions
         run: |
@@ -155,7 +241,7 @@ jobs:
           echo "Permissions injected."
 
       # ==============================================
-      # 10. Clean dan Build APK
+      # 13. Clean dan Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -165,7 +251,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 11. Upload APK
+      # 14. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
