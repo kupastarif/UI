@@ -10,7 +10,7 @@
  *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
- *   [FIX] Menggunakan @capgo/keep-awake untuk wake lock (Capacitor 6).
+ *   [FIX] Menggunakan @capacitor-community/keep-awake untuk wake lock (Capacitor 6).
  *
  * =================================================================================
  */
@@ -1055,10 +1055,10 @@ function createWarningPopupContent() {
 // =============================================================================
 
 async function releaseWakeLock() {
-    // Lepas KeepAwake plugin (Android) – gunakan @capgo/keep-awake
+    // Lepas KeepAwake plugin (Android) – gunakan @capacitor-community/keep-awake
     if (keepAwakeActive) {
         try {
-            var module = await import('@capgo/keep-awake');
+            var module = await import('@capacitor-community/keep-awake');
             await module.KeepAwake.allowSleep();
             keepAwakeActive = false;
             window.log.info('[Tracking] KeepAwake plugin dilepas');
@@ -1578,10 +1578,10 @@ async function renderActive(params, context) {
         GPS.start(handleGPSPosition, handleGPSError);
     }
 
-    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala) – menggunakan @capgo/keep-awake
+    // [UPDATE] Aktifkan KeepAwake (layar tetap menyala) – menggunakan @capacitor-community/keep-awake
     if (window.Capacitor && window.Capacitor.isNative) {
         try {
-            var module = await import('@capgo/keep-awake');
+            var module = await import('@capacitor-community/keep-awake');
             await module.KeepAwake.keepAwake();
             keepAwakeActive = true;
             window.log.info('[Tracking] KeepAwake plugin diaktifkan');
@@ -1783,7 +1783,7 @@ window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingacti
 
 // ================================= CHANGELOG =================================
 // 2.0.0-rev3 : Ganti plugin keep-awake dari @capacitor-community/keep-awake ke
-//             @capgo/keep-awake (kompatibel dengan Capacitor 6).
+//             @capacitor-community/keep-awake (kompatibel dengan Capacitor 6).
 //             Perbaikan dynamic import ke path yang benar.
 //
 // 2.0.0-rev2 : Perbaikan wake lock menggunakan @capacitor-community/keep-awake.
