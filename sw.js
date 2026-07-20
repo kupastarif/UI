@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /sw.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -17,7 +17,7 @@
 'use strict';
 
 // ---------- KONFIGURASI ----------
-const CACHE_VERSION = '2.0a-beta';
+const CACHE_VERSION = '2.0.0';
 const STATIC_CACHE = 'kupastarif-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'kupastarif-runtime-' + CACHE_VERSION;
 
@@ -188,7 +188,7 @@ self.addEventListener('fetch', function(event) {
 });
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Precache lengkap, strategi cache campuran
+// 2.0.0-rev0 : Inisiasi awal. Precache lengkap, strategi cache campuran
 //             (navigate fallback, CDN network-first, lokal cache-first).
 //
 // =============================== FUTURE UPDATE ===============================
