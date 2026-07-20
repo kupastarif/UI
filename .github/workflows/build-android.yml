@@ -42,7 +42,7 @@ jobs:
           echo "Web files copied to public/"
 
       # ==============================================
-      # 2. Init Capacitor & Sync (tanpa "add android")
+      # 2. Init Capacitor (hanya config)
       # ==============================================
       - name: Init Capacitor
         run: |
@@ -53,11 +53,14 @@ jobs:
           sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
           cat capacitor.config.json
 
+      # ==============================================
+      # 3. Sync Capacitor (TANPA "add android")
+      # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
 
       # ==============================================
-      # 3. Set minSdkVersion & targetSdkVersion
+      # 4. Set minSdkVersion & targetSdkVersion
       # ==============================================
       - name: Set Android SDK versions
         run: |
@@ -66,7 +69,7 @@ jobs:
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
-      # 4. Buat colors.xml dengan nama custom (tidak bentrok)
+      # 5. Buat colors.xml (adaptive icon)
       # ==============================================
       - name: Create colors.xml for adaptive icon
         run: |
@@ -77,10 +80,10 @@ jobs:
               <color name="custom_ic_launcher_background">#0a1f1a</color>
           </resources>
           EOF
-          echo "colors.xml created with custom color name."
+          echo "colors.xml created."
 
       # ==============================================
-      # 5. Copy Launcher Icons
+      # 6. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -111,7 +114,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 6. Adaptive Icon XML (gunakan warna custom)
+      # 7. Adaptive Icon XML
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -126,7 +129,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 7. Copy Notification Icon
+      # 8. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -135,7 +138,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 8. Inject Permissions (TANPA injeksi service manual)
+      # 9. Inject Permissions (TANPA service manual)
       # ==============================================
       - name: Inject Permissions
         run: |
@@ -152,7 +155,7 @@ jobs:
           echo "Permissions injected."
 
       # ==============================================
-      # 9. Clean and Build APK
+      # 10. Clean dan Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -162,7 +165,7 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 10. Upload APK
+      # 11. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
