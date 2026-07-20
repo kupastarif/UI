@@ -29,7 +29,8 @@
       "notificationIcon": "ic_notification",
       "notificationIconColor": "#0d7c4a",
       "activityType": "automotiveNavigation",
-      "minimumActivityRecognitionConfidence": 70
+      "minimumActivityRecognitionConfidence": 70,
+      "requestPermissions": true
     }
   }
 }
