@@ -1,9 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/map.js
- * FILE VERSION : 2.0.0-rev4
+ * FILE VERSION : 2.0.0-rev5
  * APP VERSION  : 2.0.0
- * DATE         : 1 Juli 2026
+ * DATE         : 20 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -13,13 +13,19 @@
  *   dan aturan ikon baru: Driver selalu tampil ikon kendaraan.
  *   Mendukung mode interaktif (Tracking) dan statis (Show Map).
  *
+ *   [UPDATE] rev5: Styling untuk polyline 'planned' sekarang ditentukan
+ *   sepenuhnya di dalam map.js. tracking.js cukup memanggil addPolyline
+ *   dengan tipe 'planned' tanpa opsi styling.
+ *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev4';
+const F_V = '2.0.0-rev5';
+
+import { GPS } from './gps.js';
 
 // =============================================================================
 // 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
@@ -47,6 +53,11 @@ const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">Op
 
 const PICKUP_COLOR  = '#10b981';
 const DROPOFF_COLOR = '#3b82f6';
+
+// Styling untuk polyline 'planned' (rute rencana offline)
+const PLANNED_COLOR   = '#9CA3AF';
+const PLANNED_WEIGHT  = 2;
+const PLANNED_OPACITY = 0.6;
 
 const Z_TILE = 1;
 
@@ -445,13 +456,26 @@ function getMarker(type) {
 }
 
 // =============================================================================
-// POLYLINE (dengan dukungan warna kustom)
+// POLYLINE (dengan dukungan warna kustom & planned route styling)
 // =============================================================================
 
 function _getWeightByAccuracy(accuracy) {
     if (!accuracy || accuracy <= 10) return POLYLINE_WEIGHT_HIGH;
     if (accuracy <= 30) return POLYLINE_WEIGHT_MEDIUM;
     return POLYLINE_WEIGHT_LOW;
+}
+
+function _getPolylineDefaultOptions(type) {
+    switch (type) {
+        case 'pickup':
+            return { color: PICKUP_COLOR, weight: POLYLINE_WEIGHT_DEFAULT, opacity: 0.8 };
+        case 'dropoff':
+            return { color: DROPOFF_COLOR, weight: POLYLINE_WEIGHT_DEFAULT, opacity: 0.8 };
+        case 'planned':
+            return { color: PLANNED_COLOR, weight: PLANNED_WEIGHT, opacity: PLANNED_OPACITY };
+        default:
+            return { color: '#9CA3AF', weight: POLYLINE_WEIGHT_DEFAULT, opacity: 0.8 };
+    }
 }
 
 function addPolyline(positions, type, options = {}) {
@@ -461,15 +485,16 @@ function addPolyline(positions, type, options = {}) {
 
     _clearPolylineSegments(type);
 
-    // Gunakan warna dari options, fallback ke default berdasarkan type
-    const defaultColor = type === 'pickup' ? PICKUP_COLOR :
-                         type === 'dropoff' ? DROPOFF_COLOR : '#9CA3AF';
-    const color = options.color || defaultColor;
+    // Gunakan default styling berdasarkan type, timpa dengan options jika diberikan
+    const defaults = _getPolylineDefaultOptions(type);
+    const color = options.color || defaults.color;
+    const weight = options.weight || defaults.weight;
+    const opacity = options.opacity !== undefined ? options.opacity : defaults.opacity;
 
     const polyline = L.polyline(latLngs, {
         color,
-        weight: options.weight || POLYLINE_WEIGHT_DEFAULT,
-        opacity: options.opacity || 0.8,
+        weight,
+        opacity,
         smoothFactor: 1
     }).addTo(map);
     polyline.bringToBack();
@@ -529,6 +554,21 @@ function getPolyline(type) {
 }
 
 // =============================================================================
+// FUNGSI KHUSUS UNTUK PLANNED ROUTE (untuk kemudahan penggunaan)
+// =============================================================================
+
+/**
+ * Menambahkan polyline rute rencana (planned) dengan styling default.
+ * Ini adalah convenience wrapper di atas addPolyline.
+ * @param {Array} positions - Array koordinat [lat, lng] atau {lat, lng}
+ * @param {Object} [options={}] - Opsi tambahan (dapat menimpa default planned)
+ * @returns {Object|null} Polyline Leaflet atau null jika gagal
+ */
+function addPlannedRoute(positions, options = {}) {
+    return addPolyline(positions, 'planned', options);
+}
+
+// =============================================================================
 // KONTROL & VIEW
 // =============================================================================
 
@@ -551,7 +591,24 @@ function centerToUser() {
     if (markers.user) {
         map.setView(markers.user.getLatLng(), map.getZoom());
     } else {
-        centerToDefault();
+      // tidak ada marker user, tidak melakukan apa-apa
+      // Minta GPS, tambahkan marker user, lalu center
+      GPS.getCurrentPosition(function(pos, error) {
+        if (pos) {
+          addMarker(pos.lat, pos.lng, 'user', {
+            role: currentRole,
+            vehicleMode: currentVehicleMode,
+            replace: true
+          });
+          map.setView([pos.lat, pos.lng], map.getZoom());
+        } else {
+          // fallback: center ke default jika GPS gagal
+          centerToDefault();
+          if (window.ThemeManager) {
+            window.ThemeManager.showToast('Gagal mendapatkan lokasi', 'warning');
+          }
+        }
+      });
     }
 }
 
@@ -736,6 +793,7 @@ export const MapManager = {
     updatePolylineWithAccuracy,
     clearPolylines,
     getPolyline,
+    addPlannedRoute,      // convenience wrapper untuk planned route
 
     fitBounds,
     setView,
@@ -770,5 +828,9 @@ window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 // 2.0.0-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
 // 2.0.0-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
 //             addPolyline sekarang mendukung warna kustom.
+// 2.0.0-rev5 : Styling untuk polyline 'planned' dipindahkan ke map.js.
+//             Tambahkan konstanta PLANNED_COLOR, PLANNED_WEIGHT, PLANNED_OPACITY.
+//             Tambahkan _getPolylineDefaultOptions() untuk default styling per tipe.
+//             Tambahkan addPlannedRoute() sebagai convenience wrapper.
 //
 // ================================ End Of File ================================
