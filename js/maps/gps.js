@@ -1,7 +1,7 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/gps.js
- * FILE VERSION : 2.0.0-rev3
+ * FILE VERSION : 2.0.0-rev4
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -13,8 +13,10 @@
  *   Menyediakan data posisi mentah, otoritas waktu UTC, deteksi zona waktu
  *   Indonesia (WIB/WITA/WIT), serta notifikasi background untuk Android.
  *
- *   [UPDATE] rev3: Menghilangkan import statis Capacitor & BackgroundGeolocation
- *   untuk kompatibilitas web. Menggunakan dynamic import dan global window.Capacitor.
+ *   [UPDATE] rev4: - Menghapus semua dynamic import.
+ *                  - Mengakses plugin Capacitor langsung dari window.Capacitor.Plugins.
+ *                  - Menggunakan window.__platform.isNative dari init.js.
+ *                  - Menghapus fallback ke web di _startNative().
  *
  * =================================================================================
  */
@@ -22,10 +24,9 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev3';
+const F_V = '2.0.0-rev4';
 
 import { StateEvents } from '../core/state.js';
-// Hapus import statis Capacitor dan BackgroundGeolocation
 
 // =============================================================================
 // KONSTANTA
@@ -58,8 +59,10 @@ const ZONE_BOUNDARIES = [
 // STATE INTERNAL
 // =============================================================================
 
-// Deteksi native dengan window.Capacitor (tanpa import)
-let _isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+// Helper untuk deteksi native menggunakan window.__platform yang diset di init.js
+function _isNative() {
+    return window.__platform ? window.__platform.isNative : false;
+}
 
 // State untuk web (navigator.geolocation)
 let _watchId = null;
@@ -99,7 +102,7 @@ function start(onPosition, onError) {
     // Aktifkan Wake Lock sebelum memulai GPS
     _activateKeepAwake();
 
-    if (_isNative) {
+    if (_isNative()) {
         _startNative();
     } else {
         _startWeb();
@@ -111,7 +114,7 @@ function start(onPosition, onError) {
  * Juga menonaktifkan Wake Lock.
  */
 function stop() {
-    if (_isNative) {
+    if (_isNative()) {
         _stopNative();
     } else {
         _stopWeb();
@@ -143,8 +146,7 @@ function getCurrentPosition(callback) {
  * Mengecek apakah geolocation didukung (web) atau native plugin tersedia.
  */
 function isSupported() {
-    if (_isNative) {
-        // Kapasitor selalu mendukung plugin jika terinstal
+    if (_isNative()) {
         return true;
     }
     return 'geolocation' in navigator;
@@ -154,7 +156,7 @@ function isSupported() {
  * Mengecek apakah tracking sedang aktif.
  */
 function isActive() {
-    if (_isNative) {
+    if (_isNative()) {
         return _isNativeStarted;
     }
     return _isTrackingWeb;
@@ -204,16 +206,20 @@ async function _activateKeepAwake() {
     window.log.info('[GPS ' + F_V + '] (20) Mengaktifkan Wake Lock...');
 
     // Coba Capacitor KeepAwake plugin (untuk Android native)
-    if (_isNative) {
+    if (_isNative()) {
         try {
-            const { KeepAwake } = await import('@capacitor-community/keep-awake');
-            await KeepAwake.keepAwake();
-            _keepAwakePluginActive = true;
-            _keepAwakeActive = true;
-            window.log.info('[GPS ' + F_V + '] (21) KeepAwake plugin diaktifkan');
-            return;
+            const KeepAwake = window.Capacitor?.Plugins?.KeepAwake;
+            if (KeepAwake) {
+                await KeepAwake.keepAwake();
+                _keepAwakePluginActive = true;
+                _keepAwakeActive = true;
+                window.log.info('[GPS ' + F_V + '] (21) KeepAwake plugin diaktifkan');
+                return;
+            } else {
+                window.log.warn('[GPS ' + F_V + '] (22) KeepAwake plugin tidak tersedia di window.Capacitor.Plugins');
+            }
         } catch (err) {
-            window.log.warn('[GPS ' + F_V + '] (22) KeepAwake plugin gagal:', err);
+            window.log.warn('[GPS ' + F_V + '] (23) KeepAwake plugin gagal:', err);
             // Lanjut ke fallback Web API
         }
     }
@@ -223,12 +229,12 @@ async function _activateKeepAwake() {
         try {
             _wakeLockWeb = await navigator.wakeLock.request('screen');
             _keepAwakeActive = true;
-            window.log.info('[GPS ' + F_V + '] (23) Wake Lock Web diaktifkan');
+            window.log.info('[GPS ' + F_V + '] (24) Wake Lock Web diaktifkan');
 
             // Listener untuk me-release jika halaman di-visibility change
             document.addEventListener('visibilitychange', _handleVisibilityChange);
         } catch (err) {
-            window.log.warn('[GPS ' + F_V + '] (24) Wake Lock Web gagal:', err);
+            window.log.warn('[GPS ' + F_V + '] (25) Wake Lock Web gagal:', err);
             // Wake lock tidak kritis, lanjutkan tanpa error ke callback
             if (_callbacks.onError) {
                 _callbacks.onError({
@@ -238,7 +244,7 @@ async function _activateKeepAwake() {
             }
         }
     } else {
-        window.log.warn('[GPS ' + F_V + '] (25) Wake Lock tidak didukung di browser ini');
+        window.log.warn('[GPS ' + F_V + '] (26) Wake Lock tidak didukung di browser ini');
     }
 }
 
@@ -247,21 +253,25 @@ async function _activateKeepAwake() {
  */
 async function _deactivateKeepAwake() {
     if (!_keepAwakeActive) {
-        window.log.info('[GPS ' + F_V + '] (26) Wake Lock sudah tidak aktif');
+        window.log.info('[GPS ' + F_V + '] (27) Wake Lock sudah tidak aktif');
         return;
     }
 
-    window.log.info('[GPS ' + F_V + '] (27) Menonaktifkan Wake Lock...');
+    window.log.info('[GPS ' + F_V + '] (28) Menonaktifkan Wake Lock...');
 
     // Nonaktifkan Capacitor KeepAwake plugin
     if (_keepAwakePluginActive) {
         try {
-            const { KeepAwake } = await import('@capacitor-community/keep-awake');
-            await KeepAwake.allowSleep();
-            _keepAwakePluginActive = false;
-            window.log.info('[GPS ' + F_V + '] (28) KeepAwake plugin dinonaktifkan');
+            const KeepAwake = window.Capacitor?.Plugins?.KeepAwake;
+            if (KeepAwake) {
+                await KeepAwake.allowSleep();
+                _keepAwakePluginActive = false;
+                window.log.info('[GPS ' + F_V + '] (29) KeepAwake plugin dinonaktifkan');
+            } else {
+                window.log.warn('[GPS ' + F_V + '] (30) KeepAwake plugin tidak tersedia saat dinonaktifkan');
+            }
         } catch (err) {
-            window.log.warn('[GPS ' + F_V + '] (29) Gagal menonaktifkan KeepAwake plugin:', err);
+            window.log.warn('[GPS ' + F_V + '] (31) Gagal menonaktifkan KeepAwake plugin:', err);
         }
     }
 
@@ -270,9 +280,9 @@ async function _deactivateKeepAwake() {
         try {
             await _wakeLockWeb.release();
             _wakeLockWeb = null;
-            window.log.info('[GPS ' + F_V + '] (30) Wake Lock Web dinonaktifkan');
+            window.log.info('[GPS ' + F_V + '] (32) Wake Lock Web dinonaktifkan');
         } catch (err) {
-            window.log.warn('[GPS ' + F_V + '] (31) Gagal melepas Wake Lock Web:', err);
+            window.log.warn('[GPS ' + F_V + '] (33) Gagal melepas Wake Lock Web:', err);
         }
         document.removeEventListener('visibilitychange', _handleVisibilityChange);
     }
@@ -285,7 +295,7 @@ async function _deactivateKeepAwake() {
  */
 function _handleVisibilityChange() {
     if (document.visibilityState === 'visible' && _isTrackingWeb && !_keepAwakeActive) {
-        window.log.info('[GPS ' + F_V + '] (32) Halaman aktif kembali, reacquire Wake Lock...');
+        window.log.info('[GPS ' + F_V + '] (34) Halaman aktif kembali, reacquire Wake Lock...');
         _activateKeepAwake();
     }
 }
@@ -368,23 +378,22 @@ async function _startNative() {
 
     // Minta izin notifikasi (diperlukan untuk background service)
     try {
-        // Gunakan window.Capacitor.Plugins jika tersedia
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
-            const LocalNotifications = window.Capacitor.Plugins.LocalNotifications;
-            if (typeof LocalNotifications.requestPermissions === 'function') {
-                await LocalNotifications.requestPermissions();
-                window.log.info('[GPS ' + F_V + '] (8) Izin notifikasi diminta');
-            }
+        const LocalNotifications = window.Capacitor?.Plugins?.LocalNotifications;
+        if (LocalNotifications && typeof LocalNotifications.requestPermissions === 'function') {
+            await LocalNotifications.requestPermissions();
+            window.log.info('[GPS ' + F_V + '] (8) Izin notifikasi diminta');
         } else {
             window.log.warn('[GPS ' + F_V + '] (9) LocalNotifications plugin tidak tersedia');
         }
     } catch (e) {
-        window.log.warn('[GPS ' + F_V + '] (9b) Gagal meminta izin notifikasi:', e);
+        window.log.warn('[GPS ' + F_V + '] (10) Gagal meminta izin notifikasi:', e);
     }
 
     try {
-        // Dynamic import BackgroundGeolocation hanya jika native
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        const BackgroundGeolocation = window.Capacitor?.Plugins?.BackgroundGeolocation;
+        if (!BackgroundGeolocation) {
+            throw new Error('Plugin BackgroundGeolocation tidak tersedia');
+        }
 
         _nativeWatcherId = await BackgroundGeolocation.addWatcher(
             {
@@ -403,7 +412,7 @@ async function _startNative() {
             },
             (location, error) => {
                 if (error) {
-                    window.log.error('[GPS ' + F_V + '] (10) Error native:', error);
+                    window.log.error('[GPS ' + F_V + '] (11) Error native:', error);
                     if (_callbacks.onError) {
                         _callbacks.onError({
                             code: ERROR_CODES.NATIVE_ERROR,
@@ -425,42 +434,40 @@ async function _startNative() {
         );
         _isNativeStarted = true;
         // Notifikasi otomatis muncul
-        window.log.info('[GPS ' + F_V + '] (11) Native watcher berhasil dengan id:', _nativeWatcherId);
+        window.log.info('[GPS ' + F_V + '] (12) Native watcher berhasil dengan id:', _nativeWatcherId);
     } catch (err) {
-        window.log.error('[GPS ' + F_V + '] (12) Gagal inisialisasi native:', err);
+        window.log.error('[GPS ' + F_V + '] (13) Gagal inisialisasi native:', err);
         if (_callbacks.onError) {
             _callbacks.onError({
                 code: ERROR_CODES.NATIVE_INIT_FAIL,
                 message: err.message || 'Gagal memulai GPS native'
             });
         }
-        // Fallback ke web jika native gagal? Tidak, biarkan error.
-        // Tapi kita bisa coba web sebagai fallback (opsional)
-        // _startWeb(); // (dikomentari agar tidak terjadi konflik)
+        // Tidak ada fallback ke web agar tidak membingungkan user di production.
+        // Jika ingin fallback untuk debugging, aktifkan baris di bawah ini:
+        // _startWeb();
     }
 }
 
 function _stopNative() {
     if (_nativeWatcherId !== null) {
-        // Dynamic import untuk removeWatcher
-        import('@capacitor-community/background-geolocation')
-            .then(({ BackgroundGeolocation }) => {
-                BackgroundGeolocation.removeWatcher(_nativeWatcherId)
-                    .then(() => {
-                        window.log.info('[GPS ' + F_V + '] (13) Native watcher dihapus');
-                    })
-                    .catch((err) => {
-                        window.log.warn('[GPS ' + F_V + '] (14) Gagal hapus native watcher:', err);
-                    });
-            })
-            .catch(err => {
-                window.log.warn('[GPS ' + F_V + '] (14b) Gagal import background-geolocation untuk stop:', err);
-            });
+        const BackgroundGeolocation = window.Capacitor?.Plugins?.BackgroundGeolocation;
+        if (BackgroundGeolocation) {
+            BackgroundGeolocation.removeWatcher(_nativeWatcherId)
+                .then(() => {
+                    window.log.info('[GPS ' + F_V + '] (14) Native watcher dihapus');
+                })
+                .catch((err) => {
+                    window.log.warn('[GPS ' + F_V + '] (15) Gagal hapus native watcher:', err);
+                });
+        } else {
+            window.log.warn('[GPS ' + F_V + '] (16) BackgroundGeolocation plugin tidak tersedia saat stop');
+        }
         _nativeWatcherId = null;
     }
     _isNativeStarted = false;
     // Notifikasi otomatis hilang
-    window.log.info('[GPS ' + F_V + '] (15) Native tracking dihentikan');
+    window.log.info('[GPS ' + F_V + '] (17) Native tracking dihentikan');
 }
 
 // =============================================================================
@@ -472,7 +479,7 @@ function _setupPageChangeGuard() {
     _pageChangeHandler = () => {
         const currentPage = window.Router?.getCurrentPage();
         if (!currentPage || !currentPage.startsWith('tracking')) {
-            window.log.info('[GPS ' + F_V + '] (16) Berpindah halaman, menghentikan GPS web');
+            window.log.info('[GPS ' + F_V + '] (18) Berpindah halaman, menghentikan GPS web');
             _stopWeb();
         }
     };
@@ -496,7 +503,7 @@ function _detectZoneByLongitude(lng) {
             return { offset: entry.offset, zone: entry.zone };
         }
     }
-    window.log.warn('[GPS ' + F_V + '] (17) Longitude di luar zona dikenal: ' + lng + ', fallback WIB');
+    window.log.warn('[GPS ' + F_V + '] (19) Longitude di luar zona dikenal: ' + lng + ', fallback WIB');
     return { offset: 7, zone: 'WIB' };
 }
 
@@ -546,12 +553,16 @@ export const GPS = {
     ERROR_CODES
 };
 
-window.log.info('[GPS ' + F_V + '] (33) GPS dimuat (native + web + wake lock)');
+window.log.info('[GPS ' + F_V + '] (35) GPS dimuat (native via window.Capacitor.Plugins, web via navigator.geolocation)');
 
 // ================================= CHANGELOG =================================
+// 2.0.0-rev4 : - Menghapus semua dynamic import.
+//              - Mengakses plugin Capacitor langsung dari window.Capacitor.Plugins.
+//              - Menggunakan window.__platform.isNative dari init.js.
+//              - Menghapus fallback ke web di _startNative().
+//              - Memperbarui log dan nomor referensi.
 // 2.0.0-rev3 : - Menghilangkan import statis Capacitor & BackgroundGeolocation.
 //              - Menggunakan dynamic import dan global window.Capacitor.
-//              - Memperbaiki kompatibilitas web.
 // 2.0.0-rev2 : - Manajemen Wake Lock dipindahkan dari tracking.js ke gps.js.
 // 2.0.0-rev1 : - Integrasi native Capacitor BackgroundGeolocation.
 // 2.0.0-rev0 : - Inisiasi awal (web only).
