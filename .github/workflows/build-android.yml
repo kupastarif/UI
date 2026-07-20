@@ -76,6 +76,9 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="kupastarif.gk.app.id">
 
+              <!-- Izin Internet (WAJIB) -->
+              <uses-permission android:name="android.permission.INTERNET" />
+
               <!-- Izin Lokasi -->
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -99,7 +102,8 @@ jobs:
                   android:label="@string/app_name"
                   android:roundIcon="@mipmap/ic_launcher_round"
                   android:supportsRtl="true"
-                  android:theme="@style/AppTheme">
+                  android:theme="@style/AppTheme"
+                  android:usesCleartextTraffic="true">
 
                   <activity
                       android:name=".MainActivity"
@@ -137,7 +141,7 @@ jobs:
 
           </manifest>
           EOF
-          echo "Custom AndroidManifest.xml created."
+          echo "Custom AndroidManifest.xml created with INTERNET permission."
 
       # ==============================================
       # 6. Sync Capacitor
