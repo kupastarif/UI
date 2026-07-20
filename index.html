@@ -2,7 +2,7 @@
 /**
  * =================================================================================
  * FILE         : /index.html
- * FILE VERSION : 2.0.0-rev1
+ * FILE VERSION : 2.0.0-rev2
  * APP VERSION  : 2.0.0
  * DATE         : 20 Juli 2026
  * @author      : gk
@@ -12,8 +12,6 @@
  *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
  *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
  *   Production-ready dengan PWA support dan Service Worker.
- *   [FIX] Perbaikan bridge Capacitor untuk background GPS agar notifikasi
- *   persistent muncul dan GPS berjalan di background.
  *
  * =================================================================================
  */
@@ -330,182 +328,134 @@
 
             console.log('[Bridge] Mode Android: Mengaktifkan GPS background (CapGo)...');
 
+            var _watcherId = null;
+
             async function initNative() {
                 try {
                     // ---------- AMBIL PLUGIN ----------
-                    const BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
-                    const { Geolocation, LocalNotifications, App } = Capacitor.Plugins;
+                    var BackgroundGeolocation = Capacitor.Plugins['@capgo/background-geolocation'];
+                    var Geolocation = Capacitor.Plugins.Geolocation;
+                    var LocalNotifications = Capacitor.Plugins.LocalNotifications;
 
                     if (!BackgroundGeolocation) {
                         console.warn('[Bridge] Plugin @capgo/background-geolocation tidak ditemukan.');
                         return;
                     }
 
-                    // ---------- MINTA IZIN ----------
-                    await Geolocation.requestPermissions();
-
-                    const notifPerm = await LocalNotifications.requestPermissions();
-                    if (notifPerm.display !== 'granted') {
-                        console.warn('[Bridge] Izin notifikasi ditolak. Notifikasi tidak akan muncul.');
+                    // ---------- MINTA IZIN SECARA BERTAHAP ----------
+                    // 1. Izin notifikasi (WAJIB untuk Android 13+)
+                    var notifStatus = await LocalNotifications.checkPermissions();
+                    if (notifStatus.display !== 'granted') {
+                        notifStatus = await LocalNotifications.requestPermissions();
+                    }
+                    if (notifStatus.display !== 'granted') {
+                        console.error('[Bridge] Izin notifikasi ditolak! Background GPS tidak akan berjalan.');
+                        if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
+                            window.ThemeManager.showToast('Aktifkan notifikasi agar GPS berjalan di latar belakang.', 'warning', 5000);
+                        }
+                        // Tetap lanjutkan dengan fallback (mungkin hanya foreground)
                     }
 
+                    // 2. Izin lokasi (foreground + background)
+                    var geoStatus = await Geolocation.checkPermissions();
+                    if (geoStatus.location !== 'granted') {
+                        geoStatus = await Geolocation.requestPermissions();
+                    }
+                    if (geoStatus.location !== 'granted') {
+                        console.error('[Bridge] Izin lokasi ditolak! GPS tidak akan berjalan.');
+                        return;
+                    }
+
+                    // 3. Izin khusus plugin (opsional)
                     if (typeof BackgroundGeolocation.requestPermissions === 'function') {
                         await BackgroundGeolocation.requestPermissions();
                     }
 
-                    // ---------- KONFIGURASI (dengan metode yang benar) ----------
-                    // Catatan: configure() sebenarnya opsional jika kita menggunakan parameter di start().
-                    // Tapi kita tetap panggil untuk memastikan setelan notifikasi dan akurasi terpasang.
-                    await BackgroundGeolocation.configure({
-                        desiredAccuracy: 0,
-                        distanceFilter: 10,
-                        stopOnTerminate: false,
-                        startOnBoot: true,
-                        notificationTitle: '⚡ KupasTarif',
-                        notificationText: 'Merekam perjalanan akurasi tinggi...',
-                        notificationIcon: 'ic_notification',
-                        notificationIconColor: '#0d7c4a',
-                        activityType: 'automotiveNavigation',
-                        minimumActivityRecognitionConfidence: 70
-                    });
-
-                    console.log('[Bridge] BackgroundGeolocation dikonfigurasi.');
-
-                    // ---------- LISTENER POSISI ----------
-                    BackgroundGeolocation.addListener('location', function(location) {
-                        var pos = {
-                            lat: location.latitude || location.coords?.latitude,
-                            lng: location.longitude || location.coords?.longitude,
-                            accuracy: location.accuracy || location.coords?.accuracy || 10,
-                            timestamp: location.timestamp || Date.now()
-                        };
-                        if (window.__trackingCalculate) {
-                            window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                        } else {
-                            window.__lastNativePos = pos;
-                        }
-                    });
-
-                    // ---------- LISTENER ERROR ----------
-                    BackgroundGeolocation.addListener('error', function(error) {
-                        console.error('[Bridge] GPS Error:', error);
-                        LocalNotifications.schedule({
-                            notifications: [{
-                                id: 999,
-                                title: '⚠️ Gagal Lokasi',
-                                body: error.message || 'Periksa GPS dan izin aplikasi.',
-                                schedule: { at: new Date(Date.now() + 500) }
-                            }]
-                        });
-                    });
-
-                    // ---------- LISTENER STATE APP ----------
-                    App.addListener('appStateChange', async function(state) {
-                        if (!state.isActive && window.__nativeBG && window.__nativeBG._started) {
-                            try {
-                                await BackgroundGeolocation.start(
-                                    {
-                                        backgroundMessage: "Merekam perjalanan akurasi tinggi...",
-                                        backgroundTitle: "⚡ KupasTarif",
-                                        requestPermissions: false,
-                                        stale: false,
-                                        distanceFilter: 10
-                                    },
-                                    function(location, error) {
-                                        if (error) {
-                                            console.error('[Bridge] Location error (resume):', error);
-                                            return;
-                                        }
-                                        if (location) {
-                                            var pos = {
-                                                lat: location.latitude,
-                                                lng: location.longitude,
-                                                accuracy: location.accuracy || 10,
-                                                timestamp: location.timestamp || Date.now()
-                                            };
-                                            if (window.__trackingCalculate) {
-                                                window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                                            } else {
-                                                window.__lastNativePos = pos;
-                                            }
-                                        }
-                                    }
-                                );
-                                console.log('[Bridge] Background GPS resumed (app background).');
-                            } catch (e) {
-                                console.warn('[Bridge] Gagal resume background GPS:', e);
-                            }
-                        }
-                    });
-
-                    // ---------- GLOBAL API ----------
-                    window.__nativeBG = {
-                        start: async function() {
-                            if (window.__nativeBG._started) {
-                                console.log('[Bridge] GPS already started.');
-                                return;
-                            }
-                            try {
-                                // ✅ Menggunakan parameter yang benar sesuai dokumentasi
-                                // Parameter pertama: konfigurasi foreground service
-                                // Parameter kedua: callback lokasi
-                                await BackgroundGeolocation.start(
-                                    {
-                                        backgroundMessage: "Merekam perjalanan akurasi tinggi...",
-                                        backgroundTitle: "⚡ KupasTarif",
-                                        requestPermissions: false,
-                                        stale: false,
-                                        distanceFilter: 10
-                                    },
-                                    function(location, error) {
-                                        if (error) {
-                                            console.error('[Bridge] Location error:', error);
-                                            return;
-                                        }
-                                        if (location) {
-                                            var pos = {
-                                                lat: location.latitude,
-                                                lng: location.longitude,
-                                                accuracy: location.accuracy || 10,
-                                                timestamp: location.timestamp || Date.now()
-                                            };
-                                            if (window.__trackingCalculate) {
-                                                window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
-                                            } else {
-                                                window.__lastNativePos = pos;
-                                            }
-                                        }
-                                    }
-                                );
-                                window.__nativeBG._started = true;
-
-                                await LocalNotifications.schedule({
+                    // ---------- DAFTARKAN WATCHER (SATU-SATUNYA CARA YANG BENAR) ----------
+                    // addWatcher secara otomatis menangani foreground service, notifikasi,
+                    // dan callback lokasi. Tidak perlu configure() atau start() terpisah.
+                    _watcherId = await BackgroundGeolocation.addWatcher(
+                        {
+                            desiredAccuracy: 0,                // 0 = high accuracy
+                            distanceFilter: 10,                // meter
+                            stopOnTerminate: false,
+                            startOnBoot: true,
+                            backgroundMessage: "Merekam perjalanan akurasi tinggi...",
+                            backgroundTitle: "⚡ KupasTarif",
+                            backgroundIcon: "ic_notification",
+                            backgroundIconColor: "#0d7c4a",
+                            requestPermissions: false,        // sudah diminta di atas
+                            stale: false,
+                            activityType: 'automotiveNavigation',
+                            minimumActivityRecognitionConfidence: 70
+                        },
+                        function(location, error) {
+                            if (error) {
+                                console.error('[Bridge] Location error:', error);
+                                // Tampilkan notifikasi error
+                                LocalNotifications.schedule({
                                     notifications: [{
-                                        id: 1,
-                                        title: '🟢 Tracking Dimulai',
-                                        body: 'GPS aktif dengan akurasi tinggi.',
+                                        id: 999,
+                                        title: '⚠️ Gagal Lokasi',
+                                        body: error.message || 'Periksa GPS dan izin aplikasi.',
                                         schedule: { at: new Date(Date.now() + 500) }
                                     }]
                                 });
-                                console.log('[Bridge] GPS background started.');
-                            } catch (err) {
-                                console.error('[Bridge] Gagal start GPS:', err);
-                                if (window.ThemeManager && typeof window.ThemeManager.showToast === 'function') {
-                                    window.ThemeManager.showToast('Gagal memulai GPS background', 'error');
+                                return;
+                            }
+                            if (location) {
+                                var pos = {
+                                    lat: location.latitude || location.coords?.latitude,
+                                    lng: location.longitude || location.coords?.longitude,
+                                    accuracy: location.accuracy || location.coords?.accuracy || 10,
+                                    timestamp: location.timestamp || Date.now()
+                                };
+                                // Kirim ke modul tracking jika sudah siap
+                                if (window.__trackingCalculate) {
+                                    window.__trackingCalculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                                } else {
+                                    window.__lastNativePos = pos;
                                 }
                             }
+                        }
+                    );
+
+                    console.log('[Bridge] Watcher registered with id:', _watcherId);
+
+                    // ---------- GLOBAL API UNTUK TRACKING.JS ----------
+                    window.__nativeBG = {
+                        start: async function() {
+                            if (window.__nativeBG._started) {
+                                console.log('[Bridge] GPS sudah berjalan.');
+                                return;
+                            }
+                            // addWatcher sudah otomatis berjalan, kita hanya tandai status
+                            window.__nativeBG._started = true;
+                            // Notifikasi sukses (opsional)
+                            await LocalNotifications.schedule({
+                                notifications: [{
+                                    id: 1,
+                                    title: '🟢 Tracking Dimulai',
+                                    body: 'GPS aktif dengan akurasi tinggi.',
+                                    schedule: { at: new Date(Date.now() + 500) }
+                                }]
+                            });
+                            console.log('[Bridge] GPS background aktif.');
                         },
 
                         stop: async function() {
                             if (!window.__nativeBG._started) {
-                                console.log('[Bridge] GPS already stopped.');
+                                console.log('[Bridge] GPS sudah berhenti.');
                                 return;
                             }
                             try {
-                                await BackgroundGeolocation.stop();
+                                if (_watcherId !== null) {
+                                    await BackgroundGeolocation.removeWatcher(_watcherId);
+                                    _watcherId = null;
+                                }
                                 window.__nativeBG._started = false;
                                 await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
-                                console.log('[Bridge] GPS background stopped.');
+                                console.log('[Bridge] GPS background dihentikan.');
                             } catch (err) {
                                 console.error('[Bridge] Gagal stop GPS:', err);
                             }
@@ -533,12 +483,14 @@
 </html>
 <!--
 // ================================= CHANGELOG =================================
-// 2.0.0-rev1 : Perbaikan bridge Capacitor untuk background GPS.
-//             - Menggunakan parameter yang benar pada BackgroundGeolocation.start()
-//             - Callback lokasi dipindahkan ke dalam start() agar plugin dapat mengirim lokasi
-//             - Tetap mempertahankan configure() untuk pengaturan notifikasi dan akurasi
-//             - Menambahkan fallback untuk listener lokasi yang sudah ada
+// 2.0.0-rev2 : Perbaikan total bridge Capacitor untuk background GPS.
+//             - Menggunakan addWatcher() sesuai dokumentasi @capgo/background-geolocation v8
+//             - Menghapus configure() dan start() yang usang dan konflik
+//             - Meminta izin notifikasi secara terpisah sebelum memulai background service
+//             - Menangani izin lokasi dan notifikasi dengan urutan yang benar untuk Android 13+
+//             - Menggunakan checkPermissions() untuk mencegah double request
 //
+// 2.0.0-rev1 : Percobaan perbaikan dengan configure() + start() (gagal)
 // 2.0.0-rev0 : Rilis stabil 2.0.0. Service Worker dinonaktifkan di Android.
 //
 // ================================ End Of File ================================
