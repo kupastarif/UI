@@ -138,13 +138,11 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 8. Inject Permissions and Service
+      # 8. Inject Permissions (TANPA injeksi service manual)
       # ==============================================
-      - name: Inject Background Permissions and Service
+      - name: Inject Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sudo apt-get update && sudo apt-get install -y xmlstarlet
-
           if ! grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST; then
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
           fi
@@ -154,19 +152,7 @@ jobs:
           if ! grep -q "POST_NOTIFICATIONS" $MANIFEST; then
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           fi
-
-          if ! grep -q "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" $MANIFEST; then
-            xmlstarlet ed --inplace -N android="http://schemas.android.com/apk/res/android" \
-              -s "/manifest/application" -t elem -n "service" -v "" \
-              -i "/manifest/application/service[last()]" -t attr -n "android:name" -v "com.transistorsoft.backgroundgeolocation.BackgroundGeolocation" \
-              -i "/manifest/application/service[last()]" -t attr -n "android:permission" -v "android.permission.BIND_JOB_SERVICE" \
-              -i "/manifest/application/service[last()]" -t attr -n "android:foregroundServiceType" -v "location" \
-              $MANIFEST
-          fi
-
-          echo "=== Final AndroidManifest.xml ==="
-          cat $MANIFEST
-          echo "================================"
+          echo "Permissions injected."
 
       # ==============================================
       # 9. Clean and Build APK
