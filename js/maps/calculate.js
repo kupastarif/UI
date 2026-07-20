@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/calculate.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -23,7 +23,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev0';
+const F_V = '2.0.0-rev0';
 
 import { TrackingCollector } from './tracker.js';
 
@@ -396,7 +396,7 @@ getLastPosition() {
 window.log.info('[Calculate ' + F_V + '] (4) Calculate dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Ganti semua akses Engine menjadi Cache,
+// 2.0.0-rev0 : Inisiasi awal. Ganti semua akses Engine menjadi Cache,
 //             finalize operasional menggunakan getOperationalCost.
 //
 // =============================== FUTURE UPDATE ===============================

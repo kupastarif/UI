@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/map.js
- * FILE VERSION : 2.0a-rev4
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev4
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -19,7 +19,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev4';
+const F_V = '2.0.0-rev4';
 
 // =============================================================================
 // 0. IKON LOKAL (tidak lagi bergantung pada texts.js)
@@ -764,11 +764,11 @@ export const MapManager = {
 window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
-// 2.0a-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
-// 2.0a-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
-// 2.0a-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
+// 2.0.0-rev0 : Inisiasi awal.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
+// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
+// 2.0.0-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
+// 2.0.0-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
 //             addPolyline sekarang mendukung warna kustom.
 //
 // ================================ End Of File ================================

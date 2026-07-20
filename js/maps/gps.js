@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/gps.js
- * FILE VERSION : 2.0a-rev0
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev0
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev0';
+const F_V = '2.0.0-rev0';
 
 import { StateEvents } from '../core/state.js';
 
@@ -225,7 +225,7 @@ export const GPS = {
 window.log.info('[GPS ' + F_V + '] (9) GPS dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
