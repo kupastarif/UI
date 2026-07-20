@@ -42,7 +42,7 @@ jobs:
           echo "Web files copied to public/"
 
       # ==============================================
-      # 2. Init Capacitor
+      # 2. Init & Sync Capacitor (TANPA "add android")
       # ==============================================
       - name: Init Capacitor
         run: |
@@ -52,9 +52,6 @@ jobs:
         run: |
           sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
           cat capacitor.config.json
-
-      - name: Add Android platform
-        run: npx cap add android
 
       - name: Sync Capacitor
         run: npx cap sync
