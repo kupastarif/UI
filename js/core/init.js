@@ -207,6 +207,20 @@
             importMapScript.type = 'importmap';
             importMapScript.textContent = JSON.stringify(importMap);
             document.head.appendChild(importMapScript);
+            
+            // ============================================================
+            // LOAD DEBUG MODULE (hanya saat dev mode)
+            // ============================================================
+            if (window.isDevMode) {
+                const debugScript = document.createElement('script');
+                debugScript.src = window.cacheBust(window.APP_FULL_BASE + 'js/core/debug.js');
+                debugScript.onerror = function() {
+                    // Tidak mempengaruhi aplikasi, hanya peringatan
+                    console.warn('[Init] Gagal memuat debug.js');
+                };
+                document.head.appendChild(debugScript);
+            }
+            
             window.log.info('[Init ' + F_V + '] (18) Import map selesai' + (tParam ? ' (dengan cache bust)' : ''));
 
             // Muat app.js sebagai modul ES
