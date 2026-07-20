@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/components/footer.js
- * FILE VERSION : 2.0a-rev2
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev2
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev2';
+const F_V = '2.0.0-rev2';
 
 // =============================================================================
 // 0. IKON LOKAL (hanya untuk penggunaan internal footer)
@@ -291,11 +291,11 @@ export const FooterManager = { create, createIconButton, createFlexContent, crea
 window.log.info('[Footer ' + F_V + '] (5) FooterManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon. Parameter iconKey diganti
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Parameter iconKey diganti
 //             menjadi iconChar (karakter langsung). Pemanggil wajib mengirim
 //             string ikon, bukan kunci registry.
-// 2.0a-rev2 : Hapus ikon inline ▶ pada slider thumb. Tambahkan ICON.SLIDE_THUMB
+// 2.0.0-rev2 : Hapus ikon inline ▶ pada slider thumb. Tambahkan ICON.SLIDE_THUMB
 //             dan gunakan di createSlideContent. Semua simbol UI kini dari ICON.
 //
 // =============================== FUTURE UPDATE ===============================

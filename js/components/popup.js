@@ -1,8 +1,8 @@
 /**
  * =================================================================================
  * FILE         : /js/components/popup.js
- * FILE VERSION : 2.0a-rev1
- * APP VERSION  : 2.0a-beta
+ * FILE VERSION : 2.0.0-rev1
+ * APP VERSION  : 2.0.0
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
@@ -18,7 +18,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0a-rev1';
+const F_V = '2.0.0-rev1';
 
 import { Texts } from '../helpers/texts.js';
 
@@ -417,8 +417,8 @@ window.PopupManager = PopupManager;
 window.log.info('[Popup ' + F_V + '] (13) PopupManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0a-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0a-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon close
+// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon close
 //             didefinisikan secara lokal (ICON.CLOSE). Impor Texts untuk
 //             POPUP_TEXTS dan getOpenHelp tetap dipertahankan.
 //
