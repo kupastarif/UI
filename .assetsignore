@@ -1,9 +1,0 @@
-.git/
-.github/
-node_modules/
-.wrangler/
-package.json
-bun.lockb
-capacitor.config.json
-wrangler.json
-.assetsignore
