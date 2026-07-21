@@ -1,9 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/map.js
- * FILE VERSION : 2.0.0-rev5
+ * FILE VERSION : 2.0.0-rev6
  * APP VERSION  : 2.0.0
- * DATE         : 20 Juli 2026
+ * DATE         : 22 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -13,9 +13,12 @@
  *   dan aturan ikon baru: Driver selalu tampil ikon kendaraan.
  *   Mendukung mode interaktif (Tracking) dan statis (Show Map).
  *
- *   [UPDATE] rev5: Styling untuk polyline 'planned' sekarang ditentukan
- *   sepenuhnya di dalam map.js. tracking.js cukup memanggil addPolyline
- *   dengan tipe 'planned' tanpa opsi styling.
+ *   [UPDATE] rev6: - Tombol center sekarang mengecek izin lokasi sebelum muncul.
+ *                  - Debounce 500ms pada klik tombol center.
+ *                  - Tambah event interaksi pengguna (drag/zoom) untuk follow mode.
+ *                  - Fungsi onUserInteraction() untuk mendaftarkan callback.
+ *                  - addCenterButton() sekarang async, menerima callback onClick.
+ *                  - Tambah fungsi checkLocationPermission() untuk deteksi izin.
  *
  * =================================================================================
  */
@@ -23,7 +26,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev5';
+const F_V = '2.0.0-rev6';
 
 import { GPS } from './gps.js';
 
@@ -89,6 +92,9 @@ let currentIsOperational = false;
 
 let centerButton = null;
 let warningButton = null;
+
+// Callback untuk interaksi pengguna (drag/zoom) – di-set oleh tracking.js
+let _onUserInteractionCallback = null;
 
 // =============================================================================
 // LAZY LOADING LEAFLET
@@ -254,12 +260,22 @@ async function init(containerId, options = {}) {
 
         _initOverlays(containerId);
 
-        setTimeout(() => {
-            addCenterButton();
-            if (warningButton && map && map._container) {
-                map._container.appendChild(warningButton);
-            }
-        }, 100);
+        // Event interaksi pengguna (untuk follow mode di tracking.js)
+        map.on('movestart', function() {
+            if (_onUserInteractionCallback) _onUserInteractionCallback();
+        });
+        map.on('zoomstart', function() {
+            if (_onUserInteractionCallback) _onUserInteractionCallback();
+        });
+
+        // Tombol center akan ditambahkan secara terpisah oleh pemanggil
+        // karena perlu cek izin dan callback. 
+        // Namun untuk kompatibilitas dengan showmap dan lainnya,
+        // kita bisa sediakan fungsi addCenterButton yang dipanggil nanti.
+        // Di sini kita tidak otomatis panggil addCenterButton lagi.
+        if (warningButton && map && map._container) {
+            map._container.appendChild(warningButton);
+        }
 
         isInitialized = true;
         currentContainerId = containerId;
@@ -293,6 +309,7 @@ function destroy() {
     if (warningButton) {
         warningButton.remove();
     }
+    _onUserInteractionCallback = null;
     window.log.info('[Map ' + F_V + '] (4) Peta dihancurkan');
 }
 
@@ -301,12 +318,45 @@ function isReady() {
 }
 
 // =============================================================================
-// TOMBOL CENTER (ATURAN IKON BARU)
+// FUNGSI CEK IZIN LOKASI (untuk menampilkan tombol center)
 // =============================================================================
 
-function addCenterButton() {
+function checkLocationPermission() {
+    // Native: asumsikan izin diberikan karena Capacitor mengelola
+    if (window.__platform && window.__platform.isNative) {
+        return Promise.resolve(true);
+    }
+    // Web: gunakan Permissions API jika tersedia
+    if (navigator.permissions) {
+        return navigator.permissions.query({name:'geolocation'}).then(function(result) {
+            return result.state === 'granted';
+        }).catch(function() {
+            return false;
+        });
+    }
+    // Fallback: tidak bisa cek, tampilkan saja tombol (jangan sembunyikan)
+    return Promise.resolve(true);
+}
+
+// =============================================================================
+// TOMBOL CENTER (DENGAN CEK IZIN, DEBOUNCE, DAN CALLBACK)
+// =============================================================================
+
+/**
+ * Menambahkan tombol center ke peta. Sekarang async: cek izin lokasi dulu.
+ * @param {Function} [onClick] - Callback opsional saat tombol diklik.
+ *        Jika tidak diberikan, akan memanggil centerToUser() default.
+ */
+async function addCenterButton(onClick) {
     if (!map || !map._container) return;
     if (map._container.querySelector('.map-center-btn')) return;
+
+    // Cek izin lokasi, jika tidak granted jangan tampilkan tombol
+    const hasPermission = await checkLocationPermission();
+    if (!hasPermission) {
+        window.log.info('[Map ' + F_V + '] Izin lokasi tidak diberikan, tombol center tidak ditampilkan');
+        return;
+    }
 
     let iconChar;
     if (currentIsOperational || currentRole === 'Driver') {
@@ -321,13 +371,31 @@ function addCenterButton() {
     button.title = 'Center ke posisi saya';
     button.setAttribute('aria-label', 'Center ke posisi saya');
 
+    let debounceTimer = null;
     button.addEventListener('click', (e) => {
         e.preventDefault();
-        centerToUser();
+        if (debounceTimer) return;                // debounce 500ms
+        debounceTimer = setTimeout(function() {
+            debounceTimer = null;
+        }, 500);
+
+        if (typeof onClick === 'function') {
+            onClick();
+        } else {
+            centerToUser();
+        }
     });
 
     map._container.appendChild(button);
     centerButton = button;
+}
+
+// =============================================================================
+// FUNGSI UNTUK MENDAFTARKAN CALLBACK INTERAKSI PENGGUNA
+// =============================================================================
+
+function onUserInteraction(callback) {
+    _onUserInteractionCallback = callback;
 }
 
 // =============================================================================
@@ -793,7 +861,7 @@ export const MapManager = {
     updatePolylineWithAccuracy,
     clearPolylines,
     getPolyline,
-    addPlannedRoute,      // convenience wrapper untuk planned route
+    addPlannedRoute,
 
     fitBounds,
     setView,
@@ -806,7 +874,10 @@ export const MapManager = {
 
     showPlaceholder,
 
+    addCenterButton,       // versi baru: async, cek izin, debounce, callback
     addWarningButton,
+
+    onUserInteraction,     // untuk mendaftarkan callback interaksi pengguna
 
     getLeaflet,
     getMap,
@@ -822,15 +893,21 @@ export const MapManager = {
 window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 
 // ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
-// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
-// 2.0.0-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
-// 2.0.0-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
-//             addPolyline sekarang mendukung warna kustom.
+// 2.0.0-rev6 : - Tombol center sekarang async: cek izin lokasi sebelum tampil.
+//              - Debounce 500ms pada klik tombol center.
+//              - Tambah event listener 'movestart' & 'zoomstart' untuk follow mode.
+//              - Fungsi onUserInteraction() untuk mendaftarkan callback.
+//              - addCenterButton() menerima callback onClick opsional.
+//              - Fungsi checkLocationPermission() untuk deteksi izin.
 // 2.0.0-rev5 : Styling untuk polyline 'planned' dipindahkan ke map.js.
 //             Tambahkan konstanta PLANNED_COLOR, PLANNED_WEIGHT, PLANNED_OPACITY.
 //             Tambahkan _getPolylineDefaultOptions() untuk default styling per tipe.
 //             Tambahkan addPlannedRoute() sebagai convenience wrapper.
+// 2.0.0-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
+//             addPolyline sekarang mendukung warna kustom.
+// 2.0.0-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
+// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
+// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
+// 2.0.0-rev0 : Inisiasi awal.
 //
 // ================================ End Of File ================================
