@@ -1,0 +1,40 @@
+name: Copy Web Files to World
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'index.html'          # dipicu hanya jika index.html berubah
+  workflow_dispatch:          # bisa dijalankan manual dari tab Actions
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout kode dari repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Hapus folder world lama (jika ada) agar selalu fresh
+      - name: Remove old world folder
+        run: rm -rf world || true
+
+      # 3. Buat folder world
+      - name: Create world directory
+        run: mkdir -p world
+
+      # 4. Salin seluruh aset web ke dalam world
+      - name: Copy web files
+        run: |
+          cp -r assets/   world/
+          cp -r engine/   world/
+          cp -r js/       world/
+          cp index.html   world/
+          cp manifest.json world/
+          cp sw.js        world/
+
+      # (Opsional) Tampilkan struktur folder world untuk verifikasi
+      - name: List world contents
+        run: ls -la world/
+
