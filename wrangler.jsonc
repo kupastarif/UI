@@ -6,8 +6,8 @@
     "enabled": true
   },
   "assets": {
-    "directory": ".",
-    "exclude": ["node_modules/**/*", ".git/**/*", ".github/**/*", "android/**/*", "ios/**/*", "*.apk", "*.aab"]
+    "directory": "world",
+    "exclude": ["node_modules/**/*", ".git/**/*", "android/**/*", "ios/**/*"]
   },
   "compatibility_flags": [
     "nodejs_compat"
