@@ -4,7 +4,7 @@
   "description": "Kalkulator tarif ojek online dengan tracking GPS",
   "main": "index.html",
   "scripts": {
-    "build": "npx cap sync && npx cap copy android"
+    "build": "echo 'Build complete - serving from world folder'"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
