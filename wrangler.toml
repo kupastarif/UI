@@ -1,0 +1,17 @@
+name = "ojol"
+compatibility_date = "2026-07-21"
+
+[env.production]
+name = "ojol-prod"
+
+[build]
+command = "echo 'No build needed'"
+cwd = "./"
+watch_paths = []
+
+[[env.production.routes]]
+pattern = "*"
+zone_name = "example.com"
+
+[observability]
+enabled = true
