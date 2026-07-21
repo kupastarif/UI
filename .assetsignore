@@ -1,1 +1,7 @@
 assets/
+node_modules
+node_modules/
+workerd
+workerd/
+bin
+bin/
