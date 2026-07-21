@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ojol",
+  "compatibility_date": "2026-07-21",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".",
+    "include": ["**/*"],
+    "exclude": ["node_modules/**/*", ".git/**/*", "dist/**/*"]
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
