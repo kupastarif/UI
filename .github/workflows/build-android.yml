@@ -10,24 +10,46 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # ==============================================
+      # 0. Checkout kode
+      # ==============================================
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ==============================================
+      # 1. Setup Node.js
+      # ==============================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'npm'   # <- cache npm untuk mempercepat install
 
+      # ==============================================
+      # 2. Install dependencies (gunakan npm ci jika ada lockfile)
+      # ==============================================
       - name: Install dependencies
-        run: npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
+      # ==============================================
+      # 3. Setup Java
+      # ==============================================
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21'
 
+      # ==============================================
+      # 4. Setup Android SDK
+      # ==============================================
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
@@ -35,7 +57,7 @@ jobs:
         run: yes | sdkmanager --licenses
 
       # ==============================================
-      # 1. Siapkan folder public
+      # 5. Siapkan folder public
       # ==============================================
       - name: Prepare web directory
         run: |
@@ -44,7 +66,7 @@ jobs:
           echo "Web files copied to public/"
 
       # ==============================================
-      # 2. Init Capacitor
+      # 6. Init Capacitor
       # ==============================================
       - name: Init Capacitor
         run: |
@@ -56,20 +78,19 @@ jobs:
           cat capacitor.config.json
 
       # ==============================================
-      # 3. Hapus folder android jika ada (clean state)
+      # 7. Hapus folder android jika ada (clean state)
       # ==============================================
       - name: Remove existing android folder
-        run: |
-          rm -rf android || true
+        run: rm -rf android || true
 
       # ==============================================
-      # 4. Add Android platform (membuat proyek default)
+      # 8. Add Android platform (membuat proyek default)
       # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
       # ==============================================
-      # 5. Buat AndroidManifest.xml kustom (timpa default)
+      # 9. Buat AndroidManifest.xml kustom
       # ==============================================
       - name: Create custom AndroidManifest.xml
         run: |
@@ -131,28 +152,20 @@ jobs:
                           android:resource="@xml/file_paths" />
                   </provider>
 
-                  <!--
-                    SERVICE BACKGROUND GEOLOCATION TIDAK PERLU DIDEFINISIKAN ULANG DI SINI.
-                    Plugin @capacitor-community/background-geolocation sudah menyediakan
-                    deklarasi service sendiri dengan exported="true" melalui manifes internalnya.
-                    Menambahkan deklarasi kedua akan menyebabkan konflik (manifest merger)
-                    dan gagal build.
-                  -->
-
               </application>
 
           </manifest>
           EOF
-          echo "Custom AndroidManifest.xml created with INTERNET permission."
+          echo "Custom AndroidManifest.xml created."
 
       # ==============================================
-      # 6. Sync Capacitor
+      # 10. Sync Capacitor
       # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
 
       # ==============================================
-      # 7. Set minSdkVersion & targetSdkVersion
+      # 11. Set minSdkVersion & targetSdkVersion
       # ==============================================
       - name: Set Android SDK versions
         run: |
@@ -161,7 +174,7 @@ jobs:
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
-      # 8. Buat colors.xml untuk adaptive icon
+      # 12. Buat colors.xml untuk adaptive icon
       # ==============================================
       - name: Create colors.xml for adaptive icon
         run: |
@@ -175,7 +188,7 @@ jobs:
           echo "colors.xml created."
 
       # ==============================================
-      # 9. Copy Launcher Icons
+      # 13. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -206,7 +219,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 10. Adaptive Icon XML
+      # 14. Adaptive Icon XML
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -221,7 +234,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 11. Copy Notification Icon
+      # 15. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -230,7 +243,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 12. Inject Permissions (hanya untuk jaga-jaga)
+      # 16. Inject Permissions (jaga-jaga)
       # ==============================================
       - name: Inject Permissions
         run: |
@@ -247,7 +260,7 @@ jobs:
           echo "Permissions injected."
 
       # ==============================================
-      # 13. Clean dan Build APK
+      # 17. Clean dan Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -257,10 +270,22 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 14. Upload APK
+      # 18. Upload APK (artifact akan otomatis dihapus setelah 3 hari)
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: kupastarif-app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 3   # <- artefak otomatis dihapus setelah 3 hari
+
+      # ==============================================
+      # 19. Bersihkan folder sementara (tidak menggagalkan workflow jika gagal)
+      # ==============================================
+      - name: Clean temporary build folders
+        continue-on-error: true   # <- jika gagal, tetap lanjut
+        run: |
+          rm -rf android/
+          rm -rf public/
+          rm -rf node_modules/   # <- opsional, membersihkan modul
+          npm cache clean --force || true
