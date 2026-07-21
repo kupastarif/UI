@@ -1,0 +1,34 @@
+# ==========================================
+# 1. Cloudflare & Wrangler (SANGAT PENTING)
+# ==========================================
+# File variabel rahasia lokal untuk testing (Gunakan Dashboard untuk prod)
+.dev.vars
+.env
+.env.*
+
+# Folder cache & data lokal Wrangler
+.wrangler/
+
+# ==========================================
+# 2. Dependencies & Build Outputs
+# ==========================================
+# Folder modul Node.js
+node_modules/
+
+# Folder hasil build (Akan di-generate otomatis saat CI/CD)
+dist/
+build/
+.out/
+
+# Log error
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# 3. File Sistem & IDE
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
