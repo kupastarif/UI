@@ -1,40 +1,61 @@
-name: Copy Web Files to World
+name: doppelganger
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'index.html'          # dipicu hanya jika index.html berubah
-  workflow_dispatch:          # bisa dijalankan manual dari tab Actions
+      - 'index.html'
+  workflow_dispatch:
 
 jobs:
   copy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      # 1. Checkout kode dari repository
+      # 1. Checkout kode
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Hapus folder world lama (jika ada) agar selalu fresh
-      - name: Remove old world folder
-        run: rm -rf world || true
-
-      # 3. Buat folder world
-      - name: Create world directory
+      # 2. Pastikan folder world ada
+      - name: Ensure world directory exists
         run: mkdir -p world
 
-      # 4. Salin seluruh aset web ke dalam world
-      - name: Copy web files
+      # 3. Hapus seluruh isi world, kecuali .gitkeep dan index.html
+      - name: Clean world contents (keep .gitkeep and index.html)
+        run: |
+          cd world
+          # Hapus semua file/dir kecuali .gitkeep dan index.html
+          find . -maxdepth 1 ! -name '.' ! -name '..' ! -name '.gitkeep' ! -name 'index.html' -exec rm -rf {} \;
+
+      # 4. Salin semua file web (kecuali index.html)
+      - name: Copy web files (except index.html)
         run: |
           cp -r assets/   world/
           cp -r engine/   world/
           cp -r js/       world/
-          cp index.html   world/
           cp manifest.json world/
           cp sw.js        world/
 
-      # (Opsional) Tampilkan struktur folder world untuk verifikasi
-      - name: List world contents
-        run: ls -la world/
+      # 5. Hapus index.html yang lama (jika ada) lalu salin yang baru (terakhir)
+      - name: Replace index.html (last)
+        run: |
+          rm -f world/index.html
+          cp index.html world/
 
+      # 6. Pastikan .gitkeep tetap ada (buat ulang jika tidak sengaja terhapus)
+      - name: Ensure .gitkeep exists
+        run: |
+          echo "# Folder untuk deployment web statis" > world/.gitkeep
+
+      # 7. Commit dan push perubahan ke branch main
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add world/
+          git diff --staged --quiet || git commit -m "Update world folder (triggered by index.html change)"
+          git push origin main
