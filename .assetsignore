@@ -1,7 +1,19 @@
-assets/
-node_modules
+# Capacitor / Android
+android/
+ios/
+*.apk
+*.aab
+
+# Node
 node_modules/
-workerd
-workerd/
-bin
-bin/
+npm-debug.log
+yarn-error.log
+
+# Hasil build sementara
+public/
+dist/
+build/
+
+# File sistem
+.DS_Store
+Thumbs.db
