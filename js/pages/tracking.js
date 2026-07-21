@@ -1,9 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev6
+ * FILE VERSION : 2.0.0-rev7
  * APP VERSION  : 2.0.0
- * DATE         : 20 Juli 2026
+ * DATE         : 22 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -11,9 +11,14 @@
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
  *
- *   [UPDATE] rev6: Wake Lock sepenuhnya dikelola oleh GPS (gps.js).
- *   Styling planned route dipindahkan ke map.js (gunakan addPlannedRoute).
- *   tracking.js sekarang hanya fokus pada UI dan orkestrasi.
+ *   [UPDATE] rev7: - Pause tanpa hentikan GPS (watcher tetap hidup).
+ *                  - Resume tanpa restart GPS + GPS Once untuk titik sambung.
+ *                  - Selesai dengan GPS Once sebelum snapshot.
+ *                  - Retry GPS di idle (acquireInitialPosition, 5x, jeda 3s).
+ *                  - Follow mode dengan timer 10 detik (opsi C).
+ *                  - Tombol center dari map.js dengan callback khusus.
+ *                  - Hapus requestGPSPermission, ganti acquireInitialPosition.
+ *                  - Footer idle reaktif terhadap gpsReady.
  *
  * =================================================================================
  */
@@ -21,7 +26,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev6';
+const F_V = '2.0.0-rev7';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -125,7 +130,11 @@ let offlineAdditionalData = {};
 let soundEnabled = true;
 let beepAudioCtx = null;
 let soundTimer = null;
-let currentSoundInterval = null;    // ms interval suara saat ini (null jika tidak ada)
+let currentSoundInterval = null;
+
+// Follow mode (rev7)
+let followMode = false;
+let followModeTimer = null;
 
 // =============================================================================
 // 2. HELPER: DEBOUNCE
@@ -172,6 +181,14 @@ function goToStage(newStage) {
         startSoundIfNeeded(currentSoundInterval);
     }
 
+    // Follow mode aktif saat masuk stage aktif
+    if (newStage === 'pickup' || newStage === 'dropoff' || newStage === 'operational') {
+        followMode = true;
+    } else if (newStage === 'paused') {
+        // Saat pause, follow mode mati sementara
+        followMode = false;
+    }
+
     updateFooter();
     updateDistanceTimeDisplay();
     updateStatusText();
@@ -202,6 +219,8 @@ function resetToIdle() {
     GPS.stop();
     stopClockTimer();
     stopSound();
+    followMode = false;
+    if (followModeTimer) { clearTimeout(followModeTimer); followModeTimer = null; }
 
     if (mapReady && MapManager) {
         MapManager.clearPolylines();
@@ -264,31 +283,56 @@ function handleGPSError(error) {
 // 5. PETA & GPS AWAL
 // =============================================================================
 
-function requestGPSPermission(callback) {
-    GPS.getCurrentPosition(
-        function(pos) {
-            currentPosition = { lat: pos.lat, lng: pos.lng };
-            currentAccuracy = pos.accuracy || 0;
-            if (mapReady && MapManager) {
-                MapManager.updateUserMarker(pos.lat, pos.lng, role, vehicleData.E10);
-                MapManager.setView(pos.lat, pos.lng, 15);
+/**
+ * Retry GPS Once hingga 5 kali, jeda 3 detik.
+ * Digunakan di idle untuk memastikan GPS siap sebelum tombol MULAI aktif.
+ */
+function acquireInitialPosition(callback) {
+    var maxRetries = 5;
+    var retryDelay = 3000;
+    var attempt = 0;
+
+    function tryGetPosition() {
+        attempt++;
+        GPS.getCurrentPosition(
+            function(pos) {
+                currentPosition = { lat: pos.lat, lng: pos.lng };
+                currentAccuracy = pos.accuracy || 0;
+                if (mapReady && MapManager) {
+                    MapManager.updateUserMarker(pos.lat, pos.lng, role, vehicleData.E10);
+                    MapManager.setView(pos.lat, pos.lng, 15);
+                }
+                updateDistanceTimeDisplay();
+                MapManager.setGPSStatusOverlay(true);
+                window.log.info('[Tracking] GPS ready setelah ' + attempt + ' percobaan');
+                gpsReady = true;
+                updateFooterForIdle();
+                if (typeof callback === 'function') callback(true);
+            },
+            function(error) {
+                if (error && (error.code === GPS.ERROR_CODES.PERMISSION_DENIED || error.code === 1)) {
+                    window.log.warn('[Tracking] Izin lokasi ditolak, hentikan retry');
+                    gpsReady = false;
+                    updateFooterForIdle();
+                    MapManager.setGPSStatusOverlay(false);
+                    if (typeof callback === 'function') callback(false);
+                    return;
+                }
+                if (attempt < maxRetries) {
+                    window.log.info('[Tracking] Retry GPS ' + attempt + '/' + maxRetries + '...');
+                    setTimeout(tryGetPosition, retryDelay);
+                } else {
+                    window.log.warn('[Tracking] GPS gagal setelah ' + maxRetries + ' percobaan');
+                    gpsReady = false;
+                    updateFooterForIdle();
+                    MapManager.setGPSStatusOverlay(false);
+                    if (typeof callback === 'function') callback(false);
+                }
             }
-            updateDistanceTimeDisplay();
-            MapManager.setGPSStatusOverlay(true);
-            window.log.info('[Tracking ' + F_V + '] (5) GPS permission granted');
-            gpsReady = true;
-            if (typeof callback === 'function') callback(true);
-        },
-        function(error) {
-            MapManager.setGPSStatusOverlay(false);
-            window.log.warn('[Tracking ' + F_V + '] (6) GPS permission denied');
-            if (ThemeManager) {
-                ThemeManager.showToast('Izin lokasi ditolak. Tracking tetap berjalan manual.', 'info');
-            }
-          gpsReady = false;
-          if (typeof callback === 'function') callback(false);
-        }
-    );
+        );
+    }
+
+    tryGetPosition();
 }
 
 async function initMap() {
@@ -320,6 +364,32 @@ async function initMap() {
             Router.navigateTo({ target: 'popup18' });
         });
 
+        // Daftarkan callback interaksi pengguna untuk follow mode
+        MapManager.onUserInteraction(function() {
+            onMapUserInteraction();
+        });
+
+        // Tambahkan tombol center dengan callback khusus tracking
+        MapManager.addCenterButton(function() {
+            // Callback saat tombol center diklik
+            GPS.getCurrentPosition(function(pos) {
+                if (pos) {
+                    currentPosition = { lat: pos.lat, lng: pos.lng };
+                    currentAccuracy = pos.accuracy || 0;
+                    MapManager.updateUserMarker(pos.lat, pos.lng, role, vehicleData.E10);
+                    MapManager.setView(pos.lat, pos.lng, 15);
+                }
+                // Aktifkan follow mode
+                followMode = true;
+                // Reset timer interaksi
+                if (followModeTimer) clearTimeout(followModeTimer);
+            }, function(err) {
+                // Gagal mendapatkan posisi, tetap aktifkan follow mode (menggunakan posisi terakhir)
+                followMode = true;
+                if (followModeTimer) clearTimeout(followModeTimer);
+            });
+        });
+
         if (currentPosition) {
             MapManager.updateUserMarker(currentPosition.lat, currentPosition.lng, role, vehicleData.E10);
         }
@@ -335,7 +405,28 @@ async function initMap() {
 }
 
 // =============================================================================
-// 6. UI UPDATE (PLACEHOLDER & OVERLAY MAP)
+// 6. FOLLOW MODE (rev7)
+// =============================================================================
+
+function onMapUserInteraction() {
+    if (followMode) {
+        followMode = false;
+    }
+    // Reset timer 10 detik
+    if (followModeTimer) clearTimeout(followModeTimer);
+    followModeTimer = setTimeout(function() {
+        // Setelah 10 detik diam, tampilkan semua rute
+        if (mapReady && MapManager && calculate) {
+            var poly = calculate.getPolylineData();
+            var allPos = poly.pickup.concat(poly.dropoff);
+            if (currentPosition) allPos.push([currentPosition.lat, currentPosition.lng]);
+            if (allPos.length > 0) MapManager.fitBounds(allPos);
+        }
+    }, 10000);
+}
+
+// =============================================================================
+// 7. UI UPDATE (PLACEHOLDER & OVERLAY MAP)
 // =============================================================================
 
 function updateStatusText() {
@@ -407,9 +498,11 @@ function updateMap() {
         MapManager.updateUserMarker(currentPosition.lat, currentPosition.lng, role, vehicleData.E10);
     }
 
-    var allPos = poly.pickup.concat(poly.dropoff);
-    if (currentPosition) allPos.push([currentPosition.lat, currentPosition.lng]);
-    if (allPos.length > 0) MapManager.fitBounds(allPos);
+    // Follow mode: auto-center ke posisi user
+    if (followMode && currentPosition) {
+        MapManager.setView(currentPosition.lat, currentPosition.lng, MapManager.getZoom());
+    }
+    // Tidak ada lagi fitBounds otomatis di sini
 }
 
 function scheduleLiveIncomeUpdate() {
@@ -430,7 +523,7 @@ function scheduleLiveIncomeUpdate() {
 }
 
 // =============================================================================
-// 7. LIVE INCOME & SHARE/LIMIT (OPERASIONAL)
+// 8. LIVE INCOME & SHARE/LIMIT
 // =============================================================================
 
 function updateLiveIncome(options) {
@@ -479,7 +572,7 @@ function renderShareLimitResult() {
 }
 
 // =============================================================================
-// 8. RENDER LIVE INCOME (KOLAPSIBEL INDEPENDEN) + SPEAKER
+// 9. RENDER LIVE INCOME
 // =============================================================================
 
 function renderLiveIncome() {
@@ -618,7 +711,7 @@ function handleAppToggle() {
 }
 
 // =============================================================================
-// 9. CARD RINGKASAN PERJALANAN
+// 10. CARD RINGKASAN PERJALANAN
 // =============================================================================
 
 function renderTripSummaryCard() {
@@ -709,7 +802,7 @@ function renderTripSummaryCard() {
 }
 
 // =============================================================================
-// 10. FUNGSI SUARA (Web Audio API)
+// 11. FUNGSI SUARA
 // =============================================================================
 
 function getBeepCtx() {
@@ -757,7 +850,7 @@ function startSoundIfNeeded(intervalMs) {
 }
 
 // =============================================================================
-// 11. KONTEN POPUP (dengan perbaikan slide)
+// 12. KONTEN POPUP
 // =============================================================================
 
 function createCancelPopupContent() {
@@ -1055,7 +1148,7 @@ function createWarningPopupContent() {
 }
 
 // =============================================================================
-// 12. FINALISASI & PEMBATALAN
+// 13. FINALISASI & PEMBATALAN
 // =============================================================================
 
 function emergencyStop() {
@@ -1067,6 +1160,8 @@ function emergencyStop() {
         beepAudioCtx.close();
         beepAudioCtx = null;
     }
+    followMode = false;
+    if (followModeTimer) { clearTimeout(followModeTimer); followModeTimer = null; }
 }
 
 async function finalizeTracking(isOnline, isPenumpang) {
@@ -1182,7 +1277,7 @@ function parsePopupInput(id, cell) {
 }
 
 // =============================================================================
-// 13. FOOTER & HEADER
+// 14. FOOTER & HEADER
 // =============================================================================
 
 function updateFooterForIdle() {
@@ -1239,20 +1334,29 @@ function updateFooterForActive() {
         onStop: function() { Router.navigateTo({ target: 'popup14' }); },
         onPause: function() {
             if (calculate) {
-                calculate.pause();
-                GPS.stop();
+                calculate.pause();  // JANGAN hentikan GPS
                 stopClockTimer();
                 goToStage('paused');
             }
         },
         onResume: function() {
             var resumeStage = previousStage || 'pickup';
-            if (calculate) {
-                calculate.resume();
-                GPS.start(handleGPSPosition, handleGPSError);
+            // GPS Once untuk titik sambung akurat, lalu resume calculate (tanpa restart GPS)
+            GPS.getCurrentPosition(function(pos) {
+                if (pos) {
+                    currentPosition = { lat: pos.lat, lng: pos.lng };
+                    currentAccuracy = pos.accuracy || 0;
+                    if (calculate) calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                }
+                if (calculate) calculate.resume();
                 startClockTimer();
-            }
-            goToStage(resumeStage);
+                goToStage(resumeStage);
+            }, function(err) {
+                // Gagal, tetap resume
+                if (calculate) calculate.resume();
+                startClockTimer();
+                goToStage(resumeStage);
+            });
         },
         onAngkut: function() {
             if (calculate) {
@@ -1271,15 +1375,35 @@ function updateFooterForActive() {
             goToStage('dropoff');
         },
         onSelesai: function() {
-            if (currentPosition && MapManager) {
-                MapManager.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
-            }
-            window.__trackingResetSlide = function() {
-                if (typeof updateFooter === 'function') {
-                    updateFooter();
+            // GPS Once untuk posisi akhir akurat
+            GPS.getCurrentPosition(function(pos) {
+                if (pos) {
+                    currentPosition = { lat: pos.lat, lng: pos.lng };
+                    currentAccuracy = pos.accuracy || 0;
+                    if (calculate) {
+                        calculate.addPosition(pos.lat, pos.lng, pos.accuracy, pos.timestamp);
+                    }
+                    if (MapManager) {
+                        MapManager.addMarker(pos.lat, pos.lng, 'finish', { replace: false });
+                    }
+                } else {
+                    if (currentPosition && MapManager) {
+                        MapManager.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
+                    }
                 }
-            };
-            Router.navigateTo({ target: 'popup15' });
+                window.__trackingResetSlide = function() {
+                    if (typeof updateFooter === 'function') updateFooter();
+                };
+                Router.navigateTo({ target: 'popup15' });
+            }, function(err) {
+                if (currentPosition && MapManager) {
+                    MapManager.addMarker(currentPosition.lat, currentPosition.lng, 'finish', { replace: false });
+                }
+                window.__trackingResetSlide = function() {
+                    if (typeof updateFooter === 'function') updateFooter();
+                };
+                Router.navigateTo({ target: 'popup15' });
+            });
         }
     };
 
@@ -1329,7 +1453,7 @@ function updateHeader() {
 }
 
 // =============================================================================
-// 14. BUILD HTML
+// 15. BUILD HTML
 // =============================================================================
 
 function buildHTML() {
@@ -1375,7 +1499,7 @@ function buildHTML() {
 }
 
 // =============================================================================
-// 15. RENDER IDLE
+// 16. RENDER IDLE
 // =============================================================================
 
 async function renderIdle(params, context) {
@@ -1391,6 +1515,8 @@ async function renderIdle(params, context) {
     offlineAdditionalData = {};
     soundEnabled = true;
     stopSound();
+    followMode = false;
+    if (followModeTimer) { clearTimeout(followModeTimer); followModeTimer = null; }
     
     StateManager.updateInput('E100', null);
     StateManager.updateInput('E102', null);
@@ -1459,17 +1585,20 @@ async function renderIdle(params, context) {
             }
         });
         setTimeout(function() {
-            // requestGPSPermission();
-            requestGPSPermission(function(granted) {
-              // Perbarui footer setelah status GPS diketahui (untuk menonaktifkan tombol MULAI jika perlu)
-              if (!granted) {
-                updateFooterForIdle();
-              }
+            // Retry GPS hingga 5 kali, reaktif footer jika berhasil
+            acquireInitialPosition(function(granted) {
+                if (!granted && ThemeManager) {
+                    ThemeManager.showToast('GPS tidak tersedia. Anda dapat mencoba lagi.', 'warning');
+                }
             });
             initMap();
         }, 100);
     } else {
-        requestGPSPermission();
+        acquireInitialPosition(function(granted) {
+            if (!granted && ThemeManager) {
+                ThemeManager.showToast('GPS tidak tersedia. Anda dapat mencoba lagi.', 'warning');
+            }
+        });
         if (isOfflineMode) drawPlannedRoute();
     }
 
@@ -1484,7 +1613,7 @@ async function renderIdle(params, context) {
 }
 
 // =============================================================================
-// 16. RENDER ACTIVE (DENGAN PERBAIKAN)
+// 17. RENDER ACTIVE
 // =============================================================================
 
 async function renderActive(params, context) {
@@ -1500,6 +1629,8 @@ async function renderActive(params, context) {
     offlineAdditionalData = {};
     soundEnabled = true;
     stopSound();
+    followMode = false;
+    if (followModeTimer) { clearTimeout(followModeTimer); followModeTimer = null; }
 
     liveIncome = { driver: 0, app: 0, passengerPayment: 0, passengerBill: 0, bbm: 0, maintenance: 0, total: 0 };
     lastUpdateDistance = 0;
@@ -1560,11 +1691,9 @@ async function renderActive(params, context) {
     });
 
     calculate.start();
-
-    // GPS.start() akan mengaktifkan Wake Lock secara otomatis (via gps.js)
     GPS.start(handleGPSPosition, handleGPSError);
-
     startClockTimer();
+    followMode = true; // aktifkan follow mode
 
     content.innerHTML = buildHTML();
     updateHeader();
@@ -1578,12 +1707,6 @@ async function renderActive(params, context) {
     }
 
     setTimeout(function() {
-        // requestGPSPermission();
-        requestGPSPermission(function(granted) {
-          if (!granted && ThemeManager) {
-            ThemeManager.showToast('GPS tidak tersedia. Tracking tetap berjalan tanpa lokasi.', 'warning');
-          }
-        });
         initMap();
     }, 100);
 
@@ -1602,7 +1725,7 @@ async function renderActive(params, context) {
 }
 
 // =============================================================================
-// 17. POLYLINE RENCANA (PICKER) – sekarang menggunakan addPlannedRoute
+// 18. POLYLINE RENCANA (PICKER)
 // =============================================================================
 
 function drawPlannedRoute() {
@@ -1617,14 +1740,13 @@ function drawPlannedRoute() {
         return;
     }
 
-    // Styling planned route sepenuhnya ditangani oleh map.js
     MapManager.addPlannedRoute(polylineData.coordinates);
 
     window.log.info('[Tracking ' + F_V + '] (21) drawPlannedRoute: polyline rencana ditambahkan ke peta');
 }
 
 // =============================================================================
-// 18. INISIALISASI SHARE COST & SET LIMIT UI
+// 19. INISIALISASI SHARE COST & SET LIMIT UI
 // =============================================================================
 
 function initShareLimitUI() {
@@ -1656,7 +1778,7 @@ function initShareLimitUI() {
 }
 
 // =============================================================================
-// 19. DESTROY
+// 20. DESTROY
 // =============================================================================
 
 function destroy() {
@@ -1667,13 +1789,15 @@ function destroy() {
     if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
     updateScheduled = false;
     stopClockTimer();
-    GPS.stop();                         // GPS.stop() juga menonaktifkan Wake Lock
+    GPS.stop();
     if (calculate) { calculate.stop(); calculate = null; }
     stopSound();
     if (beepAudioCtx) {
         beepAudioCtx.close();
         beepAudioCtx = null;
     }
+    followMode = false;
+    if (followModeTimer) { clearTimeout(followModeTimer); followModeTimer = null; }
     if (MapManager) MapManager.destroy();
     mapReady = false;
     if (window.Cache) {
@@ -1689,7 +1813,7 @@ function destroy() {
 }
 
 // =============================================================================
-// 20. FORCE STOP TRACKING
+// 21. FORCE STOP TRACKING
 // =============================================================================
 
 window.forceStopTracking = function() {
@@ -1710,7 +1834,7 @@ window.forceStopTracking = function() {
 };
 
 // =============================================================================
-// 21. REGISTRASI POPUP CUSTOM
+// 22. REGISTRASI POPUP CUSTOM
 // =============================================================================
 
 PopupManager.register(14, createCancelPopupContent);
@@ -1719,7 +1843,7 @@ PopupManager.register(18, createWarningPopupContent);
 PopupManager.register(19, createOfflineBiayaTambahanContent);
 
 // =============================================================================
-// 22. EKSPOR
+// 23. EKSPOR
 // =============================================================================
 
 export var PageTrackingidle = {
@@ -1732,34 +1856,17 @@ export var PageTrackingactive = {
     destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (v2.0.0-rev6: Wake Lock di GPS, planned route styling di map)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev7: pause tanpa stop GPS, follow mode, retry idle)');
 
 // ================================= CHANGELOG =================================
-// 2.0.0-rev6 : - Wake Lock sepenuhnya dikelola oleh GPS (gps.js).
-//               - Hapus variabel keepAwakeActive, wakeLockWeb, dan fungsi releaseWakeLock().
-//               - Hapus semua panggilan releaseWakeLock() dan blok kode aktivasi wake lock.
-//               - drawPlannedRoute() sekarang memanggil MapManager.addPlannedRoute()
-//                 tanpa menyertakan opsi styling (styling ditangani map.js).
-//
-// 2.0.0-rev5 : - Hapus semua referensi ke window.__nativeBG.
-//               - GPS.start() dan GPS.stop() digunakan secara universal.
-//               - Hapus permintaan izin notifikasi manual (sudah di gps.js).
-//               - emergencyStop() dan destroy() hanya panggil GPS.stop().
-//               - renderActive() langsung panggil GPS.start().
-//
-// 2.0.0-rev4 : - Tambahkan panggilan stop() sebelum start() di renderActive untuk
-//                mencegah watcher ganda (sekarang ditangani oleh GPS.start()).
-//              - Tambahkan permintaan izin notifikasi eksplisit (dipindah ke gps.js).
-//
-// 2.0.0-rev3 : Ganti plugin keep-awake dari @capacitor-community/keep-awake ke
-//             @capacitor-community/keep-awake (kompatibel dengan Capacitor 6).
-//             Perbaikan dynamic import ke path yang benar.
-//
-// 2.0.0-rev2 : Perbaikan wake lock menggunakan @capacitor-community/keep-awake.
-// 2.0.0-rev1 : Wake lock dynamic import, penanganan platform.
-// 2.0.0-rev0 : Rilis stabil 2.0.0.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
+// 2.0.0-rev7 : - Pause tidak lagi memanggil GPS.stop() (watcher tetap hidup).
+//              - Resume tidak memanggil GPS.start(), ditambah GPS Once.
+//              - Selesai memanggil GPS Once sebelum snapshot & popup.
+//              - acquireInitialPosition dengan retry 5x di idle, reaktif footer.
+//              - Follow mode dengan timer 10 detik (opsi C).
+//              - Tombol center diintegrasikan dengan callback dari map.js.
+//              - Hapus requestGPSPermission, ganti acquireInitialPosition.
+// 2.0.0-rev6 : - Wake Lock dikelola GPS, planned route styling di map.js.
+// ... (changelog sebelumnya tetap)
 //
 // ================================ End Of File ================================
