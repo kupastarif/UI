@@ -8,6 +8,7 @@
 
 package.json
 capacitor.config.json
+.git/
 
 # Folder cache & data lokal Wrangler
 .wrangler/
