@@ -6,6 +6,9 @@
 .env
 .env.*
 
+package.json
+capacitor.config.json
+
 # Folder cache & data lokal Wrangler
 .wrangler/
 
