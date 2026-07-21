@@ -1,3 +1,8 @@
+package.json
+README.md
+capacitor.config.json
+.github/
+
 # Capacitor / Android
 android/
 ios/
