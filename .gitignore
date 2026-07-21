@@ -1,0 +1,19 @@
+# Capacitor / Android
+android/
+ios/
+*.apk
+*.aab
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Hasil build sementara
+public/
+dist/
+build/
+
+# File sistem
+.DS_Store
+Thumbs.db
