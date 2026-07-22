@@ -88,7 +88,7 @@ jobs:
         run: rm -rf android || true
 
       # ==============================================
-      # 9. Add Android platform (menghasilkan struktur dasar)
+      # 9. Add Android platform
       # ==============================================
       - name: Add Android platform
         run: npx cap add android
@@ -130,7 +130,7 @@ jobs:
           echo "gradle.properties created."
 
       # ==============================================
-      # 12. Buat android/build.gradle (project-level) dengan ext yang benar
+      # 12. Buat android/build.gradle (project-level) dengan ext lengkap
       # ==============================================
       - name: Create project build.gradle
         run: |
@@ -152,16 +152,22 @@ jobs:
               }
           }
 
-          rootProject.ext {
+          ext {
               compileSdkVersion = 34
               minSdkVersion = 29
               targetSdkVersion = 34
+              androidxAppCompatVersion = '1.6.1'
+              androidxCoordinatorLayoutVersion = '1.2.0'
+              coreSplashScreenVersion = '1.0.1'
+              junitVersion = '4.13.2'
+              androidxJunitVersion = '1.1.5'
+              androidxEspressoCoreVersion = '3.5.1'
           }
           EOF
-          echo "android/build.gradle created."
+          echo "android/build.gradle created with ext versions."
 
       # ==============================================
-      # 13. Buat android/app/build.gradle dengan signing config dan nilai literal
+      # 13. Buat android/app/build.gradle dengan signing config
       # ==============================================
       - name: Create app build.gradle
         run: |
