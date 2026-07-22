@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE: assets/css/main.css
- * FILE VERSION: 6.6a-initial
- * APP VERSION: 6.6a
+ * FILE VERSION: 2.0.1-initial
+ * APP VERSION: 2.0.1
  * DATE: 2026-06-12
  * @author: gk
  *
- * DESKRIPSI:
- *   Fondasi styling seluruh aplikasi. Mendefinisikan CSS variables (warna,
- *   spacing, tipografi, shadow), reset CSS, utility classes, dan theme.
- *   Tema hijau gelap untuk v6.4.
+ * CHANGELOG:
  *
  * =================================================================================
  */
@@ -695,15 +692,6 @@ body {
 }
 
 /** =============================================================================
- * 
- * PERUBAHAN
- * =============================================================================
- * 
- * PERUBAHAN v6.6a (dari v6.5d):
- *   - Update versi file, header.
- *   - Tidak ada perubahan gaya.
- * 
- * =============================================================================
- * 
+ *
  * ================================ End Of File ================================
  */

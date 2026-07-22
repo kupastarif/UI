@@ -1,14 +1,12 @@
 /**
  * =================================================================================
  * FILE: assets/css/components.css
- * FILE VERSION: 6.6a-initial
- * APP VERSION: 6.6a
+ * FILE VERSION: 2.0.1-initial
+ * APP VERSION: 2.0.1
  * DATE: 2026-06-12
  * @author: gk
  *
- * DESKRIPSI:
- *   Styling untuk komponen dasar yang dapat digunakan kembali (reusable
- *   components) dan animasi keyframes.
+ * CHANGELOG:
  *
  * =================================================================================
  */
@@ -1757,15 +1755,6 @@ label.switch { display: none; }
 }
 
 /** =============================================================================
- * 
- * PERUBAHAN
- * =============================================================================
- * 
- * PERUBAHAN v6.6a (dari v6.5d):
- *   - Update versi file, header.
- *   - Slide button
- * 
- * =============================================================================
- * 
+ *
  * ================================ End Of File ================================
  */
