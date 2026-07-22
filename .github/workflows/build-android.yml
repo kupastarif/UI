@@ -119,7 +119,7 @@ jobs:
           echo "All required permissions injected into AndroidManifest.xml"
 
       # ==============================================
-      # 11. Buat build.gradle baru dari template (dengan signing config)
+      # 11. Buat build.gradle baru dari template (dengan signing config dan nilai literal)
       # ==============================================
       - name: Create build.gradle with signing config
         run: |
@@ -128,12 +128,12 @@ jobs:
 
           android {
               namespace "kupastarif.gk.app.id"
-              compileSdk rootProject.ext.compileSdkVersion
+              compileSdk 34
 
               defaultConfig {
                   applicationId "kupastarif.gk.app.id"
-                  minSdkVersion rootProject.ext.minSdkVersion
-                  targetSdkVersion rootProject.ext.targetSdkVersion
+                  minSdkVersion 29
+                  targetSdkVersion 34
                   versionCode 1
                   versionName "1.0"
                   testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -211,13 +211,10 @@ jobs:
         run: npx cap sync android
 
       # ==============================================
-      # 14. Set minSdkVersion & targetSdkVersion (opsional, sudah di template)
+      # 14. (Opsional) Periksa isi build.gradle untuk debugging
       # ==============================================
-      - name: Set Android SDK versions
-        run: |
-          sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
-          echo "Android SDK versions set: min=29, target=34"
+      - name: Show build.gradle for debugging
+        run: cat android/app/build.gradle
 
       # ==============================================
       # 15. Buat colors.xml untuk adaptive icon
