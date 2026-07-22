@@ -14,7 +14,7 @@
 'use strict';
 
 // ---------- KONFIGURASI ----------
-const CACHE_VERSION = '2.0.1';
+const CACHE_VERSION = '1.0.0';
 const STATIC_CACHE = 'kupastarif-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'kupastarif-runtime-' + CACHE_VERSION;
 
