@@ -6,28 +6,31 @@
 .env
 .env.*
 
-package.json
-capacitor.config.json
-.git/
-
 # Folder cache & data lokal Wrangler
 .wrangler/
 
 # ==========================================
 # 2. Dependencies & Build Outputs
 # ==========================================
-# Folder modul Node.js
+# Folder modul Node.js - HARUS DIKECUALIKAN
 node_modules/
+.pnp
+.pnp.js
 
 # Folder hasil build (Akan di-generate otomatis saat CI/CD)
 dist/
 build/
 .out/
 
+# Lock files (opsional - bisa di-commit atau tidak)
+# bun.lockb
+# package-lock.json
+
 # Log error
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+bun-error.log*
 
 # ==========================================
 # 3. File Sistem & IDE
@@ -36,3 +39,13 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# 4. Package Manager & Build
+# ==========================================
+package.json
+capacitor.config.json
+.git/
