@@ -141,7 +141,15 @@ jobs:
           # Tambahkan signingConfig di dalam release
           sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
 
-          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }} and signing config."
+          # PERBAIKAN UTAMA: Tambahkan rootProject.ext. ke semua variabel dependensi
+          sed -i 's/\$androidxAppCompatVersion/$rootProject.ext.androidxAppCompatVersion/g' android/app/build.gradle
+          sed -i 's/\$androidxCoordinatorLayoutVersion/$rootProject.ext.androidxCoordinatorLayoutVersion/g' android/app/build.gradle
+          sed -i 's/\$coreSplashScreenVersion/$rootProject.ext.coreSplashScreenVersion/g' android/app/build.gradle
+          sed -i 's/\$junitVersion/$rootProject.ext.junitVersion/g' android/app/build.gradle
+          sed -i 's/\$androidxJunitVersion/$rootProject.ext.androidxJunitVersion/g' android/app/build.gradle
+          sed -i 's/\$androidxEspressoCoreVersion/$rootProject.ext.androidxEspressoCoreVersion/g' android/app/build.gradle
+
+          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }}, signing, and rootProject.ext fixes."
 
       # ==============================================
       # 12. Pulihkan keystore dari secret
