@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/components/header.js
- * FILE VERSION : 2.0.0-rev2
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev2
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Factory untuk membuat header sesuai tipe halaman. Setiap header yang
- *   dibuat mendaftarkan listener 'theme:change' untuk ikon tema.
- *   Tombol menu menggunakan Router.navigateTo() untuk membuka drawer.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.1-rev2';
 
 import { Router } from '../core/router.js';
 import { StateEvents } from '../core/state.js';
@@ -316,14 +313,4 @@ export const HeaderManager = {
 
 window.log.info('[Header ' + F_V + '] (9) HeaderManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon & Texts. Ikon dan random icon
-//             dikelola secara lokal (ICON.*, RANDOM_ICONS, getRandomIcon).
-// 2.0.0-rev2 : Hapus ikon inline '✓' pada step header, gunakan ICON.CHECK_MARK.
-//             Semua ikon kini berasal dari objek ICON.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

@@ -1,24 +1,20 @@
 /**
  * =================================================================================
  * FILE         : /js/components/popup.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Factory popup tangguh (robust) dengan sistem registri. Popup default (1–9)
- *   diambil dari texts.js. Custom popup (11+) didaftarkan melalui register().
- *   Setiap bagian divalidasi; jika tidak valid, fallback ke popup generik (index 1).
- *   API: register(), open(), forceClose().
- *
+ * CHANGELOG  :
+ * 
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { Texts } from '../helpers/texts.js';
 
@@ -416,13 +412,4 @@ window.PopupManager = PopupManager;
 
 window.log.info('[Popup ' + F_V + '] (13) PopupManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon close
-//             didefinisikan secara lokal (ICON.CLOSE). Impor Texts untuk
-//             POPUP_TEXTS dan getOpenHelp tetap dipertahankan.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

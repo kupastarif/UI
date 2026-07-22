@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/components/drawer.js
- * FILE VERSION : 2.0.0-rev2
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev2
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Factory drawer minimalis dengan sistem registri. Halaman mendaftarkan menu
- *   custom melalui `register(page, factoryFn)`. Fungsi `getConfig(page)` 
- *   mengembalikan konfigurasi dari registri untuk digunakan oleh Router.
- *   API: open(callbacks, menuItems?) dan forceClose().
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -18,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.1-rev2';
 
 import { StateEvents } from '../core/state.js';
 
@@ -109,7 +105,7 @@ function createDrawerHeader() {
 
     const version = document.createElement('div');
     version.className = 'drawer-version';
-    const appVersion = window.APP_CONFIG?.version || '2.0.0';
+    const appVersion = window.APP_CONFIG?.version || '2.0.1';
     const engineVersion = window.Engine?.ENGINE_VERSION || '1.0.0-beta';
     version.textContent = 'v' + appVersion + ' | Engine v' + engineVersion;
 
@@ -323,14 +319,4 @@ window.DrawerManager = DrawerManager;
 
 window.log.info('[Drawer ' + F_V + '] (10) DrawerManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Update versi Engine ke 1.0.0‑beta, format header.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon drawer
-//             didefinisikan secara lokal (ICON.CHART, ICON.THEME_LIGHT, dll).
-// 2.0.0-rev2 : Hapus ikon inline (⚡) pada fallback siteDisplay. Tambahkan
-//             ICON.ELECTRIC dan gunakan dalam template literal.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

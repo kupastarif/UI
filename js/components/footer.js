@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/components/footer.js
- * FILE VERSION : 2.0.0-rev2
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev2
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Factory footer minimalis. HANYA membuat elemen DOM footer sesuai layout
- *   yang diminta. Tidak memiliki ketergantungan pada Router, DrawerManager,
- *   atau komponen navigasi lainnya. Semua aksi tombol (onClick) disediakan
- *   oleh pemanggil (halaman) melalui objek frames.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -18,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.1-rev2';
 
 // =============================================================================
 // 0. IKON LOKAL (hanya untuk penggunaan internal footer)
@@ -291,15 +287,4 @@ export const FooterManager = { create, createIconButton, createFlexContent, crea
 
 window.log.info('[Footer ' + F_V + '] (5) FooterManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Parameter iconKey diganti
-//             menjadi iconChar (karakter langsung). Pemanggil wajib mengirim
-//             string ikon, bukan kunci registry.
-// 2.0.0-rev2 : Hapus ikon inline ▶ pada slider thumb. Tambahkan ICON.SLIDE_THUMB
-//             dan gunakan di createSlideContent. Semua simbol UI kini dari ICON.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

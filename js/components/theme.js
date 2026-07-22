@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/components/theme.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Mengelola tema aplikasi (light/dark) dan sistem toast notifikasi.
- *   Tema hijau gelap untuk v2.0, semua warna dikendalikan oleh CSS
- *   variables di main.css.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager, StateEvents } from '../core/state.js';
 import { StorageManager } from '../core/storage.js';
@@ -306,12 +303,4 @@ window.ThemeManager = ThemeManager;
 
 window.log.info('[Theme ' + F_V + '] (12) ThemeManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon tema dan
-//             toast didefinisikan secara lokal (ICON.THEME_LIGHT, ICON.CHECK, dll).
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================
