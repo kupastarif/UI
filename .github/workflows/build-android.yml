@@ -119,40 +119,83 @@ jobs:
           echo "All required permissions injected into AndroidManifest.xml"
 
       # ==============================================
-      # 11. Konfigurasi build.gradle: versionCode, versionName, dan signing
+      # 11. Buat build.gradle baru dari template (dengan signing config)
       # ==============================================
-      - name: Configure build.gradle
+      - name: Create build.gradle with signing config
         run: |
-          # Tampilkan isi build.gradle awal untuk debugging
-          echo "===== ORIGINAL build.gradle ====="
-          cat android/app/build.gradle
-          echo "================================="
+          cat > android/app/build.gradle << 'EOF'
+          apply plugin: 'com.android.application'
 
-          # Ganti versionCode dan versionName dengan regex yang lebih presisi
-          sed -i 's/versionCode\s*[0-9]*/versionCode ${{ env.VERSION_CODE }}/' android/app/build.gradle
+          android {
+              namespace "kupastarif.gk.app.id"
+              compileSdk rootProject.ext.compileSdkVersion
+
+              defaultConfig {
+                  applicationId "kupastarif.gk.app.id"
+                  minSdkVersion rootProject.ext.minSdkVersion
+                  targetSdkVersion rootProject.ext.targetSdkVersion
+                  versionCode 1
+                  versionName "1.0"
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+                  aaptOptions {
+                      ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+                  }
+              }
+
+              signingConfigs {
+                  release {
+                      storeFile file("$rootDir/keystore.jks")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                  }
+              }
+          }
+
+          repositories {
+              flatDir{
+                  dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+              }
+          }
+
+          dependencies {
+              implementation fileTree(include: ['*.jar'], dir: 'libs')
+              implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+              implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+              implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+              implementation project(':capacitor-android')
+              testImplementation "junit:junit:$junitVersion"
+              androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+              androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+              implementation project(':capacitor-cordova-android-plugins')
+          }
+
+          apply from: 'capacitor.build.gradle'
+
+          try {
+              def servicesJSON = file('google-services.json')
+              if (servicesJSON.text) {
+                  apply plugin: 'com.google.gms.google-services'
+              }
+          } catch(Exception e) {
+              logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+          }
+          EOF
+
+          # Ganti versionCode dan versionName
+          sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
           VERSION_NAME=$(node -p "require('./package.json').version")
-          sed -i 's/versionName\s*".*"/versionName "'"$VERSION_NAME"'"/' android/app/build.gradle
+          sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
 
-          # Tambahkan signingConfigs sebelum blok buildTypes
-          sed -i '/buildTypes {/i\
-          \    signingConfigs {\n\
-          \        release {\n\
-          \            storeFile file("$rootDir/keystore.jks")\n\
-          \            storePassword System.getenv("KEYSTORE_PASSWORD")\n\
-          \            keyAlias System.getenv("KEY_ALIAS")\n\
-          \            keyPassword System.getenv("KEY_PASSWORD")\n\
-          \        }\n\
-          \    }\n' android/app/build.gradle
-
-          # Tambahkan signingConfig ke dalam release build type
-          sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
-
-          # Tampilkan isi build.gradle setelah modifikasi
-          echo "===== MODIFIED build.gradle ====="
-          cat android/app/build.gradle
-          echo "================================="
-
-          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }} and signing config."
+          echo "build.gradle created with versionCode=${{ env.VERSION_CODE }} and signing config."
 
       # ==============================================
       # 12. Pulihkan keystore dari secret
@@ -168,12 +211,12 @@ jobs:
         run: npx cap sync android
 
       # ==============================================
-      # 14. Set minSdkVersion & targetSdkVersion
+      # 14. Set minSdkVersion & targetSdkVersion (opsional, sudah di template)
       # ==============================================
       - name: Set Android SDK versions
         run: |
-          sed -i 's/minSdkVersion\s*[0-9]*/minSdkVersion 29/' android/app/build.gradle
-          sed -i 's/targetSdkVersion\s*[0-9]*/targetSdkVersion 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
