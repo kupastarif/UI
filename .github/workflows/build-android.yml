@@ -35,10 +35,6 @@ jobs:
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses
 
-      # ============================================================
-      # versionCode: gunakan format yyMMddHH (8 digit) agar aman
-      # contoh: 26072217 -> 26.072.217
-      # ============================================================
       - name: Set versionCode
         run: |
           VERSION_CODE=$(date +'%y%m%d%H')
@@ -85,15 +81,7 @@ jobs:
             fi
           done
 
-      # ============================================================
-      # Konfigurasi build.gradle:
-      # - versionCode menggunakan angka yang valid (8 digit)
-      # - hardcode semua dependency dan SDK versions
-      # - signingConfigs hanya berisi storeFile, password, dll.
-      #   (TIDAK ada referensi signingConfig di dalam signingConfigs)
-      # - signingConfig hanya dipasang di dalam buildTypes.release
-      # ============================================================
-      - name: Configure build.gradle
+      - name: Configure build.gradle (hardcode versions + signing)
         run: |
           # Ganti versionCode dan versionName
           sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
@@ -124,12 +112,10 @@ jobs:
           \        }\n\
           \    }\n' android/app/build.gradle
 
-          # Tambahkan signingConfig di dalam buildTypes.release
-          # Hati-hati: baris ini tidak boleh masuk ke signingConfigs.
-          # Kita gunakan sed dengan range untuk hanya menambahkan di dalam buildTypes.
-          sed -i '/buildTypes {/,/^}/ { /release {/a\            signingConfig signingConfigs.release }' android/app/build.gradle
+          # Tambahkan signingConfig ke semua blok release { (termasuk di signingConfigs dan buildTypes)
+          sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
 
-          # Hapus baris signingConfig yang mungkin tertinggal di signingConfigs (jaga-jaga)
+          # Hapus baris signingConfig dari signingConfigs (agar tidak terjadi self-reference)
           sed -i '/signingConfigs {/,/^[[:space:]]*}/ { /signingConfig signingConfigs.release/d }' android/app/build.gradle
 
           # Tampilkan hasil untuk debugging
