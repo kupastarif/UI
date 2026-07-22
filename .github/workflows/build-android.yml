@@ -51,7 +51,17 @@ jobs:
         run: yes | sdkmanager --licenses
 
       # ==============================================
-      # 5. Siapkan folder public (web assets)
+      # 5. Tentukan versionCode otomatis (format YYYYMMDD)
+      # ==============================================
+      - name: Set versionCode
+        id: version
+        run: |
+          VERSION_CODE=$(date +'%Y%m%d%H%M')
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Version code set to $VERSION_CODE"
+
+      # ==============================================
+      # 6. Siapkan folder public (web assets)
       # ==============================================
       - name: Prepare web directory
         run: |
@@ -60,7 +70,7 @@ jobs:
           echo "Web files copied to public/"
 
       # ==============================================
-      # 6. Init Capacitor
+      # 7. Init Capacitor
       # ==============================================
       - name: Init Capacitor
         run: |
@@ -72,25 +82,23 @@ jobs:
           cat capacitor.config.json
 
       # ==============================================
-      # 7. Hapus folder android jika ada (clean state)
+      # 8. Hapus folder android jika ada (clean state)
       # ==============================================
       - name: Remove existing android folder
         run: rm -rf android || true
 
       # ==============================================
-      # 8. Add Android platform (menghasilkan manifest default)
+      # 9. Add Android platform
       # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
       # ==============================================
-      # 9. [PERBAIKAN] Tambahkan SEMUA izin yang diperlukan ke manifest default
-      #     tanpa menimpa deklarasi service dari plugin.
+      # 10. Tambahkan semua izin yang diperlukan ke AndroidManifest
       # ==============================================
       - name: Add all required permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Daftar semua izin yang kita butuhkan (sesuai custom manifest sebelumnya)
           perms=(
             "android.permission.INTERNET"
             "android.permission.ACCESS_COARSE_LOCATION"
@@ -111,13 +119,36 @@ jobs:
           echo "All required permissions injected into AndroidManifest.xml"
 
       # ==============================================
-      # 10. Sync Capacitor (menggabungkan semua plugin)
+      # 11. Konfigurasi build.gradle: versionCode, versionName, dan signing
       # ==============================================
-      - name: Sync Capacitor
-        run: npx cap sync
+      - name: Configure build.gradle
+        run: |
+          # Set versionCode dan versionName
+          sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
+          VERSION_NAME=$(node -p "require('./package.json').version")
+          sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+
+          # Tambahkan signingConfigs dan buildTypes.release
+          # Kita sisipkan setelah baris 'android {'
+          sed -i '/android {/a\    signingConfigs {\n        release {\n            storeFile file("$rootDir/keystore.jks")\n            storePassword System.getenv("KEYSTORE_PASSWORD")\n            keyAlias System.getenv("KEY_ALIAS")\n            keyPassword System.getenv("KEY_PASSWORD")\n        }\n    }\n    buildTypes {\n        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false\n            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"\n        }\n    }' android/app/build.gradle
+
+          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }} and signing config."
 
       # ==============================================
-      # 11. Set minSdkVersion & targetSdkVersion
+      # 12. Pulihkan keystore dari secret
+      # ==============================================
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/keystore.jks
+
+      # ==============================================
+      # 13. Sync Capacitor
+      # ==============================================
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # ==============================================
+      # 14. Set minSdkVersion & targetSdkVersion
       # ==============================================
       - name: Set Android SDK versions
         run: |
@@ -126,7 +157,7 @@ jobs:
           echo "Android SDK versions set: min=29, target=34"
 
       # ==============================================
-      # 12. Buat colors.xml untuk adaptive icon
+      # 15. Buat colors.xml untuk adaptive icon
       # ==============================================
       - name: Create colors.xml for adaptive icon
         run: |
@@ -140,7 +171,7 @@ jobs:
           echo "colors.xml created."
 
       # ==============================================
-      # 13. Copy Launcher Icons
+      # 16. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -171,7 +202,7 @@ jobs:
           echo "Launcher icons copied."
 
       # ==============================================
-      # 14. Adaptive Icon XML
+      # 17. Adaptive Icon XML
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -186,7 +217,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 15. Copy Notification Icon (dibutuhkan oleh plugin background-geolocation)
+      # 18. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -195,27 +226,31 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 16. Clean dan Build APK
+      # 19. Clean dan Build APK Release (bukan debug)
       # ==============================================
-      - name: Clean and Build APK
+      - name: Clean and Build Release APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       # ==============================================
-      # 17. Upload APK (artefak otomatis dihapus setelah 3 hari)
+      # 20. Upload APK Release
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kupastarif-app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: kupastarif-release
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 3
 
       # ==============================================
-      # 18. Bersihkan folder sementara (opsional, tidak menggagalkan jika error)
+      # 21. Bersihkan folder sementara (opsional)
       # ==============================================
       - name: Clean temporary build folders
         continue-on-error: true
