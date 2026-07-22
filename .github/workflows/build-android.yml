@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'package.json'
+      - 'build-android.yml'
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       # ==============================================
-      # 1. Setup Node.js (tanpa cache karena tidak ada lockfile)
+      # 1. Setup Node.js
       # ==============================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -84,19 +84,31 @@ jobs:
         run: npx cap add android
 
       # ==============================================
-      # 9. [PERBAIKAN] Tambahkan izin yang hilang ke manifest default
+      # 9. [PERBAIKAN] Tambahkan SEMUA izin yang diperlukan ke manifest default
       #     tanpa menimpa deklarasi service dari plugin.
       # ==============================================
-      - name: Add missing permissions to AndroidManifest
+      - name: Add all required permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Daftar izin yang sering hilang dan perlu ditambahkan
-          for perm in "ACCESS_BACKGROUND_LOCATION" "FOREGROUND_SERVICE_LOCATION" "POST_NOTIFICATIONS"; do
-            if ! grep -q "android.permission.${perm}" $MANIFEST; then
-              sed -i "/<manifest/a\    <uses-permission android:name=\"android.permission.${perm}\" />" $MANIFEST
+          # Daftar semua izin yang kita butuhkan (sesuai custom manifest sebelumnya)
+          perms=(
+            "android.permission.INTERNET"
+            "android.permission.ACCESS_COARSE_LOCATION"
+            "android.permission.ACCESS_FINE_LOCATION"
+            "android.permission.ACCESS_BACKGROUND_LOCATION"
+            "android.permission.FOREGROUND_SERVICE"
+            "android.permission.FOREGROUND_SERVICE_LOCATION"
+            "android.permission.POST_NOTIFICATIONS"
+            "android.permission.WRITE_EXTERNAL_STORAGE"
+            "android.permission.READ_MEDIA_IMAGES"
+            "android.permission.WAKE_LOCK"
+          )
+          for perm in "${perms[@]}"; do
+            if ! grep -q "$perm" $MANIFEST; then
+              sed -i "/<manifest/a\    <uses-permission android:name=\"$perm\" />" $MANIFEST
             fi
           done
-          echo "Missing permissions injected into AndroidManifest.xml"
+          echo "All required permissions injected into AndroidManifest.xml"
 
       # ==============================================
       # 10. Sync Capacitor (menggabungkan semua plugin)
