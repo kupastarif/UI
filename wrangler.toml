@@ -5,17 +5,37 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+[env.production]
+routes = [
+  { pattern = "calc.kupastarif.workers.dev", zone_name = "kupastarif.workers.dev" }
+]
+
+[build]
+command = "bun install"
+cwd = "./"
+watch_paths = ["src/**/*.ts"]
+
+[build.upload]
+format = "modules"
+main = "./index.html"
+
 [assets]
 directory = "."
 exclude = [
-  "node_modules/**/*",
-  ".git/**/*",
+  "node_modules",
+  ".git",
+  ".github",
   ".gitignore",
   "package.json",
-  "bun.lock",
   "package-lock.json",
-  ".env*",
-  ".wrangler/**/*",
+  "bun.lock",
+  "bun.lockb",
+  ".env",
+  ".env.*",
+  ".wrangler",
+  "wrangler.toml",
   "wrangler.jsonc",
-  "wrangler.toml"
+  "README.md",
+  "*.sh",
+  "node_modules/**"
 ]
