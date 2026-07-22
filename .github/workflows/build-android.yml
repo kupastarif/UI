@@ -1,4 +1,4 @@
-name: Build apk
+name: Build Android APK
 
 on:
   push:
@@ -51,7 +51,7 @@ jobs:
         run: yes | sdkmanager --licenses
 
       # ==============================================
-      # 5. Tentukan versionCode otomatis (format YYYYMMDD)
+      # 5. Tentukan versionCode otomatis (format YYYYMMDDHHMM)
       # ==============================================
       - name: Set versionCode
         id: version
@@ -129,7 +129,6 @@ jobs:
           sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
 
           # Tambahkan signingConfigs dan buildTypes.release
-          # Kita sisipkan setelah baris 'android {'
           sed -i '/android {/a\    signingConfigs {\n        release {\n            storeFile file("$rootDir/keystore.jks")\n            storePassword System.getenv("KEYSTORE_PASSWORD")\n            keyAlias System.getenv("KEY_ALIAS")\n            keyPassword System.getenv("KEY_PASSWORD")\n        }\n    }\n    buildTypes {\n        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false\n            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"\n        }\n    }' android/app/build.gradle
 
           echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }} and signing config."
@@ -226,7 +225,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 19. Clean dan Build APK Release (bukan debug)
+      # 19. Clean dan Build Release APK
       # ==============================================
       - name: Clean and Build Release APK
         run: |
