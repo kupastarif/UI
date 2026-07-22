@@ -112,11 +112,12 @@ jobs:
           \        }\n\
           \    }\n' android/app/build.gradle
 
-          # Tambahkan signingConfig di dalam release (akan masuk ke signingConfigs dan buildTypes)
+          # Tambahkan signingConfig di dalam release (akan muncul di signingConfigs dan buildTypes)
           sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
 
-          # Hapus baris signingConfig yang tidak sengaja masuk ke signingConfigs (self-reference)
-          sed -i '/signingConfigs {/,/^}/ { /signingConfig signingConfigs.release/d }' android/app/build.gradle
+          # Hapus baris signingConfig dari signingConfigs (self-reference), jangan sentuh buildTypes
+          # Gunakan pola ^[[:space:]]*} untuk menutup blok signingConfigs dengan benar
+          sed -i '/signingConfigs {/,/^[[:space:]]*}/ { /signingConfig signingConfigs.release/d }' android/app/build.gradle
 
           # Tampilkan hasil untuk debugging
           echo "===== MODIFIED build.gradle ====="
