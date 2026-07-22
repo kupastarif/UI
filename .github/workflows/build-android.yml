@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK (Debug)
 
 on:
   push:
@@ -81,7 +81,7 @@ jobs:
             fi
           done
 
-      - name: Configure build.gradle (hardcode versions + signing)
+      - name: Configure build.gradle (hardcode versions)
         run: |
           # Ganti versionCode dan versionName
           sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
@@ -100,32 +100,6 @@ jobs:
           sed -i 's/compileSdk .*/compileSdk 34/' android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
-
-          # Tambahkan signingConfigs sebelum buildTypes
-          sed -i '/buildTypes {/i\
-          \    signingConfigs {\n\
-          \        release {\n\
-          \            storeFile file("$rootDir/keystore.jks")\n\
-          \            storePassword System.getenv("KEYSTORE_PASSWORD")\n\
-          \            keyAlias System.getenv("KEY_ALIAS")\n\
-          \            keyPassword System.getenv("KEY_PASSWORD")\n\
-          \        }\n\
-          \    }\n' android/app/build.gradle
-
-          # Tambahkan signingConfig di dalam release (akan muncul di signingConfigs dan buildTypes)
-          sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
-
-          # Hapus baris signingConfig dari signingConfigs (self-reference), jangan sentuh buildTypes
-          # Gunakan pola ^[[:space:]]*} untuk menutup blok signingConfigs dengan benar
-          sed -i '/signingConfigs {/,/^[[:space:]]*}/ { /signingConfig signingConfigs.release/d }' android/app/build.gradle
-
-          # Tampilkan hasil untuk debugging
-          echo "===== MODIFIED build.gradle ====="
-          cat android/app/build.gradle
-
-      - name: Decode keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/keystore.jks
 
       - name: Sync Capacitor
         run: npx cap sync android
@@ -179,22 +153,18 @@ jobs:
           mkdir -p android/app/src/main/res/drawable
           cp public/assets/img/icon72.png android/app/src/main/res/drawable/ic_notification.png
 
-      - name: Build Release APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: kupastarif-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: kupastarif-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 3
 
       - name: Clean temporary build folders
