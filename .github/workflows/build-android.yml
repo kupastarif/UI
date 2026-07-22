@@ -25,10 +25,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          # cache: 'npm'   <- dihapus karena tidak ada package-lock.json
 
       # ==============================================
-      # 2. Install dependencies (hanya npm install, tanpa ci)
+      # 2. Install dependencies
       # ==============================================
       - name: Install dependencies
         run: npm install
@@ -43,7 +42,7 @@ jobs:
           java-version: '21'
 
       # ==============================================
-      # 4. Setup Android SDK
+      # 4. Setup Android SDK & Accept Licenses
       # ==============================================
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -52,7 +51,7 @@ jobs:
         run: yes | sdkmanager --licenses
 
       # ==============================================
-      # 5. Siapkan folder public
+      # 5. Siapkan folder public (web assets)
       # ==============================================
       - name: Prepare web directory
         run: |
@@ -79,82 +78,28 @@ jobs:
         run: rm -rf android || true
 
       # ==============================================
-      # 8. Add Android platform (membuat proyek default)
+      # 8. Add Android platform (menghasilkan manifest default)
       # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
       # ==============================================
-      # 9. Buat AndroidManifest.xml kustom
+      # 9. [PERBAIKAN] Tambahkan izin yang hilang ke manifest default
+      #     tanpa menimpa deklarasi service dari plugin.
       # ==============================================
-      - name: Create custom AndroidManifest.xml
+      - name: Add missing permissions to AndroidManifest
         run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="kupastarif.gk.app.id">
-
-              <!-- Izin Internet (WAJIB) -->
-              <uses-permission android:name="android.permission.INTERNET" />
-
-              <!-- Izin Lokasi -->
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
-              <!-- Izin Foreground Service & Notifikasi -->
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-              <!-- Izin Penyimpanan -->
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-              <!-- Izin Wake Lock -->
-              <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="@string/app_name"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:supportsRtl="true"
-                  android:theme="@style/AppTheme"
-                  android:usesCleartextTraffic="true">
-
-                  <activity
-                      android:name=".MainActivity"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
-                      android:exported="true"
-                      android:label="@string/title_activity_main"
-                      android:launchMode="singleTask"
-                      android:theme="@style/AppTheme.NoActionBarLaunch">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-
-                  <!-- Provider default Capacitor untuk File Sharing -->
-                  <provider
-                      android:name="androidx.core.content.FileProvider"
-                      android:authorities="${applicationId}.fileprovider"
-                      android:exported="false"
-                      android:grantUriPermissions="true">
-                      <meta-data
-                          android:name="android.support.FILE_PROVIDER_PATHS"
-                          android:resource="@xml/file_paths" />
-                  </provider>
-
-              </application>
-
-          </manifest>
-          EOF
-          echo "Custom AndroidManifest.xml created."
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # Daftar izin yang sering hilang dan perlu ditambahkan
+          for perm in "ACCESS_BACKGROUND_LOCATION" "FOREGROUND_SERVICE_LOCATION" "POST_NOTIFICATIONS"; do
+            if ! grep -q "android.permission.${perm}" $MANIFEST; then
+              sed -i "/<manifest/a\    <uses-permission android:name=\"android.permission.${perm}\" />" $MANIFEST
+            fi
+          done
+          echo "Missing permissions injected into AndroidManifest.xml"
 
       # ==============================================
-      # 10. Sync Capacitor
+      # 10. Sync Capacitor (menggabungkan semua plugin)
       # ==============================================
       - name: Sync Capacitor
         run: npx cap sync
@@ -229,7 +174,7 @@ jobs:
           echo "Adaptive icon created."
 
       # ==============================================
-      # 15. Copy Notification Icon
+      # 15. Copy Notification Icon (dibutuhkan oleh plugin background-geolocation)
       # ==============================================
       - name: Copy notification icon
         run: |
@@ -238,24 +183,7 @@ jobs:
           echo "Notification icon copied."
 
       # ==============================================
-      # 16. Inject Permissions (jaga-jaga)
-      # ==============================================
-      - name: Inject Permissions
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST; then
-            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST
-          fi
-          if ! grep -q "FOREGROUND_SERVICE_LOCATION" $MANIFEST; then
-            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />' $MANIFEST
-          fi
-          if ! grep -q "POST_NOTIFICATIONS" $MANIFEST; then
-            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
-          fi
-          echo "Permissions injected."
-
-      # ==============================================
-      # 17. Clean dan Build APK
+      # 16. Clean dan Build APK
       # ==============================================
       - name: Clean and Build APK
         run: |
@@ -265,17 +193,17 @@ jobs:
           ./gradlew assembleDebug
 
       # ==============================================
-      # 18. Upload APK (artifact akan otomatis dihapus setelah 3 hari)
+      # 17. Upload APK (artefak otomatis dihapus setelah 3 hari)
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: kupastarif-app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 3   # artefak otomatis dihapus setelah 3 hari
+          retention-days: 3
 
       # ==============================================
-      # 19. Bersihkan folder sementara (tidak menggagalkan workflow jika gagal)
+      # 18. Bersihkan folder sementara (opsional, tidak menggagalkan jika error)
       # ==============================================
       - name: Clean temporary build folders
         continue-on-error: true
