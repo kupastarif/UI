@@ -1,17 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/showmap.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Show Map – Menampilkan peta rute perjalanan.
- *   - showmappaste: mode menu, header default, footer dengan tombol menu & home.
- *   - showmapdetail: mode peta, header landing, footer dengan tombol back, copy, export.
- *   Info panel menampilkan zona waktu (WIB/WITA/WIT) jika tersedia di data.
- *   Semua navigasi menggunakan Router.navigateTo().
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -19,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -445,14 +440,5 @@ export const PageShowmapdetail = {
 
 window.log.info('[Showmap ' + F_V + '] (6) PageShowmappaste & PageShowmapdetail dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-//             Tidak ada perubahan fungsional.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.CHART, ICON.SHOW_MAP, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

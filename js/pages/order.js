@@ -1,34 +1,13 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/order.js
- * FILE VERSION : 2.0.0-rev4
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev4
+ * APP VERSION  : 2.0.1
  * DATE         : 18 Juli 2026
  *
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Order – Step 1. Input estimasi order sebelum perjalanan.
- *   Mendukung mode online dan offline. Semua orkestrasi melalui Cache,
- *   data statis melalui Output.
- *
- *   Mulai rev3, ditambahkan dukungan mode "Cek Tarif Offline" via flag
- *   isCheckOffline. Jika flag aktif, header role berubah menjadi ikon offline
- *   dan label "CEK TARIF", tombol switch mode disembunyikan, dan footer
- *   menampilkan tombol HOME (bukan LANJUT) meskipun offlineOrderEnabled true.
- *   Nilai E40 selalu divalidasi melalui Engine (SSOT) di loadInitialData,
- *   handleReset, dan performSwitch.
- *
- *   rev4 (18 Juli 2026): Tambah popup "Nota Pesanan" untuk mode Cek Tarif Offline
- *   (isCheckOffline). Footer berubah menjadi BUAT BON yang membuka popup custom
- *   (index 23) menampilkan estimasi tanpa realitas. Tombol Capture (html2canvas)
- *   dan Copy hasil disediakan. Tidak ada penyimpanan history.
- *
- * NOTES        :
- *   - Slider E40 hanya muncul saat mode offline dan tipe "wajar".
- *   - Cache diinvalidasi saat input berubah atau mode berganti.
- *   - uiStateE71 (nilai E713 dari estimasi sebelumnya) dikirim sebagai number.
- *   - Popup bon hanya untuk isCheckOffline dan tidak menyimpan data apapun.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -36,7 +15,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev4';
+const F_V = '2.0.1-rev4';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1227,19 +1206,5 @@ export const PageOrder = {
 
 window.log.info('[Order ' + F_V + '] (7) PageOrder dimuat (Cache API, slider E40, Cek Tarif Offline, Popup Bon)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Cache API, slider E40, validasi & dropdown via Output.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara lokal.
-// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.LOCATION.
-// 2.0.0-rev3 : Tambah dukungan mode Cek Tarif Offline: flag isCheckOffline,
-//             header role berubah, tombol switch disembunyikan, footer HOME.
-//             Reset E40 via Engine di loadInitialData, handleReset, performSwitch.
-// 2.0.0-rev4 : Tambah popup "Nota Pesanan" (index 23) khusus mode Cek Tarif Offline.
-//             Footer berubah menjadi BUAT BON, tombol Capture & Copy di dalam popup
-//             langsung menutup popup dan memberi toast. Nama file capture dengan
-//             format tanggal. Tidak ada penyimpanan history.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

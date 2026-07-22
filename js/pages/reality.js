@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/reality.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Reality – Step 2. Input data real perjalanan.
- *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
- *   Popup custom (index 13) dan popup bantuan (index 2) dibuka melalui target overlay.
- *   Perhitungan dilakukan melalui Cache.reality().
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -18,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -599,13 +595,5 @@ export const PageReality = {
 
 window.log.info('[Reality ' + F_V + '] (14) PageReality dimuat (Cache API, Output validasi)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Gunakan Cache.reality(), validasi & konstanta via Output.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.GPS, ICON.INFO, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

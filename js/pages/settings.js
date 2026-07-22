@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/settings.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Pengaturan – Mengelola preferensi pengguna, data driver,
- *   custom copy template, kontak darurat, dan toggle Cache Maksimal.
- *   Semua akses data statis Engine melalui Output.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager } from '../core/state.js';
 import { PreferencesManager } from '../core/preferences.js';
@@ -170,7 +167,7 @@ function buildHTML() {
     const ao = preferences.alwaysOperational;
     const lt = preferences.largeText;
     const hs = preferences.hideSafetyReminder;
-    const cm = preferences.cacheMaksimal;                // v2.0.0-rev0
+    const cm = preferences.cacheMaksimal;                // v2.0.1-rev0
     const ccEnabled = preferences.customCopy?.enabled || false;
     const ccTemplate = preferences.customCopy?.template || DEFAULT_COPY_TEMPLATE;
 
@@ -735,14 +732,5 @@ export const PageSettings = {
 
 window.log.info('[Settings ' + F_V + '] (2) PageSettings dimuat (Cache Maksimal, Output API)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Tambah toggle Cache Maksimal, ganti
-//             getDropdownOptions ke Output, koleksi preferensi cacheMaksimal.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.GEAR, ICON.FUEL, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

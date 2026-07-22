@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/maintenance.js
- * FILE VERSION : 2.0.0-rev5
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev5
+ * APP VERSION  : 2.0.1
  * DATE         : 17 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Perawatan – Menampilkan progress perawatan, pajak, atribut,
- *   dan penyusutan kendaraan berdasarkan akumulasi history.
- *   Semua akses data statis melalui Output (helpers/output.js).
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev5';
+const F_V = '2.0.1-rev5';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -550,16 +547,5 @@ export const PageMaintenance = {
 
 window.log.info('[Maintenance ' + F_V + '] (2) PageMaintenance dimuat (via Output)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal.
-// 2.0.0-rev1 : Hapus ketergantungan getIcon.
-// 2.0.0-rev2 : Hilangkan fallback ikon inline.
-// 2.0.0-rev3 : Akumulasi per mode, format hari, siklus servis dengan prefix.
-// 2.0.0-rev4 : forceIntervalType pada calculateMaintenanceProgress.
-// 2.0.0-rev5 : Satuan km ditampilkan, getCurrentCC tidak bergantung pada input
-//             halaman lain sehingga pajak motor muncul kembali.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

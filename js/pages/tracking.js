@@ -1,22 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev8
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev8
+ * APP VERSION  : 2.0.1
  * DATE         : 22 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Tracking – Merekam perjalanan real‑time dengan GPS.
- *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
- *   dan komponen UI (Header, Footer, Popup).
- *
- *   [UPDATE] rev8: - Semua pemanggilan GPS.stop() kini di-await karena async.
- *                  - emergencyStop() menjadi async.
- *                  - renderIdle() dan renderActive() membersihkan GPS dengan await.
- *                  - destroy() menjadi async, memanggil await GPS.stop().
- *                  - forceStopTracking() menjadi async.
- *                  - updateFooterForIdle() dan callback popup disesuaikan.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -24,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev8';
+const F_V = '2.0.1-rev8';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1158,6 +1148,10 @@ function createWarningPopupContent() {
 async function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
     await GPS.stop();                         // await agar notifikasi hilang total
+    
+    // Panggil forceCleanup untuk memastikan GPS & notifikasi mati total
+    await GPS.forceCleanup(); 
+    
     stopClockTimer();
     stopSound();
     if (beepAudioCtx) {
@@ -1867,19 +1861,5 @@ export var PageTrackingactive = {
 
 window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev8: semua GPS.stop() di-await)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev8 : - Semua pemanggilan GPS.stop() di-await.
-//              - emergencyStop() menjadi async.
-//              - renderIdle() dan renderActive() membersihkan GPS dengan await.
-//              - destroy() menjadi async.
-//              - forceStopTracking() menjadi async.
-// 2.0.0-rev7 : - Pause tidak lagi memanggil GPS.stop().
-//              - Resume menggunakan GPS Once.
-//              - Selesai menggunakan GPS Once.
-//              - acquireInitialPosition retry 5x.
-//              - Follow mode dengan timer 10 detik.
-//              - Tombol center diintegrasikan.
-// 2.0.0-rev6 : - Wake Lock dikelola GPS.
-// ... (changelog sebelumnya)
-//
+
 // ================================ End Of File ================================

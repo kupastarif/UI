@@ -1,17 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/note.js
- * FILE VERSION : 2.0.0-rev2
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev2
+ * APP VERSION  : 2.0.1
  * DATE         : 14 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Catatan – Menampilkan latar belakang dan tujuan pembuatan
- *   kalkulator ride hailing. Mirip dengan halaman Tentang dan Privasi.
- *   - catatan: overview dengan tombol "Lihat Lebih Lanjut".
- *   - catatantldr: detail penuh dari docs/notes.html dengan tombol "Kembali".
- *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -19,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.1-rev2';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -370,17 +365,5 @@ export const PageCatatantldr = {
 
 window.log.info('[Note ' + F_V + '] (3) PageCatatan & PageCatatantldr dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.DOCUMENT, ICON.BACK, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-// 2.0.0-rev2 : Gabungkan konten docs/notes.html ke dalam file ini. Hapus fungsi
-//             loadDetail() dan fetch eksternal. Konten detail kini disimpan
-//             sebagai konstanta DETAIL_HTML. Render TLDR langsung menampilkan
-//             konten tanpa spinner. Fungsi render tidak lagi async.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

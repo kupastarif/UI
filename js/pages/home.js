@@ -1,19 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/home.js
- * FILE VERSION : 2.0.0-rev4
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev4
+ * APP VERSION  : 2.0.1
  * DATE         : 22 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Home – Tampilan awal aplikasi. Semua navigasi menggunakan
- *   Router.navigateTo(). Input kendaraan dikelola melalui StateManager.
- *   Akses data statis Engine melalui Output, orkestrasi melalui Cache.
- *
- *   [UPDATE] rev4: Menambahkan footer versi dengan perbedaan platform:
- *   - Android: menampilkan status update (dari StateManager.updateAvailable)
- *   - Web: langsung menampilkan versi dan membuka link release saat diklik.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -21,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev4';
+const F_V = '2.0.1-rev4';
 
 import { StateManager, StateEvents } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -407,7 +400,7 @@ function updateVersionFooter() {
     if (!footer) return;
 
     const isNative = window.__platform?.isNative || false;
-    const version = window.APP_VERSION || '2.0.0';
+    const version = window.APP_VERSION || '2.0.1';
     const releaseUrl = 'https://github.com/kupastarif/calc/releases';
 
     if (isNative) {
@@ -453,7 +446,7 @@ function buildHTML() {
         ${renderVehicleCards()}
         ${renderBattleStats()}
         <div class="home-version-footer" id="home-version-footer">
-            <span class="version-text">Kupas⚡Tarif versi ${window.APP_VERSION || '2.0.0'}</span>
+            <span class="version-text">Kupas⚡Tarif versi ${window.APP_VERSION || '2.0.1'}</span>
         </div>
     </div>`;
 }
@@ -592,24 +585,5 @@ export const PageHome = {
 
 window.log.info('[Home ' + F_V + '] (7) PageHome dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Dropdown via Output, invalidasi Cache, mapping
-//             input sesuai Engine v1.0.0‑beta.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.DRIVER, ICON.MOTOR, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-// 2.0.0-rev2 : Tambah tombol "CEK TARIF OFFLINE" di popup peran. Tombol ini
-//             mengeset flag isCheckOffline, memaksa role Driver, dan tidak
-//             menyimpan preferensi. Reset flag terjadi saat Home dirender.
-// 2.0.0-rev3 : Perbaikan tombol "Cek Tarif Offline" agar menyetel E36 ke 'offline'
-//             sehingga halaman Order langsung terbuka dalam mode offline.
-//             Tombol footer menuju halaman perawatan.
-// 2.0.0-rev4 : Menambahkan footer versi dengan perbedaan platform:
-//             - Android: tampilkan status update dari StateManager.updateAvailable
-//             - Web: langsung tampilkan versi dan buka link release saat diklik.
-//             Pasang listener state hanya untuk Android.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

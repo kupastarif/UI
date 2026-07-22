@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/result.js
- * FILE VERSION : 2.0.0-rev9
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev9
+ * APP VERSION  : 2.0.1
  * DATE         : 16 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Result – Step 3. Menampilkan struk digital hasil perjalanan.
- *   **Satu‑satunya tempat penyimpanan history (SSOT).**
- *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev9';
+const F_V = '2.0.1-rev9';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -490,21 +487,5 @@ export const PageResult = { render, destroy };
 
 window.log.info('[Result ' + F_V + '] dimuat (no nullish coalescing)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev9 : Hapus semua operator ?? ganti dengan pengecekan eksplisit untuk
-//             kompatibilitas lingkungan tanpa ES2020.
-// 2.0.0-rev8 : Penjemputan & pengantaran diambil dari input state (validated).
-// 2.0.0-rev7 : Biaya tambahan offline (parkir/tol/lain) diambil dari input state.
-// 2.0.0-rev6 : Selisih jemput/antar hanya muncul jika negatif; parkir/tol/
-//             lainnya hanya jika >0. Semua detail selisih dibungkus bill-box.
-// 2.0.0-rev5 : Tampilkan semua selisih tanpa syarat.
-// 2.0.0-rev4 : Layout final dgn E266, E746, dll.
-// 2.0.0-rev3 : Susun ulang layout receipt.
-// 2.0.0-rev2 : Hapus ikon inline.
-// 2.0.0-rev1 : Hapus ketergantungan getIcon.
-// 2.0.0-rev0 : Inisiasi awal.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

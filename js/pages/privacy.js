@@ -1,14 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/privacy.js
- * FILE VERSION : 2.0.0-rev2
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev2
+ * APP VERSION  : 2.0.1
  * DATE         : 14 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Halaman Privasi – Menampilkan kebijakan privasi aplikasi.
- *   Semua navigasi menggunakan Router.navigateTo() dengan API baru.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -16,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev2';
+const F_V = '2.0.1-rev2';
 
 import { Router } from '../core/router.js';
 import { StateManager } from '../core/state.js';
@@ -334,17 +332,5 @@ export const PagePrivacytldr = {
 
 window.log.info('[Privacy ' + F_V + '] (3) PagePrivacy & PagePrivacytldr dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon. Ikon didefinisikan secara
-//             lokal (ICON.LOCK, ICON.BACK, dll). Pemanggilan FooterManager
-//             menggunakan karakter ikon langsung.
-// 2.0.0-rev2 : Gabungkan konten docs/privacy.html ke dalam file ini. Hapus fungsi
-//             loadDetail() dan fetch eksternal. Konten detail kini disimpan
-//             sebagai konstanta DETAIL_HTML. Render TLDR langsung menampilkan
-//             konten tanpa spinner. Fungsi render tidak lagi async.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================
