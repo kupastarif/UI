@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /sw.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Service Worker untuk mendukung fitur PWA offline. Melakukan precache
- *   seluruh file statis aplikasi, serta runtime caching untuk aset eksternal
- *   (Google Fonts, Leaflet). Navigasi fallback ke index.html saat offline.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ---------- KONFIGURASI ----------
-const CACHE_VERSION = '2.0.0';
+const CACHE_VERSION = '2.0.1';
 const STATIC_CACHE = 'kupastarif-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'kupastarif-runtime-' + CACHE_VERSION;
 
@@ -187,12 +184,4 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Precache lengkap, strategi cache campuran
-//             (navigate fallback, CDN network-first, lokal cache-first).
-//
-// =============================== FUTURE UPDATE ===============================
-// - Update daftar precache jika ada penambahan/pengurangan file.
-// - Ganti CACHE_VERSION setiap kali rilis baru untuk memicu cache baru.
-//
 // ================================ End Of File ================================

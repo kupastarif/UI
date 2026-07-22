@@ -1,7 +1,7 @@
 {
   "name": "Kupas⚡Tarif",
   "short_name": "KupasTarif",
-  "description": "Aplikasi KupasTarif v2.0a-beta",
+  "description": "Aplikasi KupasTarif v2.0.1",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
