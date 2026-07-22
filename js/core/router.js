@@ -1,19 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/core/router.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 2 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Sistem navigasi SPA – Arsitektur Navigasi v5.1 (State‑Driven, Overlay in Stack).
- *   Setiap transisi dihitung secara deterministik dari halaman saat ini dan mode
- *   kalkulasi. Overlay (popup/drawer) menjadi segmen stack URL namun transparan
- *   terhadap perhitungan langkah halaman. Navigasi fisik hanya mundur 1 langkah
- *   berdasarkan target mundur yang dihitung langsung dari StateManager dan tabel
- *   hardcode. Router.navigateTo() adalah satu‑satunya pintu untuk semua navigasi UI.
- *   SSOT currentPage adalah StateManager; target mundur dihitung setiap kali.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -21,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager } from './state.js';
 import { PopupManager } from '../components/popup.js';
@@ -804,15 +797,5 @@ export const Router = {
 window.Router = Router;
 window.log.info('[Router ' + F_V + '] (63) Router dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-//             Tidak ada perubahan fungsional.
-// 2.0.0-rev1 : Perbaikan overlay back – penutupan overlay dari UI menggunakan
-//             history.back() (fungsi closeOverlayUI). Tambah penanganan stack
-//             identik di popstate dan blokir forward tanpa emergency reset.
-//             Callback onClose overlay kini memanggil Router.closeOverlayUI().
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

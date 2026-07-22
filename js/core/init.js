@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/core/init.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Entry point aplikasi setelah loading screen. Memuat file engine baru
- *   v1.0.0‑beta (01data.js – 07cache.js), menginisialisasi Cache, menyediakan
- *   window.log, window.cacheBust, dan APP_CONFIG. Import map & cache bust
- *   hanya aktif saat isDevMode = true.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -19,7 +15,7 @@
     'use strict';
 
     // ==================== VERSI FILE ====================
-    const F_V = '2.0.0-rev0';
+    const F_V = '2.0.1-rev0';
 
     // Guard: cegah eksekusi ganda
     if (window.__INIT_EXECUTED__) return;
@@ -64,7 +60,7 @@
     // 4. APP_CONFIG (SSOT – membaca dari variabel global HTML, fallback aman)
     // =========================================================================
     window.APP_CONFIG = {
-        version:                 window.APP_VERSION              || '2.0.0',
+        version:                 window.APP_VERSION              || '2.0.1',
         isDevMode:               isDevMode,
         enableDevTools:          isDevMode,
         timeout:                 window.APP_TIMEOUT              || 10000,
@@ -264,11 +260,5 @@
 
 })();
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Ganti engine ke v1.0.0‑beta, hapus cacheMode,
-//             atur Cache.setMode() berdasarkan isDevMode.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

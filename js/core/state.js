@@ -1,24 +1,20 @@
 /**
  * =================================================================================
  * FILE         : /js/core/state.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Manajemen state global aplikasi dengan event emitter sederhana.
- *   Semua state disimpan dalam satu objek terpusat (AppState).
- *   Menyediakan state untuk input, hasil, tracking, preferensi,
- *   dan flag navigasi internal (popup, drawer).
- *
+ * CHANGELOG  :
+
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev0';
+const F_V = '2.0.1-rev0';
 
 import { getDefaultValues } from '../helpers/output.js';
 
@@ -151,8 +147,8 @@ const AppState = {
         offlineOrder: false,
         alwaysOperational: false,
         largeText: false,
-        hideSafetyReminder: false,          // v2.0.0-rev0
-        cacheMaksimal: false,               // v2.0.0-rev0
+        hideSafetyReminder: false,          // v2.0.1-rev0
+        cacheMaksimal: false,               // v2.0.1-rev0
         defaultVehicle: {
             mode: 'Mobil', role: 'Driver', area: 'Jabodetabek',
             cc: '1000cc', fuel: 'Pertalite', transmission: 'manual',
@@ -324,11 +320,4 @@ export { AppState, StateManager, StateEvents };
 
 window.log.info('[State ' + F_V + '] (5) StateManager dimuat (via Output)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Ambil default input dari Output, tambah E40,
-//             preferensi cacheMaksimal dan hideSafetyReminder.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

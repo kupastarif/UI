@@ -1,15 +1,13 @@
 /**
  * =================================================================================
  * FILE         : /js/core/debug.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 20 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Overlay log collapsible untuk debugging. Hanya aktif saat devMode = true.
- *   Menyediakan tombol floating, panel log dengan copy/clear/close.
- *   CSS di-inject secara dinamis, z-index tertinggi.
+ * CHANGELOG  :
+ * 
  * =================================================================================
  */
 
@@ -257,8 +255,4 @@
     }
 })();
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. 
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
 // ================================ End Of File ================================

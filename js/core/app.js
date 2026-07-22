@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/core/app.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 17 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Inisialisasi aplikasi dan lifecycle management. Mengatur loading screen
- *   awal, memuat preferensi, inisialisasi state, dan memulai router.
- *   Mengecek keberadaan Engine v1.0.0‑beta dan versinya sebagai dependency kritis.
- *   [UPDATE] Menambahkan pengecekan update otomatis dan manual via GitHub API.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -18,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager, StateEvents } from './state.js';
 import { StorageManager } from './storage.js';
@@ -277,7 +273,7 @@ function setupLoadingOverlayListener() {
 window.checkForUpdate = async function(manual = false) {
     window.log.info('[App ' + F_V + '] (6a) checkForUpdate dipanggil, manual=' + manual);
     try {
-        const currentVersion = window.APP_VERSION || '2.0.0-beta';
+        const currentVersion = window.APP_VERSION || '2.0.1-beta';
         // Ganti dengan username/repo Anda
         const repo = 'kupastarif/calc'; // <-- SESUAIKAN DENGAN REPO ANDA
         const url = `https://api.github.com/repos/${repo}/releases/latest`;
@@ -328,7 +324,7 @@ async function initializeApp() {
         return;
     }
 
-    window.log.info('[App ' + F_V + '] (13) Memulai inisialisasi aplikasi v' + (window.APP_CONFIG?.version || '2.0.0'));
+    window.log.info('[App ' + F_V + '] (13) Memulai inisialisasi aplikasi v' + (window.APP_CONFIG?.version || '2.0.1'));
     startLoading();
 
     if (!checkEngine()) return;
@@ -363,13 +359,18 @@ async function initializeApp() {
         finishLoading();
         isInitialized = true;
 
-        window.log.info('[App ' + F_V + '] (19) Aplikasi v' + (window.APP_CONFIG?.version || '2.0.0') + ' siap digunakan! Engine ' + (window.Engine.ENGINE_VERSION || window.Engine.VERSION));
+        window.log.info('[App ' + F_V + '] (19) Aplikasi v' + (window.APP_CONFIG?.version || '2.0.1') + ' siap digunakan! Engine ' + (window.Engine.ENGINE_VERSION || window.Engine.VERSION));
 
         // ============================================================
         // [UPDATE] Auto-check update setelah aplikasi siap (2 detik)
         // ============================================================
         setTimeout(() => {
-            window.checkForUpdate(false); // auto, tanpa toast hasil sukses/gagal
+            if (window.__platform && window.__platform.isNative) {
+                window.checkForUpdate(false);
+            } else {
+              // Web: pastikan state updateAvailable null
+                StateManager.set('updateAvailable', null);
+            }
         }, 2000);
 
     } catch (error) {
@@ -441,7 +442,7 @@ bootstrapApp();
 
 export const App = {
     reload: reloadApp,
-    version: (window.APP_CONFIG && window.APP_CONFIG.version) || '2.0.0',
+    version: (window.APP_CONFIG && window.APP_CONFIG.version) || '2.0.1',
     isReady: function() { return isInitialized; }
 };
 
@@ -451,13 +452,4 @@ if (typeof window !== 'undefined') {
 
 window.log.info('[App ' + F_V + '] (22) App core dimuat (dengan fitur update)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Engine v1.0.0‑beta, Cache.clear() untuk reload,
-//             isVersionCompatible mendukung format versi baru.
-// 2.0.0-rev1 : Penambahan fungsi window.checkForUpdate(manual) dan auto-check
-//             setelah aplikasi siap. Update state dan toast.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================

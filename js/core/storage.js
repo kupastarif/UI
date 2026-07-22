@@ -1,23 +1,20 @@
 /**
  * =================================================================================
  * FILE         : /js/core/storage.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Wrapper untuk localStorage dengan fitur enkripsi driver info,
- *   manajemen history, preferences, theme, maintenance cycles,
- *   kontak darurat, dan pengecekan kuota.
- *
+ * CHANGELOG  :
+
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev0';
+const F_V = '2.0.1-rev0';
 
 // =============================================================================
 // 1. KONSTANTA STORAGE KEYS
@@ -264,8 +261,8 @@ const DEFAULT_PREFERENCES = {
     offlineOrder: false,
     alwaysOperational: false,
     largeText: false,
-    hideSafetyReminder: false,          // v2.0.0-rev0
-    cacheMaksimal: false,               // v2.0.0-rev0
+    hideSafetyReminder: false,          // v2.0.1-rev0
+    cacheMaksimal: false,               // v2.0.1-rev0
     defaultVehicle: {
         mode: 'Mobil',
         role: 'Driver',
@@ -286,7 +283,7 @@ function getPreferences() {
         alwaysOperational: stored.alwaysOperational === true,
         largeText: stored.largeText === true,
         hideSafetyReminder: stored.hideSafetyReminder === true,
-        cacheMaksimal: stored.cacheMaksimal === true,      // v2.0.0-rev0
+        cacheMaksimal: stored.cacheMaksimal === true,      // v2.0.1-rev0
         defaultVehicle: stored.defaultVehicle || DEFAULT_PREFERENCES.defaultVehicle,
         driverInfo: stored.driverInfo || { name: '', plate: '', phone: '' },
         customCopy: stored.customCopy || { enabled: false, template: '' }
@@ -519,11 +516,5 @@ export const StorageManager = {
 
 window.log.info('[Storage ' + F_V + '] (20) StorageManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Tambah cacheMaksimal di DEFAULT_PREFERENCES dan
-//             getPreferences(). Format header dan log disesuaikan.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

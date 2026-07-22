@@ -1,16 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/core/preferences.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   SSOT (Single Source of Truth) untuk preferensi pengguna. Menyediakan
- *   fungsi untuk memuat, menyimpan, dan mereset preferensi. Semua nilai
- *   default diambil melalui Output (helpers/output.js) – tidak ada akses
- *   langsung ke Engine.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -18,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StorageManager } from './storage.js';
 import { StateManager } from './state.js';
@@ -132,7 +128,7 @@ function loadPreferences() {
         const stored = StorageManager ? StorageManager.getPreferences() : {};
         const defaults = buildDefaultPreferences();
 
-        // --- PERBAIKAN v2.0.0-rev1 ---
+        // --- PERBAIKAN v2.0.1-rev1 ---
         // Driver info harus diambil dari sumber terenkripsi (kt_driver)
         // agar data yang tampil selalu data terbaru yang disimpan
         // melalui StorageManager.saveDriverInfo().
@@ -192,7 +188,7 @@ function loadPreferences() {
 function savePreferences(prefs) {
     window.log.info('[Preferences ' + F_V + '] (8) Memulai savePreferences()');
     try {
-        // --- PERBAIKAN v2.0.0-rev1 ---
+        // --- PERBAIKAN v2.0.1-rev1 ---
         // driverInfo TIDAK lagi disertakan di sini.
         // Data sensitif (nama, plat, telepon) hanya disimpan
         // melalui StorageManager.saveDriverInfo() dengan enkripsi.
@@ -391,15 +387,5 @@ export const PreferencesManager = {
 
 window.log.info('[Preferences ' + F_V + '] (21) PreferencesManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Akses Engine melalui Output, tambah properti
-//             cacheMaksimal, validasi via Output.validateCell.
-// 2.0.0-rev1 : Hapus penyimpanan driverInfo di kt_prefs (plaintext).
-//             loadPreferences() sekarang membaca driver info dari
-//             StorageManager.getDriverInfo() (terenkripsi).
-//             StateManager tetap mendapat driverInfo untuk kebutuhan runtime.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================
