@@ -112,8 +112,8 @@ jobs:
           \        }\n\
           \    }\n' android/app/build.gradle
 
-          # Tambahkan signingConfig di dalam release (hanya di dalam buildTypes)
-          sed -i '/buildTypes {/,/^}/ { /release {/a\            signingConfig signingConfigs.release }' android/app/build.gradle
+          # Tambahkan signingConfig di dalam release (akan masuk ke signingConfigs dan buildTypes)
+          sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
 
           # Hapus baris signingConfig yang tidak sengaja masuk ke signingConfigs (self-reference)
           sed -i '/signingConfigs {/,/^}/ { /signingConfig signingConfigs.release/d }' android/app/build.gradle
