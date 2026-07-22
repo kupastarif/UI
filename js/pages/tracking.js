@@ -1791,6 +1791,8 @@ async function destroy() {
     updateScheduled = false;
     stopClockTimer();
     await GPS.stop(); // await agar notifikasi hilang
+    await GPS.forceCleanup(); // double paksa berhenti agar masalah notifikasi hilang
+    
     if (calculate) { calculate.stop(); calculate = null; }
     stopSound();
     if (beepAudioCtx) {
@@ -1821,6 +1823,7 @@ window.forceStopTracking = async function() {
     window.log.info('[Tracking ' + F_V + '] (23) forceStopTracking() dipanggil');
     if (typeof GPS !== 'undefined') {
         await GPS.stop(); // await agar notifikasi hilang
+        await GPS.forceCleanup(); // double paksa berhenti agar masalah notifikasi hilang
     }
 
     var tm = window.trackingModule || _trackingModule;
