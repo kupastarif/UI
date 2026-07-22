@@ -1,21 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/calculate.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Jembatan antara TrackingCollector (data mentah) dan Cache (orkestrasi).
- *   Bertanggung jawab untuk:
- *   - Menerima data mentah dari tracker.
- *   - Melakukan SEMUA pembulatan (≥ 0.01 km, ≥ 1 menit) sebelum dikirim
- *     ke Cache atau ditampilkan di UI.
- *   - Memanggil Cache untuk live income dan finalisasi.
- *   - Menyediakan data fase aktif (pickup/dropoff) untuk indikator UI.
- *   - Untuk mode operasional: menangani kalkulasi share cost & set limit
- *     (live dan final), menyertakan hasilnya di output (bukan di tracking data).
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -23,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev0';
+const F_V = '2.0.1-rev0';
 
 import { TrackingCollector } from './tracker.js';
 
@@ -395,11 +386,5 @@ getLastPosition() {
 
 window.log.info('[Calculate ' + F_V + '] (4) Calculate dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Ganti semua akses Engine menjadi Cache,
-//             finalize operasional menggunakan getOperationalCost.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

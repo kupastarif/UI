@@ -1,20 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/tracker.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   TrackingCollector – satu‑satunya sumber perhitungan jarak & waktu.
- *   - Semua pencatatan waktu menggunakan UTC dari GPS (gps.js) sebagai 
- *     acuan tunggal, termasuk deteksi zona WIB/WITA/WIT.
- *   - Waktu berjalan dihitung berdasarkan selisih UTC, bukan Date.now() 
- *     lokal, untuk konsistensi lintas zona.
- *   - Jarak dihitung per sesi (pickup/dropoff) menggunakan Haversine.
- *   - Pause membekukan nilai sesi terakhir, tidak menampilkan total.
- *   - Lompatan (jump) dideteksi jika kecepatan > 120 km/jam antar titik.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -22,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev0';
+const F_V = '2.0.1-rev0';
 
 import { GPS } from './gps.js';
 
@@ -492,10 +484,5 @@ export { TrackingCollector };
 
 window.log.info('[Tracker ' + F_V + '] (6) TrackingCollector dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

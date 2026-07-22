@@ -1,25 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/gps.js
- * FILE VERSION : 2.0.0-rev5
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev5
+ * APP VERSION  : 2.0.1
  * DATE         : 22 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Single Source of Truth (SSOT) untuk semua kebutuhan lokasi dan waktu.
- *   Mendukung web (navigator.geolocation) dan Android native
- *   (@capacitor-community/background-geolocation) dengan API yang sama.
- *   Menyediakan data posisi mentah, otoritas waktu UTC, deteksi zona waktu
- *   Indonesia (WIB/WITA/WIT), serta notifikasi background untuk Android.
- *
- *   [UPDATE] rev5: - start() dan stop() sekarang async untuk memastikan
- *                    watcher/service benar-benar berhenti sebelum memulai ulang.
- *                  - _stopNative() sekarang async, memanggil removeWatcher()
- *                    dan stop() dengan await, memastikan notifikasi hilang.
- *                  - _startNative() memanggil _stopNative() di awal untuk
- *                    menjamin tidak ada watcher/service sisa.
- *                  - Semua pemanggil di aplikasi harus menggunakan await.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -27,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev5';
+const F_V = '2.0.1-rev5';
 
 import { StateEvents } from '../core/state.js';
 
@@ -563,6 +550,58 @@ function _parseError(error) {
 }
 
 // =============================================================================
+// FORCE CLEANUP (EKSPOR UNTUK PEMBERSIHAN TOTAL)
+// =============================================================================
+
+/**
+ * forceCleanup()
+ * 
+ * Fungsi pembersihan super untuk memastikan background service dan notifikasi
+ * benar-benar berhenti. Aman dipanggil kapan saja (web/native) dan berulang kali.
+ * 
+ * @returns {Promise<void>}
+ */
+export async function forceCleanup() {
+    window.log.info('[GPS ' + F_V + '] forceCleanup() dipanggil');
+
+    // 1. Hentikan native (Android) secara paksa
+    await _stopNative();
+
+    // 2. Hentikan web (jika sedang berjalan)
+    _stopWeb();
+
+    // 3. Hapus semua callback agar tidak ada kebocoran referensi
+    _callbacks.onPosition = null;
+    _callbacks.onError = null;
+
+    // 4. Nonaktifkan Wake Lock
+    await _deactivateKeepAwake();
+
+    // 5. [KRITIS] Hapus semua notifikasi lokal secara paksa sebagai langkah terakhir
+    //    Ini memastikan notifikasi hilang meskipun service background macet.
+    try {
+        const LocalNotifications = window.Capacitor?.Plugins?.LocalNotifications;
+        if (LocalNotifications && typeof LocalNotifications.cancelAll === 'function') {
+            await LocalNotifications.cancelAll();
+            window.log.info('[GPS ' + F_V + '] Semua notifikasi lokal dibatalkan secara paksa');
+        } else {
+            // Fallback untuk web atau jika plugin tidak tersedia
+            window.log.warn('[GPS ' + F_V + '] LocalNotifications.cancelAll tidak tersedia');
+        }
+    } catch (e) {
+        window.log.warn('[GPS ' + F_V + '] Gagal membatalkan notifikasi:', e);
+    }
+
+    // 6. Reset flag internal
+    _nativeWatcherId = null;
+    _isNativeStarted = false;
+    _isTrackingWeb = false;
+
+    window.log.info('[GPS ' + F_V + '] forceCleanup() selesai');
+}
+
+
+// =============================================================================
 // EKSPOR
 // =============================================================================
 
@@ -573,26 +612,11 @@ export const GPS = {
     isSupported,
     isActive,
     getCurrentUTCTime,
-    ERROR_CODES
+    ERROR_CODES,
+    forceCleanup
 };
 
 window.log.info('[GPS ' + F_V + '] (35) GPS dimuat (native via window.Capacitor.Plugins, web via navigator.geolocation) – start/stop async');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev5 : - start() dan stop() menjadi async.
-//              - _stopNative() menjadi async, memanggil removeWatcher() dan stop()
-//                dengan await, memastikan notifikasi hilang total.
-//              - _startNative() memanggil _stopNative() di awal untuk bersihkan.
-// 2.0.0-rev4 : - Menghapus semua dynamic import.
-//              - Mengakses plugin Capacitor langsung dari window.Capacitor.Plugins.
-//              - Menggunakan window.__platform.isNative dari init.js.
-//              - Menghapus fallback ke web di _startNative().
-// 2.0.0-rev3 : - Menghilangkan import statis Capacitor & BackgroundGeolocation.
-// 2.0.0-rev2 : - Manajemen Wake Lock dipindahkan dari tracking.js ke gps.js.
-// 2.0.0-rev1 : - Integrasi native Capacitor BackgroundGeolocation.
-// 2.0.0-rev0 : - Inisiasi awal (web only).
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

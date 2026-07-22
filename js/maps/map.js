@@ -1,24 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/map.js
- * FILE VERSION : 2.0.0-rev6
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev6
+ * APP VERSION  : 2.0.1
  * DATE         : 22 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Wrapper untuk Leaflet map library dengan lazy loading. Menyediakan
- *   fungsi untuk inisialisasi peta, render marker, polyline, kontrol,
- *   overlay status (teks, akurasi, GPS), default center berdasarkan area,
- *   dan aturan ikon baru: Driver selalu tampil ikon kendaraan.
- *   Mendukung mode interaktif (Tracking) dan statis (Show Map).
- *
- *   [UPDATE] rev6: - Tombol center sekarang mengecek izin lokasi sebelum muncul.
- *                  - Debounce 500ms pada klik tombol center.
- *                  - Tambah event interaksi pengguna (drag/zoom) untuk follow mode.
- *                  - Fungsi onUserInteraction() untuk mendaftarkan callback.
- *                  - addCenterButton() sekarang async, menerima callback onClick.
- *                  - Tambah fungsi checkLocationPermission() untuk deteksi izin.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -26,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev6';
+const F_V = '2.0.1-rev6';
 
 import { GPS } from './gps.js';
 
@@ -892,22 +880,5 @@ export const MapManager = {
 
 window.log.info('[Map ' + F_V + '] (6) MapManager dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev6 : - Tombol center sekarang async: cek izin lokasi sebelum tampil.
-//              - Debounce 500ms pada klik tombol center.
-//              - Tambah event listener 'movestart' & 'zoomstart' untuk follow mode.
-//              - Fungsi onUserInteraction() untuk mendaftarkan callback.
-//              - addCenterButton() menerima callback onClick opsional.
-//              - Fungsi checkLocationPermission() untuk deteksi izin.
-// 2.0.0-rev5 : Styling untuk polyline 'planned' dipindahkan ke map.js.
-//             Tambahkan konstanta PLANNED_COLOR, PLANNED_WEIGHT, PLANNED_OPACITY.
-//             Tambahkan _getPolylineDefaultOptions() untuk default styling per tipe.
-//             Tambahkan addPlannedRoute() sebagai convenience wrapper.
-// 2.0.0-rev4 : Kembalikan overlay & tombol warning ke CSS murni.
-//             addPolyline sekarang mendukung warna kustom.
-// 2.0.0-rev3 : Overlay & tombol warning z-index:1000 inline (dikembalikan).
-// 2.0.0-rev2 : Hapus ikon inline terakhir, tambahkan ICON.MAP_DEFAULT.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js.
-// 2.0.0-rev0 : Inisiasi awal.
-//
+
 // ================================ End Of File ================================

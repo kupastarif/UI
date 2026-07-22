@@ -1,21 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/maps/picker.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Resource 100% gratis. Komponen pemilih lokasi untuk mode offline di halaman Order.
- *   Menggunakan PopupManager index 21, Router untuk navigasi overlay,
- *   GPS untuk posisi saat ini, Nominatim untuk pencarian lokasi,
- *   OSRM untuk rute (driving/bike), Leaflet via MapManager untuk peta.
- *   Menerapkan cooldown 2 menit, cache sessionStorage berbatas waktu,
- *   koreksi jarak/waktu berdasarkan jenis kendaraan dan jam sibuk.
- *   Menyediakan recent saved locations (maks 3, FIFO) dan penyimpanan polyline
- *   rute untuk digunakan oleh halaman tracking.
- *   Hasil dikirim ke order.js melalui callback onComplete.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -23,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -1112,13 +1103,5 @@ export const LocationPicker = {
 
 window.log.info('[picker ' + F_V + '] (3) LocationPicker dimuat');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-//             Tidak ada perubahan fungsional.
-// 2.0.0-rev1 : Hapus ketergantungan pada getIcon dari texts.js. Ikon
-//             didefinisikan secara lokal (ICON.SAVE, ICON.GPS, dll).
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================
