@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/helpers/texts.js
- * FILE VERSION : 2.0.0-rev1
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev1
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   SSOT (Single Source of Truth) untuk teks UI statis.
- *   Menyediakan random quotes, sarcasm, konten bantuan (OpenHelp),
- *   konfigurasi popup default (POPUP_TEXTS), dan catatan laporan.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev1';
+const F_V = '2.0.1-rev1';
 
 // =============================================================================
 // 1. RANDOM_QUOTES (3 Kategori)
@@ -437,15 +434,5 @@ export const Texts = {
 
 window.log.info('[Texts ' + F_V + '] Texts dimuat (rev1: pemangkasan ikon & pesan)');
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Inisiasi awal. Format header, FILE VERSION, log prefix disesuaikan.
-//             Tidak ada perubahan konten.
-// 2.0.0-rev1 : Hapus TOAST_MESSAGES, ERROR_MESSAGES, VALIDATION_MESSAGES,
-//             _iconRegistry, getIcon, getThemeIcon, getVehicleIcon, getRoleIcon,
-//             RANDOM_ICONS, getRandomIcon. Konten dikelola mandiri oleh
-//             masing‑masing file. Sisa konten dipertahankan.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
+
 // ================================ End Of File ================================

@@ -1,15 +1,12 @@
 /**
  * =================================================================================
  * FILE         : /js/helpers/format.js
- * FILE VERSION : 2.0.0-rev0
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev0
+ * APP VERSION  : 2.0.1
  * DATE         : 1 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   SSOT untuk semua fungsi format umum, label, dan helper dasar.
- *   Semua fungsi di sini bersifat MURNI, tidak bergantung pada Engine
- *   atau komponen UI lainnya.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -17,7 +14,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev0';
+const F_V = '2.0.1-rev0';
 
 // =============================================================================
 // 1. KONSTANTA
@@ -482,11 +479,4 @@ export function getAreaLabel(area) {
     return labels[area] || area;
 }
 
-// ================================= CHANGELOG =================================
-// 2.0.0-rev0 : Hapus getValidationRange, getServiceOptions, getTargetDriver
-//             (pindah ke output.js). Hanya berisi fungsi pure formatting.
-//
-// =============================== FUTURE UPDATE ===============================
-// - Tidak ada
-//
 // ================================ End Of File ================================
