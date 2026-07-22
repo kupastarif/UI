@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "calc",
+  "compatibility_date": "2026-07-22",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".",
+    "exclude": [
+      "node_modules/**/*",
+      ".git/**/*",
+      ".gitignore",
+      "package.json",
+      "bun.lock",
+      "package-lock.json",
+      ".env*",
+      ".wrangler/**/*"
+    ]
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
