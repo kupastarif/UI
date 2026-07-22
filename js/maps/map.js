@@ -282,7 +282,7 @@ async function init(containerId, options = {}) {
     }
 }
 
-function destroy() {
+async function destroy() {
     if (map) { map.remove(); map = null; }
     for (const key in markers) delete markers[key];
     for (const key in polylines) _clearPolylineSegments(key);
@@ -297,6 +297,12 @@ function destroy() {
     if (warningButton) {
         warningButton.remove();
     }
+    
+    // 🔥 PAKSA HENTIKAN GPS + NOTIFIKASI
+    if (typeof GPS !== 'undefined') {
+        await GPS.forceCleanup();  // <-- GANTI dari GPS.stop()
+    }
+    
     _onUserInteractionCallback = null;
     window.log.info('[Map ' + F_V + '] (4) Peta dihancurkan');
 }
