@@ -1,0 +1,21 @@
+name = "calc"
+compatibility_date = "2026-07-22"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[assets]
+directory = "."
+exclude = [
+  "node_modules/**/*",
+  ".git/**/*",
+  ".gitignore",
+  "package.json",
+  "bun.lock",
+  "package-lock.json",
+  ".env*",
+  ".wrangler/**/*",
+  "wrangler.jsonc",
+  "wrangler.toml"
+]
