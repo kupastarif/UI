@@ -81,7 +81,7 @@ jobs:
             fi
           done
 
-      - name: Configure build.gradle (hardcode versions)
+      - name: Configure build.gradle (hardcode versions, remove signing)
         run: |
           # Ganti versionCode dan versionName
           sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
@@ -100,6 +100,16 @@ jobs:
           sed -i 's/compileSdk .*/compileSdk 34/' android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+
+          # Hapus blok signingConfigs (tidak diperlukan untuk debug)
+          sed -i '/signingConfigs {/,/^[[:space:]]*}/d' android/app/build.gradle
+
+          # Hapus kemungkinan referensi signingConfig di buildTypes
+          sed -i '/signingConfig signingConfigs.release/d' android/app/build.gradle
+
+          # Tampilkan hasil untuk debugging
+          echo "===== MODIFIED build.gradle ====="
+          cat android/app/build.gradle
 
       - name: Sync Capacitor
         run: npx cap sync android
