@@ -51,7 +51,7 @@ jobs:
         run: yes | sdkmanager --licenses
 
       # ==============================================
-      # 5. Tentukan versionCode otomatis (format YYYYMMDDHHMM)
+      # 5. Tentukan versionCode otomatis (YYYYMMDDHHMM)
       # ==============================================
       - name: Set versionCode
         run: |
@@ -87,15 +87,15 @@ jobs:
         run: rm -rf android || true
 
       # ==============================================
-      # 9. Add Android platform
+      # 9. Add Android platform (biarkan Capacitor buat file default)
       # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
       # ==============================================
-      # 10. Tambahkan semua izin yang diperlukan ke AndroidManifest
+      # 10. Tambahkan izin ke AndroidManifest
       # ==============================================
-      - name: Add all required permissions to AndroidManifest
+      - name: Add required permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           perms=(
@@ -115,162 +115,57 @@ jobs:
               sed -i "/<manifest/a\    <uses-permission android:name=\"$perm\" />" $MANIFEST
             fi
           done
-          echo "All required permissions injected into AndroidManifest.xml"
+          echo "All required permissions injected"
 
       # ==============================================
-      # 11. Buat gradle.properties (AndroidX)
+      # 11. MODIFIKASI build.gradle (tanpa membuat ulang)
       # ==============================================
-      - name: Create gradle.properties
+      - name: Configure build.gradle
         run: |
-          cat > android/gradle.properties << 'EOF'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          EOF
-          echo "gradle.properties created."
-
-      # ==============================================
-      # 12. Buat android/build.gradle (project-level) dengan ext lengkap
-      # ==============================================
-      - name: Create project build.gradle
-        run: |
-          cat > android/build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:7.1.3'
-              }
-          }
-
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-
-          ext {
-              compileSdkVersion = 34
-              minSdkVersion = 29
-              targetSdkVersion = 34
-              androidxAppCompatVersion = '1.6.1'
-              androidxCoordinatorLayoutVersion = '1.2.0'
-              coreSplashScreenVersion = '1.0.1'
-              junitVersion = '4.13.2'
-              androidxJunitVersion = '1.1.5'
-              androidxEspressoCoreVersion = '3.5.1'
-          }
-          EOF
-          echo "android/build.gradle created with ext versions."
-
-      # ==============================================
-      # 13. Buat android/app/build.gradle dengan rootProject.ext
-      # ==============================================
-      - name: Create app build.gradle
-        run: |
-          cat > android/app/build.gradle << 'EOF'
-          apply plugin: 'com.android.application'
-
-          android {
-              namespace "kupastarif.gk.app.id"
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "kupastarif.gk.app.id"
-                  minSdkVersion 29
-                  targetSdkVersion 34
-                  versionCode 1
-                  versionName "1.0"
-                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-                  aaptOptions {
-                      ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-                  }
-              }
-
-              signingConfigs {
-                  release {
-                      storeFile file("$rootDir/keystore.jks")
-                      storePassword System.getenv("KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("KEY_ALIAS")
-                      keyPassword System.getenv("KEY_PASSWORD")
-                  }
-              }
-
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-                  }
-              }
-          }
-
-          repositories {
-              flatDir{
-                  dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-              }
-          }
-
-          dependencies {
-              implementation fileTree(include: ['*.jar'], dir: 'libs')
-              implementation "androidx.appcompat:appcompat:$rootProject.ext.androidxAppCompatVersion"
-              implementation "androidx.coordinatorlayout:coordinatorlayout:$rootProject.ext.androidxCoordinatorLayoutVersion"
-              implementation "androidx.core:core-splashscreen:$rootProject.ext.coreSplashScreenVersion"
-              implementation project(':capacitor-android')
-              testImplementation "junit:junit:$rootProject.ext.junitVersion"
-              androidTestImplementation "androidx.test.ext:junit:$rootProject.ext.androidxJunitVersion"
-              androidTestImplementation "androidx.test.espresso:espresso-core:$rootProject.ext.androidxEspressoCoreVersion"
-              implementation project(':capacitor-cordova-android-plugins')
-          }
-
-          apply from: 'capacitor.build.gradle'
-
-          try {
-              def servicesJSON = file('google-services.json')
-              if (servicesJSON.text) {
-                  apply plugin: 'com.google.gms.google-services'
-              }
-          } catch(Exception e) {
-              logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
-          }
-          EOF
-
           # Ganti versionCode dan versionName
           sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
           VERSION_NAME=$(node -p "require('./package.json').version")
           sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
 
-          echo "android/app/build.gradle created with versionCode=${{ env.VERSION_CODE }} and signing config."
+          # Tambahkan signingConfigs sebelum buildTypes
+          sed -i '/buildTypes {/i\
+          \    signingConfigs {\n\
+          \        release {\n\
+          \            storeFile file("$rootDir/keystore.jks")\n\
+          \            storePassword System.getenv("KEYSTORE_PASSWORD")\n\
+          \            keyAlias System.getenv("KEY_ALIAS")\n\
+          \            keyPassword System.getenv("KEY_PASSWORD")\n\
+          \        }\n\
+          \    }\n' android/app/build.gradle
+
+          # Tambahkan signingConfig di dalam release
+          sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
+
+          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }} and signing config."
 
       # ==============================================
-      # 14. Pulihkan keystore dari secret
+      # 12. Pulihkan keystore dari secret
       # ==============================================
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/keystore.jks
 
       # ==============================================
-      # 15. Sync Capacitor (menggabungkan plugin)
+      # 13. Sync Capacitor
       # ==============================================
       - name: Sync Capacitor
         run: npx cap sync android
 
       # ==============================================
-      # 16. (Opsional) Periksa isi build.gradle untuk debugging
+      # 14. (Optional) Tampilkan build.gradle untuk debug
       # ==============================================
       - name: Show build.gradle for debugging
-        run: |
-          echo "===== android/build.gradle ====="
-          cat android/build.gradle
-          echo "===== android/app/build.gradle ====="
-          cat android/app/build.gradle
+        run: cat android/app/build.gradle
 
       # ==============================================
-      # 17. Buat colors.xml untuk adaptive icon
+      # 15. Buat colors.xml
       # ==============================================
-      - name: Create colors.xml for adaptive icon
+      - name: Create colors.xml
         run: |
           mkdir -p android/app/src/main/res/values
           cat > android/app/src/main/res/values/colors.xml << 'EOF'
@@ -279,10 +174,9 @@ jobs:
               <color name="custom_ic_launcher_background">#0a1f1a</color>
           </resources>
           EOF
-          echo "colors.xml created."
 
       # ==============================================
-      # 18. Copy Launcher Icons
+      # 16. Copy Launcher Icons
       # ==============================================
       - name: Copy Launcher Icons
         run: |
@@ -310,10 +204,8 @@ jobs:
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
-          echo "Launcher icons copied."
-
       # ==============================================
-      # 19. Adaptive Icon XML
+      # 17. Adaptive Icon XML
       # ==============================================
       - name: Create Adaptive Icon XML
         run: |
@@ -325,21 +217,19 @@ jobs:
               <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
           </adaptive-icon>
           EOF
-          echo "Adaptive icon created."
 
       # ==============================================
-      # 20. Copy Notification Icon
+      # 18. Copy Notification Icon
       # ==============================================
       - name: Copy notification icon
         run: |
           mkdir -p android/app/src/main/res/drawable
           cp public/assets/img/icon72.png android/app/src/main/res/drawable/ic_notification.png
-          echo "Notification icon copied."
 
       # ==============================================
-      # 21. Clean dan Build Release APK
+      # 19. Build Release APK
       # ==============================================
-      - name: Clean and Build Release APK
+      - name: Build Release APK
         run: |
           cd android
           chmod +x gradlew
@@ -351,7 +241,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       # ==============================================
-      # 22. Upload APK Release
+      # 20. Upload APK
       # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -361,7 +251,7 @@ jobs:
           retention-days: 3
 
       # ==============================================
-      # 23. Bersihkan folder sementara (opsional)
+      # 21. Clean up
       # ==============================================
       - name: Clean temporary build folders
         continue-on-error: true
