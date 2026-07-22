@@ -458,8 +458,11 @@ export function prepareCopyTemplateData(estimateResult, vehicleData) {
 // =============================================================================
 
 export function encodeRouteData(compactData, refId, payment = 0, bill = 0, driverInfo = {}) {
+    // Ambil versi dari SSOT (index.html), fallback ke '2.0.1' jika tidak ada
+    const version = window.APP_CONFIG?.version || '2.0.1';
+    
     const metadata = {
-        v: '2.0.1',
+        v: version,   // ✅ Mengikuti SSOT
         u: refId,
         d: { nm: driverInfo.name || '', pl: driverInfo.plate || '', ph: driverInfo.phone || '' },
         S: compactData.startTime || '',
