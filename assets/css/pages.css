@@ -165,6 +165,27 @@
     cursor: pointer;
 }
 
+/* Footer versi di halaman Home */
+.home-version-footer {
+    margin-top: var(--space-lg);
+    padding: var(--space-sm) 0;
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+}
+.home-version-footer .version-text {
+    transition: color 0.2s;
+    cursor: pointer;
+}
+.home-version-footer .version-text.update-available {
+    color: var(--warning, #f59e0b);
+    font-weight: 600;
+}
+.home-version-footer:hover .version-text {
+    opacity: 0.8;
+}
+
 /* ============================================== */
 /* 3. HALAMAN ORDER                               */
 /* ============================================== */
