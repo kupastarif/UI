@@ -2,20 +2,12 @@
 /**
  * =================================================================================
  * FILE         : /index.html
- * FILE VERSION : 2.0.0-rev4
- * APP VERSION  : 2.0.0
+ * FILE VERSION : 2.0.1-rev4
+ * APP VERSION  : 2.0.1
  * DATE         : 20 Juli 2026
  * @author      : gk
  *
- * DESCRIPTION  :
- *   Entry point aplikasi. Menampilkan loading screen dengan animasi wave,
- *   progress bar, dan teks random. Setelah aplikasi siap, menampilkan container
- *   utama aplikasi. Menyediakan loading overlay global untuk navigasi.
- *   Production-ready dengan PWA support dan Service Worker.
- *
- *   [UPDATE] Native bridge untuk GPS background telah dipindahkan ke gps.js
- *   sebagai Single Source of Truth (SSOT). index.html kini bersih dari
- *   logika GPS dan notifikasi Android.
+ * CHANGELOG  :
  *
  * =================================================================================
  */
@@ -89,7 +81,7 @@
     <script>
         // ---------- SETELAN APLIKASI (UBAH DI SINI SAJA) ----------
         window.isDevMode = false;            // false untuk production
-        window.APP_VERSION = '2.0.0';
+        window.APP_VERSION = '2.0.1';
         window.SITE_TITLE = 'KupasTarif';
         window.SITE_DISPLAY = 'Kupas⚡Tarif';
         window.SITE_ICON = '⚡';
@@ -190,7 +182,7 @@
 
             <div id="loading-text" style="font-size: 0.875rem; color: #94a3b8; text-align: center; min-height: 2.5em; line-height: 1.6; padding: 0 8px;"></div>
 
-            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0.0</div>
+            <div style="font-size: 0.625rem; color: #64748b; margin-top: -8px;">v2.0.1</div>
 
             <button id="loading-reload-button" style="padding: 8px 24px; background-color: #00a86b; color: white; border: none; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; display: none;">⟲ Muat Ulang</button>
         </div>
@@ -317,27 +309,5 @@
 </body>
 </html>
 <!--
-// ================================= CHANGELOG =================================
-// 2.0.0-rev4 : - Hapus seluruh native bridge untuk GPS background (pindah ke gps.js).
-//               - GPS kini menjadi SSOT (Single Source of Truth) untuk semua
-//                 kebutuhan lokasi dan notifikasi, baik web maupun Android.
-//               - Notifikasi Android muncul/hilang otomatis melalui gps.js.
-//               - Bersihkan kode dari duplikasi logika platform.
-//
-// 2.0.0-rev3 : - Aktifkan requestPermissions:true pada addWatcher.
-//               - Tambahkan guard di start() untuk mencegah watcher ganda.
-//               - Tambahkan permintaan izin notifikasi eksplisit.
-//               - Sinkronkan properti _started pada window.__nativeBG.
-//
-// 2.0.0-rev2 : Perbaikan total bridge Capacitor untuk background GPS.
-//             - Menggunakan addWatcher() sesuai dokumentasi @capgo/background-geolocation v8
-//             - Menghapus configure() dan start() yang usang dan konflik
-//             - Meminta izin notifikasi secara terpisah sebelum memulai background service
-//             - Menangani izin lokasi dan notifikasi dengan urutan yang benar untuk Android 13+
-//             - Menggunakan checkPermissions() untuk mencegah double request
-//
-// 2.0.0-rev1 : Percobaan perbaikan dengan configure() + start() (gagal)
-// 2.0.0-rev0 : Rilis stabil 2.0.0. Service Worker dinonaktifkan di Android.
-//
 // ================================ End Of File ================================
 -->
