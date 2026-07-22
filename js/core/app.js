@@ -1,12 +1,13 @@
 /**
  * =================================================================================
  * FILE         : /js/core/app.js
- * FILE VERSION : 2.0.1-rev1
+ * FILE VERSION : 2.0.1-rev2
  * APP VERSION  : 2.0.1
- * DATE         : 17 Juli 2026
+ * DATE         : 22 Juli 2026
  * @author      : gk
  *
  * CHANGELOG  :
+ * - rev2: Perbaikan checkForUpdate menggunakan compareVersions semantik
  *
  * =================================================================================
  */
@@ -14,7 +15,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.1-rev1';
+const F_V = '2.0.1-rev2';
 
 import { StateManager, StateEvents } from './state.js';
 import { StorageManager } from './storage.js';
@@ -260,7 +261,29 @@ function setupLoadingOverlayListener() {
 }
 
 // =============================================================================
-// 6. [UPDATE] FUNGSI CEK UPDATE
+// 6. FUNGSI PEMBANDING VERSI (UNTUK UPDATE)
+// =============================================================================
+
+/**
+ * Membandingkan dua versi semantik (major.minor.patch).
+ * @param {string} v1 - Versi pertama
+ * @param {string} v2 - Versi kedua
+ * @returns {number} 1 jika v1 > v2, -1 jika v1 < v2, 0 jika sama
+ */
+function compareVersions(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const num1 = parts1[i] || 0;
+        const num2 = parts2[i] || 0;
+        if (num1 > num2) return 1;
+        if (num1 < num2) return -1;
+    }
+    return 0;
+}
+
+// =============================================================================
+// 7. [UPDATE] FUNGSI CEK UPDATE
 // =============================================================================
 
 /**
@@ -271,7 +294,7 @@ function setupLoadingOverlayListener() {
  * - Jika tidak ada update, hapus state updateAvailable.
  */
 window.checkForUpdate = async function(manual = false) {
-    window.log.info('[App ' + F_V + '] (6a) checkForUpdate dipanggil, manual=' + manual);
+    window.log.info('[App ' + F_V + '] (7a) checkForUpdate dipanggil, manual=' + manual);
     try {
         const currentVersion = window.APP_VERSION || '2.0.1-beta';
         // Ganti dengan username/repo Anda
@@ -283,9 +306,10 @@ window.checkForUpdate = async function(manual = false) {
 
         // Ambil versi terbaru dari tag (hilangkan prefiks 'v')
         const latestVersion = data.tag_name.replace(/^v/, '');
-        window.log.info('[App ' + F_V + '] (6b) Versi terbaru: ' + latestVersion + ', versi saat ini: ' + currentVersion);
+        window.log.info('[App ' + F_V + '] (7b) Versi terbaru: ' + latestVersion + ', versi saat ini: ' + currentVersion);
 
-        if (latestVersion !== currentVersion) {
+        // PERBAIKAN: Gunakan compareVersions untuk perbandingan semantik
+        if (compareVersions(latestVersion, currentVersion) > 0) {
             // Cari asset APK
             const asset = data.assets.find(a => a.name.endsWith('.apk'));
             const downloadUrl = asset ? asset.browser_download_url : data.html_url;
@@ -297,16 +321,16 @@ window.checkForUpdate = async function(manual = false) {
             if (window.ThemeManager) {
                 window.ThemeManager.showToast(`Update tersedia: v${latestVersion}`, 'info', 5000);
             }
-            window.log.info('[App ' + F_V + '] (6c) Update tersedia');
+            window.log.info('[App ' + F_V + '] (7c) Update tersedia');
         } else {
             StateManager.set('updateAvailable', null);
             if (manual && window.ThemeManager) {
                 window.ThemeManager.showToast('Aplikasi sudah versi terbaru', 'success', 3000);
             }
-            window.log.info('[App ' + F_V + '] (6d) Tidak ada update');
+            window.log.info('[App ' + F_V + '] (7d) Tidak ada update');
         }
     } catch (e) {
-        window.log.warn('[App ' + F_V + '] (6e) Gagal cek update:', e.message);
+        window.log.warn('[App ' + F_V + '] (7e) Gagal cek update:', e.message);
         if (manual && window.ThemeManager) {
             window.ThemeManager.showToast('Gagal cek update: ' + e.message, 'error', 3000);
         }
@@ -315,7 +339,7 @@ window.checkForUpdate = async function(manual = false) {
 };
 
 // =============================================================================
-// 7. FUNGSI INISIALISASI APLIKASI
+// 8. FUNGSI INISIALISASI APLIKASI
 // =============================================================================
 
 async function initializeApp() {
@@ -381,7 +405,7 @@ async function initializeApp() {
 }
 
 // =============================================================================
-// 8. GLOBAL ERROR HANDLING
+// 9. GLOBAL ERROR HANDLING
 // =============================================================================
 
 function handleGlobalError(event) {
@@ -405,7 +429,7 @@ window.addEventListener('error', handleGlobalError);
 window.addEventListener('unhandledrejection', handleGlobalError);
 
 // =============================================================================
-// 9. EVENT LISTENER UNTUK RELOAD BUTTON
+// 10. EVENT LISTENER UNTUK RELOAD BUTTON
 // =============================================================================
 
 if (reloadButton) {
@@ -416,7 +440,7 @@ if (reloadButton) {
 }
 
 // =============================================================================
-// 10. INISIALISASI - DENGAN GUARD CAPACITOR NATIVE BRIDGE
+// 11. INISIALISASI - DENGAN GUARD CAPACITOR NATIVE BRIDGE
 // =============================================================================
 function bootstrapApp() {
     // Jika berjalan di perangkat native (Android/iOS), tunggu event 'deviceready'
@@ -437,7 +461,7 @@ function bootstrapApp() {
 bootstrapApp();
 
 // =============================================================================
-// 11. EKSPOR
+// 12. EKSPOR
 // =============================================================================
 
 export const App = {
@@ -450,6 +474,6 @@ if (typeof window !== 'undefined') {
     window.App = App;
 }
 
-window.log.info('[App ' + F_V + '] (22) App core dimuat (dengan fitur update)');
+window.log.info('[App ' + F_V + '] (22) App core dimuat (dengan fitur update & compareVersions)');
 
 // ================================ End Of File ================================
