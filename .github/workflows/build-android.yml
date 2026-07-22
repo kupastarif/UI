@@ -12,65 +12,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ==============================================
-      # 0. Checkout kode
-      # ==============================================
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ==============================================
-      # 1. Setup Node.js
-      # ==============================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      # ==============================================
-      # 2. Install dependencies
-      # ==============================================
       - name: Install dependencies
         run: npm install
 
-      # ==============================================
-      # 3. Setup Java
-      # ==============================================
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21'
 
-      # ==============================================
-      # 4. Setup Android SDK & Accept Licenses
-      # ==============================================
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses
 
-      # ==============================================
-      # 5. Tentukan versionCode otomatis (YYYYMMDDHHMM)
-      # ==============================================
       - name: Set versionCode
         run: |
           VERSION_CODE=$(date +'%Y%m%d%H%M')
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "Version code set to $VERSION_CODE"
 
-      # ==============================================
-      # 6. Siapkan folder public (web assets)
-      # ==============================================
       - name: Prepare web directory
         run: |
           mkdir public
           cp -r assets/ engine/ js/ index.html manifest.json sw.js public/
-          echo "Web files copied to public/"
 
-      # ==============================================
-      # 7. Init Capacitor
-      # ==============================================
       - name: Init Capacitor
         run: |
           npx cap init KupasTarif kupastarif.gk.app.id --web-dir=public
@@ -78,23 +53,13 @@ jobs:
       - name: Set webDir to public
         run: |
           sed -i 's/"webDir": ".*"/"webDir": "public"/' capacitor.config.json
-          cat capacitor.config.json
 
-      # ==============================================
-      # 8. Hapus folder android jika ada (clean state)
-      # ==============================================
       - name: Remove existing android folder
         run: rm -rf android || true
 
-      # ==============================================
-      # 9. Add Android platform (biarkan Capacitor buat file default)
-      # ==============================================
       - name: Add Android platform
         run: npx cap add android
 
-      # ==============================================
-      # 10. Tambahkan izin ke AndroidManifest
-      # ==============================================
       - name: Add required permissions to AndroidManifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -115,17 +80,26 @@ jobs:
               sed -i "/<manifest/a\    <uses-permission android:name=\"$perm\" />" $MANIFEST
             fi
           done
-          echo "All required permissions injected"
 
-      # ==============================================
-      # 11. MODIFIKASI build.gradle (tanpa membuat ulang)
-      # ==============================================
-      - name: Configure build.gradle
+      - name: Configure build.gradle (hardcode versions + signing)
         run: |
           # Ganti versionCode dan versionName
           sed -i "s/versionCode .*/versionCode ${{ env.VERSION_CODE }}/" android/app/build.gradle
           VERSION_NAME=$(node -p "require('./package.json').version")
           sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+
+          # Hardcode semua variabel versi menjadi nilai literal
+          sed -i 's/\$androidxAppCompatVersion/'\''1.6.1'\''/g' android/app/build.gradle
+          sed -i 's/\$androidxCoordinatorLayoutVersion/'\''1.2.0'\''/g' android/app/build.gradle
+          sed -i 's/\$coreSplashScreenVersion/'\''1.0.1'\''/g' android/app/build.gradle
+          sed -i 's/\$junitVersion/'\''4.13.2'\''/g' android/app/build.gradle
+          sed -i 's/\$androidxJunitVersion/'\''1.1.5'\''/g' android/app/build.gradle
+          sed -i 's/\$androidxEspressoCoreVersion/'\''3.5.1'\''/g' android/app/build.gradle
+
+          # Hardcode compileSdk, minSdk, targetSdk
+          sed -i 's/compileSdk .*/compileSdk 34/' android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 29/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
 
           # Tambahkan signingConfigs sebelum buildTypes
           sed -i '/buildTypes {/i\
@@ -141,38 +115,17 @@ jobs:
           # Tambahkan signingConfig di dalam release
           sed -i '/release {/a\            signingConfig signingConfigs.release' android/app/build.gradle
 
-          # PERBAIKAN UTAMA: Tambahkan rootProject.ext. ke semua variabel dependensi
-          sed -i 's/\$androidxAppCompatVersion/$rootProject.ext.androidxAppCompatVersion/g' android/app/build.gradle
-          sed -i 's/\$androidxCoordinatorLayoutVersion/$rootProject.ext.androidxCoordinatorLayoutVersion/g' android/app/build.gradle
-          sed -i 's/\$coreSplashScreenVersion/$rootProject.ext.coreSplashScreenVersion/g' android/app/build.gradle
-          sed -i 's/\$junitVersion/$rootProject.ext.junitVersion/g' android/app/build.gradle
-          sed -i 's/\$androidxJunitVersion/$rootProject.ext.androidxJunitVersion/g' android/app/build.gradle
-          sed -i 's/\$androidxEspressoCoreVersion/$rootProject.ext.androidxEspressoCoreVersion/g' android/app/build.gradle
+          # Tampilkan hasil untuk debugging
+          echo "===== MODIFIED build.gradle ====="
+          cat android/app/build.gradle
 
-          echo "build.gradle configured with versionCode=${{ env.VERSION_CODE }}, signing, and rootProject.ext fixes."
-
-      # ==============================================
-      # 12. Pulihkan keystore dari secret
-      # ==============================================
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/keystore.jks
 
-      # ==============================================
-      # 13. Sync Capacitor
-      # ==============================================
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # ==============================================
-      # 14. (Optional) Tampilkan build.gradle untuk debug
-      # ==============================================
-      - name: Show build.gradle for debugging
-        run: cat android/app/build.gradle
-
-      # ==============================================
-      # 15. Buat colors.xml
-      # ==============================================
       - name: Create colors.xml
         run: |
           mkdir -p android/app/src/main/res/values
@@ -183,9 +136,6 @@ jobs:
           </resources>
           EOF
 
-      # ==============================================
-      # 16. Copy Launcher Icons
-      # ==============================================
       - name: Copy Launcher Icons
         run: |
           mkdir -p android/app/src/main/res/mipmap-mdpi
@@ -193,28 +143,22 @@ jobs:
           mkdir -p android/app/src/main/res/mipmap-xhdpi
           mkdir -p android/app/src/main/res/mipmap-xxhdpi
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
           cp public/assets/img/icon48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
           cp public/assets/img/icon72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
           cp public/assets/img/icon96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
           cp public/assets/img/icon144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
           cp public/assets/img/icon192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
-      # ==============================================
-      # 17. Adaptive Icon XML
-      # ==============================================
       - name: Create Adaptive Icon XML
         run: |
           mkdir -p android/app/src/main/res/mipmap-anydpi-v26
@@ -226,17 +170,11 @@ jobs:
           </adaptive-icon>
           EOF
 
-      # ==============================================
-      # 18. Copy Notification Icon
-      # ==============================================
       - name: Copy notification icon
         run: |
           mkdir -p android/app/src/main/res/drawable
           cp public/assets/img/icon72.png android/app/src/main/res/drawable/ic_notification.png
 
-      # ==============================================
-      # 19. Build Release APK
-      # ==============================================
       - name: Build Release APK
         run: |
           cd android
@@ -248,9 +186,6 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      # ==============================================
-      # 20. Upload APK
-      # ==============================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -258,9 +193,6 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 3
 
-      # ==============================================
-      # 21. Clean up
-      # ==============================================
       - name: Clean temporary build folders
         continue-on-error: true
         run: |
