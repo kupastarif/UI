@@ -1,4 +1,4 @@
-name: Build Android APK (Release with Signing)
+name: Build Android APK (Release Signing)
 
 on:
   push:
