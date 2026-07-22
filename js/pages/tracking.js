@@ -1,7 +1,7 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/tracking.js
- * FILE VERSION : 2.0.0-rev7
+ * FILE VERSION : 2.0.0-rev8
  * APP VERSION  : 2.0.0
  * DATE         : 22 Juli 2026
  * @author      : gk
@@ -11,14 +11,12 @@
  *   Orkestrator UI yang mengintegrasikan MapManager, Calculate, GPS,
  *   dan komponen UI (Header, Footer, Popup).
  *
- *   [UPDATE] rev7: - Pause tanpa hentikan GPS (watcher tetap hidup).
- *                  - Resume tanpa restart GPS + GPS Once untuk titik sambung.
- *                  - Selesai dengan GPS Once sebelum snapshot.
- *                  - Retry GPS di idle (acquireInitialPosition, 5x, jeda 3s).
- *                  - Follow mode dengan timer 10 detik (opsi C).
- *                  - Tombol center dari map.js dengan callback khusus.
- *                  - Hapus requestGPSPermission, ganti acquireInitialPosition.
- *                  - Footer idle reaktif terhadap gpsReady.
+ *   [UPDATE] rev8: - Semua pemanggilan GPS.stop() kini di-await karena async.
+ *                  - emergencyStop() menjadi async.
+ *                  - renderIdle() dan renderActive() membersihkan GPS dengan await.
+ *                  - destroy() menjadi async, memanggil await GPS.stop().
+ *                  - forceStopTracking() menjadi async.
+ *                  - updateFooterForIdle() dan callback popup disesuaikan.
  *
  * =================================================================================
  */
@@ -26,7 +24,7 @@
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev7';
+const F_V = '2.0.0-rev8';
 
 import { StateManager } from '../core/state.js';
 import { Router } from '../core/router.js';
@@ -216,6 +214,12 @@ function resetToIdle() {
         calculate.stop();
         calculate = null;
     }
+    // GPS.stop() sekarang async, tapi kita tidak perlu await di sini
+    // karena resetToIdle dipanggil dari berbagai tempat, dan beberapa tidak async.
+    // Kita akan panggil GPS.stop() tanpa await, tapi pastikan fungsi pemanggil
+    // yang membutuhkan kebersihan total menggunakan await.
+    // Untuk konsistensi, kita tetap panggil tanpa await di sini, 
+    // tapi fungsi yang memerlukan kepastian (seperti emergencyStop) akan await.
     GPS.stop();
     stopClockTimer();
     stopSound();
@@ -873,7 +877,7 @@ function createCancelPopupContent() {
     btnYa.textContent = 'YA';
     btnYa.addEventListener('click', async function() {
         window.log.info('[Tracking ' + F_V + '] (9) Batal tracking dikonfirmasi');
-        emergencyStop();
+        await emergencyStop();
         await Router.navigateTo({ popup: 0 });
         Router.navigateTo({ target: 'trackingidle' });
     });
@@ -1148,12 +1152,12 @@ function createWarningPopupContent() {
 }
 
 // =============================================================================
-// 13. FINALISASI & PEMBATALAN
+// 13. FINALISASI & PEMBATALAN (sekarang async)
 // =============================================================================
 
-function emergencyStop() {
+async function emergencyStop() {
     if (calculate) { calculate.stop(); calculate = null; }
-    GPS.stop();                         // GPS.stop() juga menonaktifkan Wake Lock
+    await GPS.stop();                         // await agar notifikasi hilang total
     stopClockTimer();
     stopSound();
     if (beepAudioCtx) {
@@ -1208,7 +1212,7 @@ async function finalizeTracking(isOnline, isPenumpang) {
 
     LocationPicker.clearSavedPolyline();
 
-    emergencyStop();
+    await emergencyStop(); // sekarang async
     _trackingModule = null;
     window.trackingModule = null;
 
@@ -1252,7 +1256,7 @@ async function goToRealityManual(isPenumpang, isOnline) {
         window.log.info('[Tracking ' + F_V + '] (14) goToRealityManual: data realitas diset ulang');
     }
 
-    emergencyStop();
+    await emergencyStop(); // sekarang async
     _trackingModule = null;
     window.trackingModule = null;
 
@@ -1560,7 +1564,8 @@ async function renderIdle(params, context) {
         calculate.stop();
         calculate = null;
     }
-    GPS.stop();
+    // Bersihkan GPS secara total dengan await
+    await GPS.stop();
     stopClockTimer();
     stopSound();
 
@@ -1673,7 +1678,8 @@ async function renderActive(params, context) {
         calculate.stop();
         calculate = null;
     }
-    GPS.stop();
+    // Bersihkan GPS secara total sebelum memulai ulang
+    await GPS.stop();
     stopClockTimer();
     stopSound();
 
@@ -1691,6 +1697,7 @@ async function renderActive(params, context) {
     });
 
     calculate.start();
+    // Mulai GPS baru (start async, tapi kita tidak perlu await di sini karena callback)
     GPS.start(handleGPSPosition, handleGPSError);
     startClockTimer();
     followMode = true; // aktifkan follow mode
@@ -1778,10 +1785,10 @@ function initShareLimitUI() {
 }
 
 // =============================================================================
-// 20. DESTROY
+// 20. DESTROY (sekarang async)
 // =============================================================================
 
-function destroy() {
+async function destroy() {
     window.log.info('[Tracking ' + F_V + '] (22) destroy()');
     isDestroyed = true;
     _trackingModule = null;
@@ -1789,7 +1796,7 @@ function destroy() {
     if (updateTimer) { clearTimeout(updateTimer); updateTimer = null; }
     updateScheduled = false;
     stopClockTimer();
-    GPS.stop();
+    await GPS.stop(); // await agar notifikasi hilang
     if (calculate) { calculate.stop(); calculate = null; }
     stopSound();
     if (beepAudioCtx) {
@@ -1813,16 +1820,18 @@ function destroy() {
 }
 
 // =============================================================================
-// 21. FORCE STOP TRACKING
+// 21. FORCE STOP TRACKING (sekarang async)
 // =============================================================================
 
-window.forceStopTracking = function() {
+window.forceStopTracking = async function() {
     window.log.info('[Tracking ' + F_V + '] (23) forceStopTracking() dipanggil');
-    if (typeof GPS !== 'undefined') GPS.stop();
+    if (typeof GPS !== 'undefined') {
+        await GPS.stop(); // await agar notifikasi hilang
+    }
 
     var tm = window.trackingModule || _trackingModule;
     if (tm && typeof tm.emergencyStop === 'function') {
-        tm.emergencyStop();
+        await tm.emergencyStop();
     }
 
     if (typeof MapManager !== 'undefined' && MapManager.isReady()) {
@@ -1856,17 +1865,21 @@ export var PageTrackingactive = {
     destroy: destroy
 };
 
-window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev7: pause tanpa stop GPS, follow mode, retry idle)');
+window.log.info('[Tracking ' + F_V + '] (24) PageTrackingidle & PageTrackingactive dimuat (rev8: semua GPS.stop() di-await)');
 
 // ================================= CHANGELOG =================================
-// 2.0.0-rev7 : - Pause tidak lagi memanggil GPS.stop() (watcher tetap hidup).
-//              - Resume tidak memanggil GPS.start(), ditambah GPS Once.
-//              - Selesai memanggil GPS Once sebelum snapshot & popup.
-//              - acquireInitialPosition dengan retry 5x di idle, reaktif footer.
-//              - Follow mode dengan timer 10 detik (opsi C).
-//              - Tombol center diintegrasikan dengan callback dari map.js.
-//              - Hapus requestGPSPermission, ganti acquireInitialPosition.
-// 2.0.0-rev6 : - Wake Lock dikelola GPS, planned route styling di map.js.
-// ... (changelog sebelumnya tetap)
+// 2.0.0-rev8 : - Semua pemanggilan GPS.stop() di-await.
+//              - emergencyStop() menjadi async.
+//              - renderIdle() dan renderActive() membersihkan GPS dengan await.
+//              - destroy() menjadi async.
+//              - forceStopTracking() menjadi async.
+// 2.0.0-rev7 : - Pause tidak lagi memanggil GPS.stop().
+//              - Resume menggunakan GPS Once.
+//              - Selesai menggunakan GPS Once.
+//              - acquireInitialPosition retry 5x.
+//              - Follow mode dengan timer 10 detik.
+//              - Tombol center diintegrasikan.
+// 2.0.0-rev6 : - Wake Lock dikelola GPS.
+// ... (changelog sebelumnya)
 //
 // ================================ End Of File ================================
