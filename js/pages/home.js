@@ -1,9 +1,9 @@
 /**
  * =================================================================================
  * FILE         : /js/pages/home.js
- * FILE VERSION : 2.0.0-rev3
+ * FILE VERSION : 2.0.0-rev4
  * APP VERSION  : 2.0.0
- * DATE         : 2 Juli 2026
+ * DATE         : 22 Juli 2026
  * @author      : gk
  *
  * DESCRIPTION  :
@@ -11,15 +11,19 @@
  *   Router.navigateTo(). Input kendaraan dikelola melalui StateManager.
  *   Akses data statis Engine melalui Output, orkestrasi melalui Cache.
  *
+ *   [UPDATE] rev4: Menambahkan footer versi dengan perbedaan platform:
+ *   - Android: menampilkan status update (dari StateManager.updateAvailable)
+ *   - Web: langsung menampilkan versi dan membuka link release saat diklik.
+ *
  * =================================================================================
  */
 
 'use strict';
 
 // ==================== VERSI FILE ====================
-const F_V = '2.0.0-rev3';
+const F_V = '2.0.0-rev4';
 
-import { StateManager } from '../core/state.js';
+import { StateManager, StateEvents } from '../core/state.js';
 import { Router } from '../core/router.js';
 import { PreferencesManager } from '../core/preferences.js';
 import { StorageManager } from '../core/storage.js';
@@ -47,8 +51,8 @@ const ICON = {
     TROPHY: '🏆',
     MENU: '☰',
     RANDOM: '🎲',
-    MAINTENANCE: '🔧',   // ← Tambahan
-    OFFLINE: '📴'       // v2.0.0-rev2: untuk tombol Cek Tarif Offline
+    MAINTENANCE: '🔧',
+    OFFLINE: '📴'
 };
 
 // =============================================================================
@@ -70,13 +74,6 @@ function loadData() {
         const history = StorageManager.getHistory();
         battleStats = calculateBattleStats(history);
     }
-    //if (Texts?.getRandomQuote) {
-    //    quote = Texts.getRandomQuote({
-    //        driverPercent: battleStats.driver.percent,
-    //        appPercent: battleStats.app.percent,
-    //        totalMatch: battleStats.totalMatch
-    //    });
-    //}
     preferences = StateManager.get('preferences') || PreferencesManager.load();
     window.log.info('[Home ' + F_V + '] (1) loadData selesai');
 }
@@ -94,7 +91,6 @@ function prepareOrderData(mode, role, vehicle) {
         E24: vehicle?.fuel || 'Pertalite'
     });
     StateManager.set('calcMode', 'standard');
-    // Invalidasi cache order agar perhitungan ulang
     if (window.Cache) {
         window.Cache.invalidate('order');
     }
@@ -138,7 +134,6 @@ function handleVehicleClick(vehicleMode) {
         return;
     }
 
-    // Tampilkan popup role
     StateManager.set('popupVehicleMode', vehicleMode);
     Router.navigateTo({ target: 'popup11' });
 }
@@ -147,10 +142,6 @@ function handleVehicleClick(vehicleMode) {
 // 5. KONTEN POPUP (dengan _popupOptions)
 // =============================================================================
 
-/**
- * Membuat konten popup pemilihan peran.
- * v2.0.0-rev3: tombol "Cek Tarif Offline" menyetel E36 ke 'offline'.
- */
 function createRolePopupContent(mode) {
     const areaOptions = getDropdownOptions('E20') || ['Jabodetabek', 'SumatraJawa', 'TimurIndonesia'];
     const ccOptions = getDropdownOptions('E22', { E10: mode }) ||
@@ -158,7 +149,6 @@ function createRolePopupContent(mode) {
     const fuelOptions = getDropdownOptions('E24', { E22: mode === 'Mobil' ? '1000cc' : '125cc' }) || ['Pertalite'];
 
     const container = document.createElement('div');
-    // v2.0.0-rev2: tambahkan tombol CEK TARIF OFFLINE sebelum SAYA DRIVER
     container.innerHTML = `
         <div class="popup-role-content">
             <button class="btn btn-primary btn-block mb-md" data-action="driver">${ICON.DRIVER} SAYA DRIVER</button>
@@ -185,22 +175,15 @@ function createRolePopupContent(mode) {
                 fuel: document.getElementById('popup-fuel')?.value || 'Pertalite'
             };
 
-            // v2.0.0-rev3: penanganan khusus tombol CEK TARIF OFFLINE
             if (action === 'cek-offline') {
-                // 1. Abaikan penyimpanan preferensi (tidak simpan quick order)
-                // 2. Set flag agar halaman Order tahu ini hanya cek tarif
                 StateManager.set('isCheckOffline', true);
-                // 3. Paksa mode offline dengan mengatur E36
                 StateManager.updateInput('E36', 'offline');
-                // 4. Siapkan data order dengan role default Driver
                 prepareOrderData(mode, 'Driver', vehicle);
-                // 5. Tutup popup dan navigasi ke halaman Order
                 Router.navigateTo({ popup: 0 });
                 setTimeout(() => Router.navigateTo({ target: 'order' }), 0);
-                return; // Hentikan eksekusi, jangan lanjut ke penyimpanan preferensi
+                return;
             }
 
-            // Logika penyimpanan preferensi untuk tombol lain
             if (saveCheck?.checked && PreferencesManager) {
                 const prefs = StateManager.get('preferences') || {};
                 prefs.quickOrder = true;
@@ -216,7 +199,6 @@ function createRolePopupContent(mode) {
                 window.log.info('[Home ' + F_V + '] (5) Popup role: preferensi disimpan');
             }
 
-            // Tutup popup, lalu navigasi ke halaman tujuan
             Router.navigateTo({ popup: 0 });
             if (action === 'operasional') {
                 prepareTrackingData(mode, vehicle);
@@ -416,16 +398,68 @@ function renderBattleStats() {
     </div>`;
 }
 
+// =============================================================================
+// 7b. FOOTER VERSI (update)
+// =============================================================================
+
+function updateVersionFooter() {
+    const footer = document.getElementById('home-version-footer');
+    if (!footer) return;
+
+    const isNative = window.__platform?.isNative || false;
+    const version = window.APP_VERSION || '2.0.0';
+    const releaseUrl = 'https://github.com/kupastarif/calc/releases';
+
+    if (isNative) {
+        // ANDROID: tampilkan status update dari StateManager
+        const update = StateManager.get('updateAvailable');
+        if (update) {
+            footer.innerHTML = `<span class="version-text update-available">⚡ ada versi terbaru ⚡</span>`;
+            footer.onclick = function(e) {
+                e.stopPropagation();
+                window.open(update.url || releaseUrl, '_blank');
+            };
+            footer.style.cursor = 'pointer';
+        } else {
+            footer.innerHTML = `<span class="version-text">Kupas⚡Tarif versi ${version}</span>`;
+            footer.onclick = function(e) {
+                e.stopPropagation();
+                if (typeof window.checkForUpdate === 'function') {
+                    window.checkForUpdate(true);
+                } else {
+                    window.ThemeManager?.showToast('Fungsi cek update tidak tersedia', 'error');
+                }
+            };
+            footer.style.cursor = 'pointer';
+        }
+    } else {
+        // WEB: langsung buka release
+        footer.innerHTML = `<span class="version-text">Kupas⚡Tarif versi ${version}</span>`;
+        footer.onclick = function(e) {
+            e.stopPropagation();
+            window.open(releaseUrl, '_blank');
+        };
+        footer.style.cursor = 'pointer';
+    }
+}
+
+// =============================================================================
+// 8. BUILD HTML
+// =============================================================================
+
 function buildHTML() {
     return `<div class="page-container">
         ${renderQuote()}
         ${renderVehicleCards()}
         ${renderBattleStats()}
+        <div class="home-version-footer" id="home-version-footer">
+            <span class="version-text">Kupas⚡Tarif versi ${window.APP_VERSION || '2.0.0'}</span>
+        </div>
     </div>`;
 }
 
 // =============================================================================
-// 8. BIND EVENTS
+// 9. BIND EVENTS
 // =============================================================================
 
 function bindEvents() {
@@ -445,7 +479,7 @@ function bindEvents() {
 }
 
 // =============================================================================
-// 9. UPDATE HEADER & FOOTER
+// 10. UPDATE HEADER & FOOTER
 // =============================================================================
 
 function updateHeader() {
@@ -488,7 +522,7 @@ function updateFooter() {
 }
 
 // =============================================================================
-// 10. RENDER & DESTROY
+// 11. RENDER & DESTROY
 // =============================================================================
 
 async function render(params, context = {}) {
@@ -513,7 +547,25 @@ async function render(params, context = {}) {
     updateHeader();
     updateFooter();
 
-    window.log.info('[Home ' + F_V + '] (6) Home dirender dengan pembersihan penuh');
+    // Tampilkan footer versi yang benar (perbedaan platform)
+    updateVersionFooter();
+
+    // Pasang listener state hanya jika native (Android)
+    if (window.__platform?.isNative) {
+        // Hapus listener lama jika ada untuk mencegah duplikasi
+        if (window.__homeStateListener) {
+            StateEvents.off('state:change', window.__homeStateListener);
+        }
+        function onStateChange(data) {
+            if (data.key === 'updateAvailable') {
+                updateVersionFooter();
+            }
+        }
+        StateEvents.on('state:change', onStateChange);
+        window.__homeStateListener = onStateChange;
+    }
+
+    window.log.info('[Home ' + F_V + '] (6) Home dirender dengan pembersihan penuh dan footer versi');
 }
 
 function destroy() {
@@ -522,10 +574,15 @@ function destroy() {
         HeaderManager.destroy(currentHeader);
         currentHeader = null;
     }
+    // Hapus listener state jika ada
+    if (window.__homeStateListener) {
+        StateEvents.off('state:change', window.__homeStateListener);
+        delete window.__homeStateListener;
+    }
 }
 
 // =============================================================================
-// 11. EKSPOR
+// 12. EKSPOR
 // =============================================================================
 
 export const PageHome = {
@@ -547,6 +604,10 @@ window.log.info('[Home ' + F_V + '] (7) PageHome dimuat');
 // 2.0.0-rev3 : Perbaikan tombol "Cek Tarif Offline" agar menyetel E36 ke 'offline'
 //             sehingga halaman Order langsung terbuka dalam mode offline.
 //             Tombol footer menuju halaman perawatan.
+// 2.0.0-rev4 : Menambahkan footer versi dengan perbedaan platform:
+//             - Android: tampilkan status update dari StateManager.updateAvailable
+//             - Web: langsung tampilkan versi dan buka link release saat diklik.
+//             Pasang listener state hanya untuk Android.
 //
 // =============================== FUTURE UPDATE ===============================
 // - Tidak ada
